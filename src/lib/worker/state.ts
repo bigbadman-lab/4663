@@ -1,0 +1,84 @@
+import type {
+  ActiveTokenState,
+  Address,
+  WorkerMemoryModel,
+} from "@/lib/pons/types";
+import type { ActiveLaunchRow, FirstBuyerRow } from "@/lib/worker/db-types";
+import {
+  normalizeAddress,
+  timestampToUnixSeconds,
+} from "@/lib/worker/normalize";
+
+/**
+ * Reconstruct Stage 2 in-memory state from durable ACTIVE launches + buyers.
+ * Does NOT prune by wall clock — chain-time pruning happens later with real chain progress.
+ */
+export function reconstructWorkerMemory(
+  launches: ActiveLaunchRow[],
+  firstBuyers: FirstBuyerRow[],
+): WorkerMemoryModel {
+  const activeTokens = new Map<Address, ActiveTokenState>();
+  const confirmedBuyers = new Map<Address, Set<Address>>();
+  const rollingFirstBuyers = new Map<
+    Address,
+    { walletAddress: Address; firstBuyBlockTimestamp: number }[]
+  >();
+
+  for (const launch of launches) {
+    if (launch.status !== "active") continue;
+
+    const tokenAddress = normalizeAddress(launch.tokenAddress);
+    activeTokens.set(tokenAddress, {
+      tokenAddress,
+      marketAddress: normalizeAddress(launch.marketAddress),
+      factoryAddress: normalizeAddress(launch.factoryAddress),
+      factoryVersion: launch.factoryVersion,
+      launchTxHash: launch.launchTxHash,
+      launchBlock: launch.launchBlockNumber,
+      launchTimestamp: timestampToUnixSeconds(launch.launchBlockTimestamp),
+    });
+    confirmedBuyers.set(tokenAddress, new Set());
+    rollingFirstBuyers.set(tokenAddress, []);
+  }
+
+  // Sort buyers by chain timestamp ascending for queue order.
+  const sorted = [...firstBuyers].sort((a, b) => {
+    const ta = timestampToUnixSeconds(a.firstBuyBlockTimestamp);
+    const tb = timestampToUnixSeconds(b.firstBuyBlockTimestamp);
+    if (ta !== tb) return ta - tb;
+    return a.walletAddress.localeCompare(b.walletAddress);
+  });
+
+  for (const buyer of sorted) {
+    const tokenAddress = normalizeAddress(buyer.tokenAddress);
+    if (!activeTokens.has(tokenAddress)) {
+      // Buyers for non-active tokens are ignored during reconstruction.
+      continue;
+    }
+
+    const wallet = normalizeAddress(buyer.walletAddress);
+    const set = confirmedBuyers.get(tokenAddress)!;
+    if (set.has(wallet)) {
+      // Durable unique should prevent this; Set stays idempotent.
+      continue;
+    }
+    set.add(wallet);
+
+    rollingFirstBuyers.get(tokenAddress)!.push({
+      walletAddress: wallet,
+      firstBuyBlockTimestamp: timestampToUnixSeconds(
+        buyer.firstBuyBlockTimestamp,
+      ),
+    });
+  }
+
+  return {
+    activeTokens,
+    confirmedBuyers,
+    rollingFirstBuyers,
+  };
+}
+
+export function activeTokenCount(memory: WorkerMemoryModel): number {
+  return memory.activeTokens.size;
+}
