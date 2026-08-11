@@ -129,6 +129,23 @@ async function main(): Promise<void> {
     process.exitCode = 2;
   }
 
+  // After durable buyers (+ optional cursor), evaluate lifecycle at range tip block time.
+  if (result.fullyProcessed && memory.activeTokens.size > 0) {
+    const { evaluateLifecycleAtProcessedBlock } = await import(
+      "@/lib/worker/pons/lifecycle"
+    );
+    const life = await evaluateLifecycleAtProcessedBlock({
+      rpc,
+      supabase,
+      chainId: config.chainId,
+      memory,
+      evaluationBlockNumber: args.toBlock,
+    });
+    workerLog(
+      `lifecycle fired=${life.fired} expired=${life.expired} fireFail=${life.fireOperationalFailures} notEligible=${life.notEligible}`,
+    );
+  }
+
   if (!result.fullyProcessed) process.exitCode = 1;
 }
 

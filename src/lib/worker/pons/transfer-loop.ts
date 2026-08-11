@@ -16,6 +16,10 @@ import { TRANSFER_SCAN_MAX_CHUNK_BLOCKS } from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerLog } from "@/lib/worker/log";
 import { catchUpFactoryCursor } from "@/lib/worker/pons/factory-loop";
+import {
+  evaluateLifecycleAtProcessedBlock,
+  type LifecycleEvaluationResult,
+} from "@/lib/worker/pons/lifecycle";
 import { scanTransferRange } from "@/lib/worker/pons/transfer-scanner";
 import { loadCursor, upsertCursor } from "@/lib/worker/repositories/cursors";
 import type { WorkerSupabase } from "@/lib/worker/supabase";
@@ -29,6 +33,7 @@ export type TransferCatchUpResult = {
   advanced: boolean;
   blocked: boolean;
   failures: string[];
+  lifecycle: LifecycleEvaluationResult | null;
 };
 
 export async function catchUpTransferCursor(input: {
@@ -61,6 +66,7 @@ export async function catchUpTransferCursor(input: {
       advanced: false,
       blocked: false,
       failures: [],
+      lifecycle: null,
     };
   }
 
@@ -78,6 +84,18 @@ export async function catchUpTransferCursor(input: {
   }
 
   if (from > head) {
+    // No new Transfer range — still evaluate lifecycle at durable N so age-floor
+    // fires and expiry can advance with the last safely processed chain time.
+    const lifecycle =
+      input.memory.activeTokens.size > 0
+        ? await evaluateLifecycleAtProcessedBlock({
+            rpc: input.rpc,
+            supabase: input.supabase,
+            chainId: input.chainId,
+            memory: input.memory,
+            evaluationBlockNumber: cursor.lastProcessedBlock,
+          })
+        : null;
     return {
       head,
       lastProcessedBlock: cursor.lastProcessedBlock,
@@ -86,6 +104,7 @@ export async function catchUpTransferCursor(input: {
       advanced: false,
       blocked: false,
       failures: [],
+      lifecycle,
     };
   }
 
@@ -97,6 +116,7 @@ export async function catchUpTransferCursor(input: {
   let newFirstBuyers = 0;
   let advanced = false;
   const failures: string[] = [];
+  let lastLifecycle: LifecycleEvaluationResult | null = null;
   let next = from;
 
   while (next <= head) {
@@ -125,6 +145,7 @@ export async function catchUpTransferCursor(input: {
         advanced,
         blocked: true,
         failures: ["factory cursor missing"],
+        lifecycle: lastLifecycle,
       };
     }
 
@@ -163,6 +184,7 @@ export async function catchUpTransferCursor(input: {
           advanced,
           blocked: true,
           failures: ["factory lag"],
+          lifecycle: lastLifecycle,
         };
       }
     }
@@ -198,6 +220,7 @@ export async function catchUpTransferCursor(input: {
         advanced,
         blocked: true,
         failures,
+        lifecycle: lastLifecycle,
       };
     }
 
@@ -217,6 +240,7 @@ export async function catchUpTransferCursor(input: {
         advanced,
         blocked: true,
         failures: ["factory lag at commit"],
+        lifecycle: lastLifecycle,
       };
     }
 
@@ -228,6 +252,44 @@ export async function catchUpTransferCursor(input: {
     durableN = updated.lastProcessedBlock;
     advanced = true;
     workerLog(`cursor pons_transfers -> ${durableN}`);
+
+    // Lifecycle only after durable buyer truth + transfer cursor commit.
+    // Evaluation T = timestamp of the highest block fully processed here.
+    try {
+      lastLifecycle = await evaluateLifecycleAtProcessedBlock({
+        rpc: input.rpc,
+        supabase: input.supabase,
+        chainId: input.chainId,
+        memory: input.memory,
+        evaluationBlockNumber: durableN,
+      });
+      if (
+        lastLifecycle.fired > 0 ||
+        lastLifecycle.expired > 0 ||
+        lastLifecycle.fireOperationalFailures > 0
+      ) {
+        workerLog(
+          `lifecycle block=${durableN} fired=${lastLifecycle.fired} expired=${lastLifecycle.expired} fireFail=${lastLifecycle.fireOperationalFailures}`,
+        );
+      }
+    } catch (err) {
+      // Do not advance past failures silently — rethrow so outer layer may retry
+      // the same evaluation on next poll (cursor already at durableN; buyers durable).
+      const msg = err instanceof Error ? err.message : String(err);
+      workerLog(`lifecycle evaluation error at block ${durableN}: ${msg}`);
+      failures.push(`lifecycle: ${msg}`);
+      return {
+        head,
+        lastProcessedBlock: durableN,
+        rangesScanned,
+        newFirstBuyers,
+        advanced,
+        blocked: true,
+        failures,
+        lifecycle: lastLifecycle,
+      };
+    }
+
     next = durableN + 1;
   }
 
@@ -239,5 +301,6 @@ export async function catchUpTransferCursor(input: {
     advanced,
     blocked: false,
     failures,
+    lifecycle: lastLifecycle,
   };
 }

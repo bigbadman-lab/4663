@@ -23,14 +23,17 @@ export function tokenAgeSeconds(
 /**
  * Inclusive window: keep first buys with
  * chainTimestamp - windowSeconds <= t <= chainTimestamp
- * (equivalently drop t < chainTimestamp - windowSeconds).
+ * (drop t < T−window and t > T).
  */
 export function isInsideInclusiveWindow(
   firstBuyTimestamp: ChainUnixSeconds,
   chainTimestamp: ChainUnixSeconds,
   windowSeconds: number = EVENT_WINDOW_SECONDS,
 ): boolean {
-  return firstBuyTimestamp >= chainTimestamp - windowSeconds;
+  return (
+    firstBuyTimestamp >= chainTimestamp - windowSeconds &&
+    firstBuyTimestamp <= chainTimestamp
+  );
 }
 
 export function countInsideInclusiveWindow(
@@ -69,14 +72,15 @@ export function hasReachedWatchEnd(
 
 /**
  * Pure fire qualification (does not persist).
- * Requires age floor, chain time still within inclusive watch TTL,
- * and rolling unique-first count ≥ threshold.
+ * Requires age floor, inclusive watch TTL (age <= TTL), rolling unique-first count ≥ threshold.
  * Call only with timestamps of already-confirmed first buyers.
+ *
+ * Age eligibility:
+ *   EVENT_AGE_FLOOR_SECONDS <= age <= TOKEN_WATCH_TTL_SECONDS
  */
 export function isFireEligible(input: FireEligibilityInput): boolean {
   const age = tokenAgeSeconds(input.chainTimestamp, input.launchTimestamp);
   if (age < input.ageFloorSeconds) return false;
-  // Inclusive boundary: fire allowed at age == TTL, then expire if still active.
   if (age > input.watchTtlSeconds) return false;
 
   const count = countInsideInclusiveWindow(
@@ -85,6 +89,37 @@ export function isFireEligible(input: FireEligibilityInput): boolean {
     input.windowSeconds,
   );
   return count >= input.threshold;
+}
+
+/**
+ * After fire evaluation at T fails eligibility, may expire when age > TTL.
+ * At age == TTL, fire is still allowed first; expiry only when age > TTL
+ * (strict past the inclusive 60-minute boundary) OR age >= TTL after fire attempt
+ * when not fired — prefer age > TTL for exclusive past-boundary expiry.
+ *
+ * Stage 2/6: activity through age==3600 is valid; expire once evaluation time
+ * exceeds launch + TTL (age > 3600).
+ */
+export function isExpireEligible(
+  chainTimestamp: ChainUnixSeconds,
+  launchTimestamp: ChainUnixSeconds,
+  watchTtlSeconds: number = TOKEN_WATCH_TTL_SECONDS,
+): boolean {
+  return tokenAgeSeconds(chainTimestamp, launchTimestamp) > watchTtlSeconds;
+}
+
+/**
+ * Prune rolling queue in place to inclusive window ending at chainTimestamp.
+ * Mutates array order preserved (keeps chronological order of remaining).
+ */
+export function pruneRollingQueue(
+  timestamps: ChainUnixSeconds[],
+  chainTimestamp: ChainUnixSeconds,
+  windowSeconds: number = EVENT_WINDOW_SECONDS,
+): ChainUnixSeconds[] {
+  return timestamps.filter((t) =>
+    isInsideInclusiveWindow(t, chainTimestamp, windowSeconds),
+  );
 }
 
 export function defaultFireEligibility(

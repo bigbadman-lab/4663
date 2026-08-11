@@ -114,7 +114,7 @@ export function addActiveLaunchToMemory(
 
 /**
  * After durable first-buyer insert, update RAM.
- * Does not evaluate product events (Stage 6).
+ * Lifecycle evaluation runs after transfer range commit (chain-time prune + fire).
  * Does not wall-clock prune the rolling queue.
  */
 export function addFirstBuyerToMemory(

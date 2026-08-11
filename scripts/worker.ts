@@ -200,7 +200,7 @@ async function main(): Promise<void> {
       transferCatch.lastProcessedBlock,
     );
     workerLog(
-      `transfer catch-up: newBuyers=${transferCatch.newFirstBuyers} ranges=${transferCatch.rangesScanned} blocked=${transferCatch.blocked}`,
+      `transfer catch-up: newBuyers=${transferCatch.newFirstBuyers} ranges=${transferCatch.rangesScanned} blocked=${transferCatch.blocked} fired=${transferCatch.lifecycle?.fired ?? 0} expired=${transferCatch.lifecycle?.expired ?? 0}`,
     );
   } else {
     workerLog("no pons_transfers cursor — transfer scan idle until bootstrap");
@@ -267,6 +267,16 @@ async function main(): Promise<void> {
             onFactoryInserted: onLaunch,
           });
           latestChainBlock = t.head;
+          if (
+            t.lifecycle &&
+            (t.lifecycle.fired > 0 ||
+              t.lifecycle.expired > 0 ||
+              t.lifecycle.fireOperationalFailures > 0)
+          ) {
+            workerLog(
+              `poll lifecycle fired=${t.lifecycle.fired} expired=${t.lifecycle.expired} fireFail=${t.lifecycle.fireOperationalFailures}`,
+            );
+          }
         }
 
         const now = await loadKnownCursors(supabase, config.chainId);
