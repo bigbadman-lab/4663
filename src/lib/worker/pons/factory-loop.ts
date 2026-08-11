@@ -41,6 +41,11 @@ export async function catchUpFactoryCursor(input: {
   maxOuterRangeBlocks?: number;
   /** Stop after this many successful/partial outer ranges (smoke / once mode). */
   maxRanges?: number;
+  /**
+   * Stop once durable factory cursor is >= this block (inclusive).
+   * Used so Transfer scan can force factories only through the Transfer range end.
+   */
+  targetThroughBlock?: number;
   onInserted?: (launch: ResolvedPonsLaunch) => void;
 }): Promise<FactoryCatchUpResult> {
   const head = await input.rpc.getBlockNumber();
@@ -102,15 +107,32 @@ export async function catchUpFactoryCursor(input: {
   let advanced = false;
   const launches: ResolvedPonsLaunch[] = [];
   let next = from;
+  const upper =
+    input.targetThroughBlock !== undefined
+      ? Math.min(head, input.targetThroughBlock)
+      : head;
 
-  while (next <= head) {
+  if (from > upper) {
+    return {
+      head,
+      lastProcessedBlock: cursor.lastProcessedBlock,
+      rangesScanned: 0,
+      inserted: 0,
+      alreadyKnown: 0,
+      advanced: false,
+      blocked: false,
+      launches: [],
+    };
+  }
+
+  while (next <= upper) {
     if (
       input.maxRanges !== undefined &&
       rangesScanned >= input.maxRanges
     ) {
       break;
     }
-    const to = Math.min(next + outer - 1, head);
+    const to = Math.min(next + outer - 1, upper);
     workerLog(`factory scan ${next}-${to} (head=${head})`);
     const result = await scanFactoryRange({
       rpc: input.rpc,

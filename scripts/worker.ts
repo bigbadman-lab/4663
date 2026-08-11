@@ -1,12 +1,9 @@
 /**
- * Standalone persistent worker entrypoint.
+ * Standalone persistent worker.
  *
- * Stage 4: after pons_factories cursor bootstrap, polls chain head and
- * discovers PONS launches. No Transfer / PonsBuy scanning.
- *
- * Local:
- *   npm run worker
- *   npm run worker:once
+ * Stage 5 pipeline:
+ *   factories first → transfers for ACTIVE tokens → first buyers
+ * No rolling event emission.
  */
 
 import { config as loadDotenv } from "dotenv";
@@ -30,9 +27,8 @@ import {
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerError, workerLog } from "@/lib/worker/log";
 import { catchUpFactoryCursor } from "@/lib/worker/pons/factory-loop";
-import {
-  loadKnownCursors,
-} from "@/lib/worker/repositories/cursors";
+import { catchUpTransferCursor } from "@/lib/worker/pons/transfer-loop";
+import { loadKnownCursors } from "@/lib/worker/repositories/cursors";
 import { loadFirstBuyersForTokens } from "@/lib/worker/repositories/first-buyers";
 import { loadActiveLaunches } from "@/lib/worker/repositories/launches";
 import { upsertWorkerHealth } from "@/lib/worker/repositories/worker-health";
@@ -77,6 +73,17 @@ async function writeHeartbeat(
   });
 }
 
+function highestProcessed(
+  factoryN: number | null | undefined,
+  transferN: number | null | undefined,
+): number | null {
+  const vals = [factoryN, transferN].filter(
+    (n): n is number => typeof n === "number",
+  );
+  if (vals.length === 0) return null;
+  return Math.max(...vals);
+}
+
 async function main(): Promise<void> {
   const once = process.argv.includes("--once");
 
@@ -98,9 +105,7 @@ async function main(): Promise<void> {
   workerLog(`factories v1+v2 ready`);
 
   let cursors = await loadKnownCursors(supabase, config.chainId);
-  const startupPlans = prepareStartupCursors(cursors);
-
-  for (const plan of startupPlans) {
+  for (const plan of prepareStartupCursors(cursors)) {
     workerLog(
       formatCursorLog(
         plan.streamName,
@@ -109,8 +114,6 @@ async function main(): Promise<void> {
       ),
     );
   }
-
-  void CURSOR_STREAM_PONS_TRANSFERS;
 
   const launches = await loadActiveLaunches(supabase, config.chainId);
   const tokenAddresses = launches.map((l) => l.tokenAddress);
@@ -125,8 +128,10 @@ async function main(): Promise<void> {
   workerLog(`first buyers loaded: ${firstBuyers.length}`);
 
   let latestChainBlock: number | null = null;
-  let latestProcessedBlock =
-    cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock ?? null;
+  let latestProcessedBlock = highestProcessed(
+    cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
+    cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
+  );
 
   try {
     latestChainBlock = await rpc.getBlockNumber();
@@ -135,7 +140,19 @@ async function main(): Promise<void> {
     workerError("initial eth_blockNumber failed", error);
   }
 
-  // First catch-up with startup rewind if factories cursor exists.
+  const onLaunch = (launch: {
+    tokenAddress: string;
+    marketAddress: string;
+    factoryAddress: string;
+    factoryVersion: "v1" | "v2";
+    launchTxHash: string;
+    launchBlockNumber: number;
+    launchBlockTimestampIso: string;
+  }) => {
+    addActiveLaunchToMemory(memory, launch);
+  };
+
+  // 1) Factory catch-up first (discover launches before transfer range work).
   if (cursors.get(CURSOR_STREAM_PONS_FACTORIES)) {
     const catchUp = await catchUpFactoryCursor({
       rpc,
@@ -143,38 +160,57 @@ async function main(): Promise<void> {
       chainId: config.chainId,
       factories,
       startupRewind: true,
-      // once-mode: one outer range only so smoke cannot run for hours when far behind head
       maxRanges: once ? 1 : undefined,
-      onInserted: (launch) => {
-        addActiveLaunchToMemory(memory, {
-          tokenAddress: launch.tokenAddress,
-          marketAddress: launch.marketAddress,
-          factoryAddress: launch.factoryAddress,
-          factoryVersion: launch.factoryVersion,
-          launchTxHash: launch.launchTxHash,
-          launchBlockNumber: launch.launchBlockNumber,
-          launchBlockTimestampIso: launch.launchBlockTimestampIso,
-        });
-      },
+      onInserted: onLaunch,
     });
     latestChainBlock = catchUp.head;
     if (catchUp.lastProcessedBlock !== null) {
-      latestProcessedBlock = catchUp.lastProcessedBlock;
+      latestProcessedBlock = highestProcessed(
+        catchUp.lastProcessedBlock,
+        cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
+      );
     }
     workerLog(
       `factory catch-up: inserted=${catchUp.inserted} known=${catchUp.alreadyKnown} ranges=${catchUp.rangesScanned} blocked=${catchUp.blocked}`,
     );
-    workerLog(`active tokens: ${activeTokenCount(memory)}`);
   } else {
-    workerLog(
-      "no pons_factories cursor — discovery idle until bootstrap (npm run worker:bootstrap-factories)",
+    workerLog("no pons_factories cursor — factory discovery idle");
+  }
+
+  workerLog(`active tokens: ${activeTokenCount(memory)}`);
+
+  // 2) Transfer catch-up (enforces factory >= transfer commit barrier).
+  cursors = await loadKnownCursors(supabase, config.chainId);
+  if (cursors.get(CURSOR_STREAM_PONS_TRANSFERS)) {
+    const transferCatch = await catchUpTransferCursor({
+      rpc,
+      supabase,
+      chainId: config.chainId,
+      factories,
+      memory,
+      startupRewind: true,
+      maxRanges: once ? 1 : undefined,
+      onFactoryInserted: onLaunch,
+    });
+    latestChainBlock = transferCatch.head;
+    latestProcessedBlock = highestProcessed(
+      (
+        await loadKnownCursors(supabase, config.chainId)
+      ).get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
+      transferCatch.lastProcessedBlock,
     );
+    workerLog(
+      `transfer catch-up: newBuyers=${transferCatch.newFirstBuyers} ranges=${transferCatch.rangesScanned} blocked=${transferCatch.blocked}`,
+    );
+  } else {
+    workerLog("no pons_transfers cursor — transfer scan idle until bootstrap");
   }
 
   cursors = await loadKnownCursors(supabase, config.chainId);
-  latestProcessedBlock =
-    cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock ??
-    latestProcessedBlock;
+  latestProcessedBlock = highestProcessed(
+    cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
+    cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
+  );
 
   await writeHeartbeat(supabase, memory, {
     latestChainBlock,
@@ -183,7 +219,7 @@ async function main(): Promise<void> {
   workerLog("worker_health upserted");
 
   if (once) {
-    workerLog("once mode — exiting after boot + factory catch-up");
+    workerLog("once mode — exiting after boot + catch-up");
     return;
   }
 
@@ -199,36 +235,47 @@ async function main(): Promise<void> {
       if (shuttingDown || pollBusy) return;
       pollBusy = true;
       try {
-        const cursorsNow = await loadKnownCursors(supabase, config.chainId);
-        if (!cursorsNow.get(CURSOR_STREAM_PONS_FACTORIES)) {
-          latestChainBlock = await rpc.getBlockNumber();
-          return;
+        // Factories first, then transfers.
+        if (
+          (await loadKnownCursors(supabase, config.chainId)).get(
+            CURSOR_STREAM_PONS_FACTORIES,
+          )
+        ) {
+          const f = await catchUpFactoryCursor({
+            rpc,
+            supabase,
+            chainId: config.chainId,
+            factories,
+            startupRewind: false,
+            onInserted: onLaunch,
+          });
+          latestChainBlock = f.head;
         }
 
-        const catchUp = await catchUpFactoryCursor({
-          rpc,
-          supabase,
-          chainId: config.chainId,
-          factories,
-          startupRewind: false,
-          onInserted: (launch) => {
-            addActiveLaunchToMemory(memory, {
-              tokenAddress: launch.tokenAddress,
-              marketAddress: launch.marketAddress,
-              factoryAddress: launch.factoryAddress,
-              factoryVersion: launch.factoryVersion,
-              launchTxHash: launch.launchTxHash,
-              launchBlockNumber: launch.launchBlockNumber,
-              launchBlockTimestampIso: launch.launchBlockTimestampIso,
-            });
-          },
-        });
-        latestChainBlock = catchUp.head;
-        if (catchUp.lastProcessedBlock !== null) {
-          latestProcessedBlock = catchUp.lastProcessedBlock;
+        if (
+          (await loadKnownCursors(supabase, config.chainId)).get(
+            CURSOR_STREAM_PONS_TRANSFERS,
+          )
+        ) {
+          const t = await catchUpTransferCursor({
+            rpc,
+            supabase,
+            chainId: config.chainId,
+            factories,
+            memory,
+            startupRewind: false,
+            onFactoryInserted: onLaunch,
+          });
+          latestChainBlock = t.head;
         }
+
+        const now = await loadKnownCursors(supabase, config.chainId);
+        latestProcessedBlock = highestProcessed(
+          now.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
+          now.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
+        );
       } catch (error) {
-        workerError("factory poll failed", error);
+        workerError("poll cycle failed", error);
       } finally {
         pollBusy = false;
       }

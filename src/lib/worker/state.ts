@@ -111,3 +111,46 @@ export function addActiveLaunchToMemory(
   memory.confirmedBuyers.set(tokenAddress, new Set());
   memory.rollingFirstBuyers.set(tokenAddress, []);
 }
+
+/**
+ * After durable first-buyer insert, update RAM.
+ * Does not evaluate product events (Stage 6).
+ * Does not wall-clock prune the rolling queue.
+ */
+export function addFirstBuyerToMemory(
+  memory: WorkerMemoryModel,
+  input: {
+    tokenAddress: string;
+    walletAddress: string;
+    firstBuyBlockTimestampUnix: number;
+  },
+): void {
+  const token = normalizeAddress(input.tokenAddress);
+  const wallet = normalizeAddress(input.walletAddress);
+
+  if (!memory.activeTokens.has(token)) return;
+
+  let set = memory.confirmedBuyers.get(token);
+  if (!set) {
+    set = new Set();
+    memory.confirmedBuyers.set(token, set);
+  }
+  if (set.has(wallet)) return;
+  set.add(wallet);
+
+  let rolling = memory.rollingFirstBuyers.get(token);
+  if (!rolling) {
+    rolling = [];
+    memory.rollingFirstBuyers.set(token, rolling);
+  }
+  rolling.push({
+    walletAddress: wallet,
+    firstBuyBlockTimestamp: input.firstBuyBlockTimestampUnix,
+  });
+  rolling.sort((a, b) => {
+    if (a.firstBuyBlockTimestamp !== b.firstBuyBlockTimestamp) {
+      return a.firstBuyBlockTimestamp - b.firstBuyBlockTimestamp;
+    }
+    return a.walletAddress.localeCompare(b.walletAddress);
+  });
+}

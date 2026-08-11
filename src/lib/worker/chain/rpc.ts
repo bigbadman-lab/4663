@@ -11,6 +11,7 @@ import {
   type Hex,
   type Log,
   type PublicClient,
+  type Transaction,
   type TransactionReceipt,
 } from "viem";
 import { CHAIN_ID } from "@/lib/pons/constants";
@@ -30,14 +31,24 @@ export type RpcBlock = {
   timestamp: number;
 };
 
+export type RpcTransaction = {
+  hash: string;
+  from: string;
+  to: string | null;
+  value: bigint;
+};
+
 export type ChainRpc = {
   getBlockNumber(): Promise<number>;
   getBlock(blockNumber: number): Promise<RpcBlock>;
   getLogs(input: {
-    address: string | string[];
+    address?: string | string[];
     fromBlock: number;
     toBlock: number;
+    /** topic0 filter when set (e.g. ERC-20 Transfer). */
+    topic0?: string;
   }): Promise<RpcLog[]>;
+  getTransaction(txHash: string): Promise<RpcTransaction>;
   getTransactionReceipt(txHash: string): Promise<TransactionReceipt>;
   getCode(address: string): Promise<string | null>;
 };
@@ -110,11 +121,16 @@ export function createChainRpc(rpcUrl: string): ChainRpc {
     async getLogs(input) {
       try {
         const logs: Log[] = await client.getLogs({
-          address: Array.isArray(input.address)
-            ? (input.address as Hex[])
-            : (input.address as Hex),
+          address: input.address
+            ? Array.isArray(input.address)
+              ? (input.address as Hex[])
+              : (input.address as Hex)
+            : undefined,
           fromBlock: BigInt(input.fromBlock),
           toBlock: BigInt(input.toBlock),
+          ...(input.topic0
+            ? { topics: [input.topic0 as Hex] }
+            : {}),
         });
         return logs.map((log) => ({
           address: log.address,
@@ -130,6 +146,24 @@ export function createChainRpc(rpcUrl: string): ChainRpc {
       } catch (err) {
         throw new Error(
           `[4663-worker] eth_getLogs(${input.fromBlock}-${input.toBlock}) failed: ${safeRpcError(err)}`,
+        );
+      }
+    },
+
+    async getTransaction(txHash: string) {
+      try {
+        const tx: Transaction = await client.getTransaction({
+          hash: txHash as Hash,
+        });
+        return {
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to ?? null,
+          value: tx.value,
+        };
+      } catch (err) {
+        throw new Error(
+          `[4663-worker] eth_getTransactionByHash failed: ${safeRpcError(err)}`,
         );
       }
     },

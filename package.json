@@ -11,7 +11,9 @@
     "worker:once": "node --import tsx scripts/worker.ts --once",
     "worker:bootstrap-factories": "node --import tsx scripts/bootstrap-factories.ts",
     "worker:scan-factories": "node --import tsx scripts/scan-factories.ts",
-    "test": "node --import tsx --test src/lib/worker/state.test.ts src/lib/pons/launch-discovery/launch-discovery.test.ts"
+    "worker:bootstrap-transfers": "node --import tsx scripts/bootstrap-transfers.ts",
+    "worker:scan-transfers": "node --import tsx scripts/scan-transfers.ts",
+    "test": "node --import tsx --test src/lib/worker/state.test.ts src/lib/pons/launch-discovery/launch-discovery.test.ts src/lib/pons/buy-validation/buy-validation.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
