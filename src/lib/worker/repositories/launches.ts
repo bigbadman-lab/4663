@@ -1,4 +1,5 @@
 import type { FactoryVersion, LaunchStatus } from "@/lib/pons/types";
+import type { ResolvedPonsLaunch } from "@/lib/pons/launch-discovery";
 import type { ActiveLaunchRow } from "@/lib/worker/db-types";
 import {
   normalizeAddress,
@@ -62,4 +63,165 @@ export async function loadActiveLaunches(
   }
 
   return ((data ?? []) as unknown as LaunchDbRow[]).map(mapLaunch);
+}
+
+export type InsertLaunchResult =
+  | { outcome: "inserted"; row: ActiveLaunchRow }
+  | {
+      outcome: "already_exists";
+      row: ActiveLaunchRow;
+      /** Existing lifecycle status preserved (must not reset terminal → active). */
+      preservedStatus: LaunchStatus;
+    };
+
+/**
+ * Idempotent insert of a resolved launch as status=active.
+ * On conflict (token or tx unique): load existing and DO NOT overwrite status.
+ */
+export async function insertLaunchIdempotent(
+  supabase: WorkerSupabase,
+  launch: ResolvedPonsLaunch,
+): Promise<InsertLaunchResult> {
+  const payload = {
+    chain_id: launch.chainId,
+    factory_version: launch.factoryVersion,
+    factory_address: launch.factoryAddress,
+    token_address: launch.tokenAddress,
+    market_address: launch.marketAddress,
+    launch_tx_hash: launch.launchTxHash,
+    launch_block_number: launch.launchBlockNumber,
+    launch_block_timestamp: launch.launchBlockTimestampIso,
+    status: "active" as const,
+  };
+
+  const { data, error } = await supabase
+    .from("pons_launches")
+    .insert(payload)
+    .select(
+      [
+        "chain_id",
+        "token_address",
+        "market_address",
+        "factory_address",
+        "factory_version",
+        "launch_tx_hash",
+        "launch_block_number",
+        "launch_block_timestamp",
+        "status",
+      ].join(", "),
+    )
+    .maybeSingle();
+
+  if (!error && data) {
+    return {
+      outcome: "inserted",
+      row: mapLaunch(data as unknown as LaunchDbRow),
+    };
+  }
+
+  // Unique violation or race — preserve existing lifecycle.
+  const isUnique =
+    error?.code === "23505" ||
+    (error?.message ?? "").toLowerCase().includes("duplicate") ||
+    (error?.message ?? "").toLowerCase().includes("unique");
+
+  if (error && !isUnique) {
+    throw new Error(
+      `[4663-worker] insertLaunchIdempotent failed: ${error.message}`,
+    );
+  }
+
+  const existing = await loadLaunchByToken(
+    supabase,
+    launch.chainId,
+    launch.tokenAddress,
+  );
+  if (!existing) {
+    // Try by tx hash if token miss
+    const byTx = await loadLaunchByTx(
+      supabase,
+      launch.chainId,
+      launch.launchTxHash,
+    );
+    if (!byTx) {
+      throw new Error(
+        `[4663-worker] insertLaunch conflict but row not found for token ${launch.tokenAddress}`,
+      );
+    }
+    return {
+      outcome: "already_exists",
+      row: byTx,
+      preservedStatus: byTx.status,
+    };
+  }
+
+  return {
+    outcome: "already_exists",
+    row: existing,
+    preservedStatus: existing.status,
+  };
+}
+
+export async function loadLaunchByToken(
+  supabase: WorkerSupabase,
+  chainId: number,
+  tokenAddress: string,
+): Promise<ActiveLaunchRow | null> {
+  const { data, error } = await supabase
+    .from("pons_launches")
+    .select(
+      [
+        "chain_id",
+        "token_address",
+        "market_address",
+        "factory_address",
+        "factory_version",
+        "launch_tx_hash",
+        "launch_block_number",
+        "launch_block_timestamp",
+        "status",
+      ].join(", "),
+    )
+    .eq("chain_id", chainId)
+    .eq("token_address", normalizeAddress(tokenAddress))
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `[4663-worker] loadLaunchByToken failed: ${error.message}`,
+    );
+  }
+  if (!data) return null;
+  return mapLaunch(data as unknown as LaunchDbRow);
+}
+
+export async function loadLaunchByTx(
+  supabase: WorkerSupabase,
+  chainId: number,
+  launchTxHash: string,
+): Promise<ActiveLaunchRow | null> {
+  const { data, error } = await supabase
+    .from("pons_launches")
+    .select(
+      [
+        "chain_id",
+        "token_address",
+        "market_address",
+        "factory_address",
+        "factory_version",
+        "launch_tx_hash",
+        "launch_block_number",
+        "launch_block_timestamp",
+        "status",
+      ].join(", "),
+    )
+    .eq("chain_id", chainId)
+    .eq("launch_tx_hash", normalizeTxHash(launchTxHash))
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`[4663-worker] loadLaunchByTx failed: ${error.message}`);
+  }
+  if (!data) return null;
+  return mapLaunch(data as unknown as LaunchDbRow);
 }

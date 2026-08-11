@@ -82,3 +82,32 @@ export function reconstructWorkerMemory(
 export function activeTokenCount(memory: WorkerMemoryModel): number {
   return memory.activeTokens.size;
 }
+
+/** Inject a newly persisted ACTIVE launch into runtime RAM (Stage 4 option A). */
+export function addActiveLaunchToMemory(
+  memory: WorkerMemoryModel,
+  launch: {
+    tokenAddress: string;
+    marketAddress: string;
+    factoryAddress: string;
+    factoryVersion: ActiveTokenState["factoryVersion"];
+    launchTxHash: string;
+    launchBlockNumber: number;
+    launchBlockTimestampIso: string;
+  },
+): void {
+  const tokenAddress = normalizeAddress(launch.tokenAddress);
+  if (memory.activeTokens.has(tokenAddress)) return;
+
+  memory.activeTokens.set(tokenAddress, {
+    tokenAddress,
+    marketAddress: normalizeAddress(launch.marketAddress),
+    factoryAddress: normalizeAddress(launch.factoryAddress),
+    factoryVersion: launch.factoryVersion,
+    launchTxHash: launch.launchTxHash,
+    launchBlock: launch.launchBlockNumber,
+    launchTimestamp: timestampToUnixSeconds(launch.launchBlockTimestampIso),
+  });
+  memory.confirmedBuyers.set(tokenAddress, new Set());
+  memory.rollingFirstBuyers.set(tokenAddress, []);
+}

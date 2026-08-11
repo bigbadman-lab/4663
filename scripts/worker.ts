@@ -1,20 +1,18 @@
 /**
- * Standalone persistent worker entrypoint (Stage 3 foundation).
+ * Standalone persistent worker entrypoint.
  *
- * Boots against Supabase, reconstructs ACTIVE runtime state, heartbeats,
- * and waits. No Alchemy / chain scanning.
+ * Stage 4: after pons_factories cursor bootstrap, polls chain head and
+ * discovers PONS launches. No Transfer / PonsBuy scanning.
  *
  * Local:
  *   npm run worker
- *   npm run worker:once   # boot + single health write, then exit
+ *   npm run worker:once
  */
 
 import { config as loadDotenv } from "dotenv";
 import { resolve } from "node:path";
 
-// Load .env.local before any config reads (Next-style local secrets).
 loadDotenv({ path: resolve(process.cwd(), ".env.local"), quiet: true });
-// Optional fallback for plain .env if someone uses that layout.
 loadDotenv({ path: resolve(process.cwd(), ".env"), quiet: true });
 
 import {
@@ -22,18 +20,27 @@ import {
   CURSOR_STREAM_PONS_TRANSFERS,
   WORKER_NAME,
 } from "@/lib/pons/constants";
+import { buildFactoryDefinitions } from "@/lib/pons/factories";
 import { loadWorkerConfig } from "@/lib/worker/config";
-import { HEARTBEAT_INTERVAL_MS } from "@/lib/worker/constants";
+import { createChainRpc } from "@/lib/worker/chain/rpc";
+import {
+  FACTORY_POLL_INTERVAL_MS,
+  HEARTBEAT_INTERVAL_MS,
+} from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerError, workerLog } from "@/lib/worker/log";
+import { catchUpFactoryCursor } from "@/lib/worker/pons/factory-loop";
 import {
-  highestLastProcessedBlock,
   loadKnownCursors,
 } from "@/lib/worker/repositories/cursors";
 import { loadFirstBuyersForTokens } from "@/lib/worker/repositories/first-buyers";
 import { loadActiveLaunches } from "@/lib/worker/repositories/launches";
 import { upsertWorkerHealth } from "@/lib/worker/repositories/worker-health";
-import { activeTokenCount, reconstructWorkerMemory } from "@/lib/worker/state";
+import {
+  activeTokenCount,
+  addActiveLaunchToMemory,
+  reconstructWorkerMemory,
+} from "@/lib/worker/state";
 import {
   createWorkerSupabase,
   proveSupabaseConnectivity,
@@ -57,12 +64,15 @@ function formatCursorLog(
 async function writeHeartbeat(
   supabase: WorkerSupabase,
   memory: WorkerMemoryModel,
-  cursors: Map<CursorStreamName, CursorRow | null>,
+  opts: {
+    latestChainBlock: number | null;
+    latestProcessedBlock: number | null;
+  },
 ): Promise<void> {
   await upsertWorkerHealth(supabase, {
     lastHeartbeatAt: new Date().toISOString(),
-    latestChainBlock: null,
-    latestProcessedBlock: highestLastProcessedBlock(cursors),
+    latestChainBlock: opts.latestChainBlock,
+    latestProcessedBlock: opts.latestProcessedBlock,
     activeTokens: activeTokenCount(memory),
   });
 }
@@ -80,7 +90,14 @@ async function main(): Promise<void> {
   await proveSupabaseConnectivity(supabase);
   workerLog("supabase connected");
 
-  const cursors = await loadKnownCursors(supabase, config.chainId);
+  const rpc = createChainRpc(config.alchemyRpcUrl);
+  const factories = buildFactoryDefinitions({
+    factoryV1: config.ponsFactoryV1,
+    factoryV2: config.ponsFactoryV2,
+  });
+  workerLog(`factories v1+v2 ready`);
+
+  let cursors = await loadKnownCursors(supabase, config.chainId);
   const startupPlans = prepareStartupCursors(cursors);
 
   for (const plan of startupPlans) {
@@ -93,8 +110,6 @@ async function main(): Promise<void> {
     );
   }
 
-  // Reference known stream constants so future stages wire both streams.
-  void CURSOR_STREAM_PONS_FACTORIES;
   void CURSOR_STREAM_PONS_TRANSFERS;
 
   const launches = await loadActiveLaunches(supabase, config.chainId);
@@ -109,26 +124,128 @@ async function main(): Promise<void> {
   workerLog(`active tokens: ${activeTokenCount(memory)}`);
   workerLog(`first buyers loaded: ${firstBuyers.length}`);
 
-  await writeHeartbeat(supabase, memory, cursors);
+  let latestChainBlock: number | null = null;
+  let latestProcessedBlock =
+    cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock ?? null;
+
+  try {
+    latestChainBlock = await rpc.getBlockNumber();
+    workerLog(`chain head: ${latestChainBlock}`);
+  } catch (error) {
+    workerError("initial eth_blockNumber failed", error);
+  }
+
+  // First catch-up with startup rewind if factories cursor exists.
+  if (cursors.get(CURSOR_STREAM_PONS_FACTORIES)) {
+    const catchUp = await catchUpFactoryCursor({
+      rpc,
+      supabase,
+      chainId: config.chainId,
+      factories,
+      startupRewind: true,
+      // once-mode: one outer range only so smoke cannot run for hours when far behind head
+      maxRanges: once ? 1 : undefined,
+      onInserted: (launch) => {
+        addActiveLaunchToMemory(memory, {
+          tokenAddress: launch.tokenAddress,
+          marketAddress: launch.marketAddress,
+          factoryAddress: launch.factoryAddress,
+          factoryVersion: launch.factoryVersion,
+          launchTxHash: launch.launchTxHash,
+          launchBlockNumber: launch.launchBlockNumber,
+          launchBlockTimestampIso: launch.launchBlockTimestampIso,
+        });
+      },
+    });
+    latestChainBlock = catchUp.head;
+    if (catchUp.lastProcessedBlock !== null) {
+      latestProcessedBlock = catchUp.lastProcessedBlock;
+    }
+    workerLog(
+      `factory catch-up: inserted=${catchUp.inserted} known=${catchUp.alreadyKnown} ranges=${catchUp.rangesScanned} blocked=${catchUp.blocked}`,
+    );
+    workerLog(`active tokens: ${activeTokenCount(memory)}`);
+  } else {
+    workerLog(
+      "no pons_factories cursor — discovery idle until bootstrap (npm run worker:bootstrap-factories)",
+    );
+  }
+
+  cursors = await loadKnownCursors(supabase, config.chainId);
+  latestProcessedBlock =
+    cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock ??
+    latestProcessedBlock;
+
+  await writeHeartbeat(supabase, memory, {
+    latestChainBlock,
+    latestProcessedBlock,
+  });
   workerLog("worker_health upserted");
 
   if (once) {
-    workerLog("once mode — exiting after successful boot");
+    workerLog("once mode — exiting after boot + factory catch-up");
     return;
   }
 
   workerLog(
-    `heartbeat every ${HEARTBEAT_INTERVAL_MS / 1000}s — waiting (SIGINT/SIGTERM to stop)`,
+    `poll every ${FACTORY_POLL_INTERVAL_MS / 1000}s; heartbeat every ${HEARTBEAT_INTERVAL_MS / 1000}s`,
   );
 
   let shuttingDown = false;
+  let pollBusy = false;
 
-  const timer = setInterval(() => {
+  const pollTimer = setInterval(() => {
+    void (async () => {
+      if (shuttingDown || pollBusy) return;
+      pollBusy = true;
+      try {
+        const cursorsNow = await loadKnownCursors(supabase, config.chainId);
+        if (!cursorsNow.get(CURSOR_STREAM_PONS_FACTORIES)) {
+          latestChainBlock = await rpc.getBlockNumber();
+          return;
+        }
+
+        const catchUp = await catchUpFactoryCursor({
+          rpc,
+          supabase,
+          chainId: config.chainId,
+          factories,
+          startupRewind: false,
+          onInserted: (launch) => {
+            addActiveLaunchToMemory(memory, {
+              tokenAddress: launch.tokenAddress,
+              marketAddress: launch.marketAddress,
+              factoryAddress: launch.factoryAddress,
+              factoryVersion: launch.factoryVersion,
+              launchTxHash: launch.launchTxHash,
+              launchBlockNumber: launch.launchBlockNumber,
+              launchBlockTimestampIso: launch.launchBlockTimestampIso,
+            });
+          },
+        });
+        latestChainBlock = catchUp.head;
+        if (catchUp.lastProcessedBlock !== null) {
+          latestProcessedBlock = catchUp.lastProcessedBlock;
+        }
+      } catch (error) {
+        workerError("factory poll failed", error);
+      } finally {
+        pollBusy = false;
+      }
+    })();
+  }, FACTORY_POLL_INTERVAL_MS);
+
+  const heartbeatTimer = setInterval(() => {
     void (async () => {
       if (shuttingDown) return;
       try {
-        await writeHeartbeat(supabase, memory, cursors);
-        workerLog("heartbeat");
+        await writeHeartbeat(supabase, memory, {
+          latestChainBlock,
+          latestProcessedBlock,
+        });
+        workerLog(
+          `heartbeat head=${latestChainBlock ?? "null"} processed=${latestProcessedBlock ?? "null"} active=${activeTokenCount(memory)}`,
+        );
       } catch (error) {
         workerError("heartbeat failed", error);
       }
@@ -140,9 +257,13 @@ async function main(): Promise<void> {
       if (shuttingDown) return;
       shuttingDown = true;
       workerLog(`shutting down (${signal})`);
-      clearInterval(timer);
+      clearInterval(pollTimer);
+      clearInterval(heartbeatTimer);
       try {
-        await writeHeartbeat(supabase, memory, cursors);
+        await writeHeartbeat(supabase, memory, {
+          latestChainBlock,
+          latestProcessedBlock,
+        });
         workerLog("final heartbeat written");
       } catch (error) {
         workerError("final heartbeat failed", error);
