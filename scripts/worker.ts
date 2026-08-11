@@ -1,9 +1,10 @@
 /**
- * Standalone persistent worker.
+ * Standalone persistent worker (production mode after Stage 7A cutover).
  *
- * Stage 5 pipeline:
- *   factories first → transfers for ACTIVE tokens → first buyers
- * No rolling event emission.
+ * Pipeline: factories → transfers for production ACTIVE tokens → first buyers
+ * → lifecycle fire/expire.
+ *
+ * Requires production_state cutover marker unless --dev-uncutover (once mode only).
  */
 
 import { config as loadDotenv } from "dotenv";
@@ -28,9 +29,14 @@ import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerError, workerLog } from "@/lib/worker/log";
 import { catchUpFactoryCursor } from "@/lib/worker/pons/factory-loop";
 import { catchUpTransferCursor } from "@/lib/worker/pons/transfer-loop";
+import {
+  PRODUCTION_REFUSAL_MESSAGE,
+  requireProductionCutover,
+} from "@/lib/worker/production-mode";
 import { loadKnownCursors } from "@/lib/worker/repositories/cursors";
 import { loadFirstBuyersForTokens } from "@/lib/worker/repositories/first-buyers";
 import { loadActiveLaunches } from "@/lib/worker/repositories/launches";
+import { loadProductionState } from "@/lib/worker/repositories/production-state";
 import { upsertWorkerHealth } from "@/lib/worker/repositories/worker-health";
 import {
   activeTokenCount,
@@ -86,6 +92,7 @@ function highestProcessed(
 
 async function main(): Promise<void> {
   const once = process.argv.includes("--once");
+  const devUncutover = process.argv.includes("--dev-uncutover");
 
   workerLog("starting");
   workerLog(`worker_name=${WORKER_NAME}`);
@@ -96,6 +103,34 @@ async function main(): Promise<void> {
   const supabase = createWorkerSupabase(config);
   await proveSupabaseConnectivity(supabase);
   workerLog("supabase connected");
+
+  const production = await loadProductionState(supabase, config.chainId);
+  const gate = requireProductionCutover(production);
+
+  let productionStartBlock: number | undefined;
+
+  if (!gate.ok) {
+    if (devUncutover && once) {
+      workerLog(
+        "WARNING: --dev-uncutover (worker:once only) — no production boundary; do not use on Render",
+      );
+      productionStartBlock = undefined;
+    } else if (devUncutover && !once) {
+      throw new Error(
+        "[4663-worker] --dev-uncutover is only allowed with --once (worker:once). Continuous worker requires production cutover.",
+      );
+    } else {
+      throw new Error(PRODUCTION_REFUSAL_MESSAGE);
+    }
+  } else {
+    productionStartBlock = gate.productionStartBlock;
+    workerLog(`production_start_block=${gate.productionStartBlock}`);
+    workerLog(`cutover_version=${gate.cutoverVersion}`);
+    workerLog("production mode active");
+    workerLog(
+      `eligibility: launch_block_number > ${gate.productionStartBlock}`,
+    );
+  }
 
   const rpc = createChainRpc(config.alchemyRpcUrl);
   const factories = buildFactoryDefinitions({
@@ -115,7 +150,9 @@ async function main(): Promise<void> {
     );
   }
 
-  const launches = await loadActiveLaunches(supabase, config.chainId);
+  const launches = await loadActiveLaunches(supabase, config.chainId, {
+    productionStartBlock,
+  });
   const tokenAddresses = launches.map((l) => l.tokenAddress);
   const firstBuyers = await loadFirstBuyersForTokens(
     supabase,
@@ -124,8 +161,22 @@ async function main(): Promise<void> {
   );
 
   const memory = reconstructWorkerMemory(launches, firstBuyers);
-  workerLog(`active tokens: ${activeTokenCount(memory)}`);
+  workerLog(
+    `active tokens (production-eligible): ${activeTokenCount(memory)}`,
+  );
   workerLog(`first buyers loaded: ${firstBuyers.length}`);
+
+  const onLaunch = (launch: {
+    tokenAddress: string;
+    marketAddress: string;
+    factoryAddress: string;
+    factoryVersion: "v1" | "v2";
+    launchTxHash: string;
+    launchBlockNumber: number;
+    launchBlockTimestampIso: string;
+  }) => {
+    addActiveLaunchToMemory(memory, launch, { productionStartBlock });
+  };
 
   let latestChainBlock: number | null = null;
   let latestProcessedBlock = highestProcessed(
@@ -140,18 +191,6 @@ async function main(): Promise<void> {
     workerError("initial eth_blockNumber failed", error);
   }
 
-  const onLaunch = (launch: {
-    tokenAddress: string;
-    marketAddress: string;
-    factoryAddress: string;
-    factoryVersion: "v1" | "v2";
-    launchTxHash: string;
-    launchBlockNumber: number;
-    launchBlockTimestampIso: string;
-  }) => {
-    addActiveLaunchToMemory(memory, launch);
-  };
-
   // 1) Factory catch-up first (discover launches before transfer range work).
   if (cursors.get(CURSOR_STREAM_PONS_FACTORIES)) {
     const catchUp = await catchUpFactoryCursor({
@@ -161,6 +200,7 @@ async function main(): Promise<void> {
       factories,
       startupRewind: true,
       maxRanges: once ? 1 : undefined,
+      productionStartBlock,
       onInserted: onLaunch,
     });
     latestChainBlock = catchUp.head;
@@ -190,6 +230,7 @@ async function main(): Promise<void> {
       memory,
       startupRewind: true,
       maxRanges: once ? 1 : undefined,
+      productionStartBlock,
       onFactoryInserted: onLaunch,
     });
     latestChainBlock = transferCatch.head;
@@ -235,7 +276,6 @@ async function main(): Promise<void> {
       if (shuttingDown || pollBusy) return;
       pollBusy = true;
       try {
-        // Factories first, then transfers.
         if (
           (await loadKnownCursors(supabase, config.chainId)).get(
             CURSOR_STREAM_PONS_FACTORIES,
@@ -247,6 +287,7 @@ async function main(): Promise<void> {
             chainId: config.chainId,
             factories,
             startupRewind: false,
+            productionStartBlock,
             onInserted: onLaunch,
           });
           latestChainBlock = f.head;
@@ -264,6 +305,7 @@ async function main(): Promise<void> {
             factories,
             memory,
             startupRewind: false,
+            productionStartBlock,
             onFactoryInserted: onLaunch,
           });
           latestChainBlock = t.head;

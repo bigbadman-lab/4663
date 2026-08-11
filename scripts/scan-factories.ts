@@ -20,6 +20,7 @@ import { createChainRpc } from "@/lib/worker/chain/rpc";
 import { workerError, workerLog } from "@/lib/worker/log";
 import { scanFactoryRange } from "@/lib/worker/pons/factory-scanner";
 import { upsertCursor } from "@/lib/worker/repositories/cursors";
+import { loadProductionState } from "@/lib/worker/repositories/production-state";
 import {
   createWorkerSupabase,
   proveSupabaseConnectivity,
@@ -29,15 +30,21 @@ function parseArgs(argv: string[]): {
   fromBlock: number;
   toBlock: number;
   advanceCursor: boolean;
+  allowPreBoundaryInsert: boolean;
 } {
   let fromBlock: number | null = null;
   let toBlock: number | null = null;
   let advanceCursor = false;
+  let allowPreBoundaryInsert = false;
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--advance-cursor") {
       advanceCursor = true;
+      continue;
+    }
+    if (a === "--allow-pre-boundary-insert") {
+      allowPreBoundaryInsert = true;
       continue;
     }
     if (a === "--from-block") {
@@ -67,7 +74,7 @@ function parseArgs(argv: string[]): {
     );
   }
 
-  return { fromBlock, toBlock, advanceCursor };
+  return { fromBlock, toBlock, advanceCursor, allowPreBoundaryInsert };
 }
 
 async function main(): Promise<void> {
@@ -81,6 +88,22 @@ async function main(): Promise<void> {
     factoryV2: config.ponsFactoryV2,
   });
 
+  const production = await loadProductionState(supabase, config.chainId);
+  if (production && args.advanceCursor) {
+    throw new Error(
+      "after production cutover, --advance-cursor on bounded factory scans is refused (use production worker)",
+    );
+  }
+  const productionStartBlock =
+    production && !args.allowPreBoundaryInsert
+      ? production.productionStartBlock
+      : undefined;
+  if (production) {
+    workerLog(
+      `production cutover B=${production.productionStartBlock}; pre-boundary insert ${productionStartBlock !== undefined ? "BLOCKED" : "ALLOWED (--allow-pre-boundary-insert)"}`,
+    );
+  }
+
   workerLog(`bounded factory scan ${args.fromBlock}-${args.toBlock}`);
   const result = await scanFactoryRange({
     rpc,
@@ -88,10 +111,11 @@ async function main(): Promise<void> {
     factories,
     fromBlock: args.fromBlock,
     toBlock: args.toBlock,
+    productionStartBlock,
   });
 
   workerLog(
-    `done rawLogs=${result.rawLogs} candidates=${result.candidates} inserted=${result.inserted} known=${result.alreadyKnown} fullyProcessed=${result.fullyProcessed}`,
+    `done rawLogs=${result.rawLogs} candidates=${result.candidates} inserted=${result.inserted} known=${result.alreadyKnown} skippedPreBoundary=${result.skippedPreBoundary} fullyProcessed=${result.fullyProcessed}`,
   );
   for (const d of result.discovered) {
     workerLog(

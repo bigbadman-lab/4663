@@ -25,6 +25,7 @@ import { scanTransferRange } from "@/lib/worker/pons/transfer-scanner";
 import { loadCursor, upsertCursor } from "@/lib/worker/repositories/cursors";
 import { loadFirstBuyersForTokens } from "@/lib/worker/repositories/first-buyers";
 import { loadActiveLaunches } from "@/lib/worker/repositories/launches";
+import { loadProductionState } from "@/lib/worker/repositories/production-state";
 import { reconstructWorkerMemory } from "@/lib/worker/state";
 import {
   createWorkerSupabase,
@@ -79,7 +80,20 @@ async function main(): Promise<void> {
   await proveSupabaseConnectivity(supabase);
   const rpc = createChainRpc(config.alchemyRpcUrl);
 
-  const launches = await loadActiveLaunches(supabase, config.chainId);
+  const production = await loadProductionState(supabase, config.chainId);
+  if (production && args.advanceCursor) {
+    throw new Error(
+      "after production cutover, --advance-cursor on bounded transfer scans is refused",
+    );
+  }
+  const launches = await loadActiveLaunches(supabase, config.chainId, {
+    productionStartBlock: production?.productionStartBlock,
+  });
+  if (production) {
+    workerLog(
+      `production cutover B=${production.productionStartBlock}; loading only production-eligible ACTIVE launches`,
+    );
+  }
   const firstBuyers = await loadFirstBuyersForTokens(
     supabase,
     config.chainId,

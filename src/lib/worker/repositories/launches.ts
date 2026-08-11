@@ -33,12 +33,19 @@ function mapLaunch(row: LaunchDbRow): ActiveLaunchRow {
   };
 }
 
-/** Load all ACTIVE pons launches for the given chain. */
+/** Load ACTIVE pons launches for the given chain, optionally after production boundary. */
 export async function loadActiveLaunches(
   supabase: WorkerSupabase,
   chainId: number,
+  opts?: {
+    /**
+     * Production start block B. When set, only rows with
+     * launch_block_number > B are returned (production-eligible).
+     */
+    productionStartBlock?: number;
+  },
 ): Promise<ActiveLaunchRow[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("pons_launches")
     .select(
       [
@@ -55,6 +62,13 @@ export async function loadActiveLaunches(
     )
     .eq("chain_id", chainId)
     .eq("status", "active");
+
+  if (opts?.productionStartBlock !== undefined) {
+    // boundary: launch > B
+    query = query.gt("launch_block_number", opts.productionStartBlock);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(

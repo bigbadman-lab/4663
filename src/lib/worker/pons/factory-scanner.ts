@@ -4,6 +4,7 @@
  */
 
 import type { PonsFactoryDefinition } from "@/lib/pons/factories";
+import { isProductionEligibleLaunchBlock } from "@/lib/pons/production-boundary";
 import {
   annotateFactoryLogs,
   extractLaunchesFromLogs,
@@ -34,6 +35,7 @@ export type FactoryScanResult = {
   discovered: ResolvedPonsLaunch[];
   inserted: number;
   alreadyKnown: number;
+  skippedPreBoundary: number;
   /** true only if every required launch resolved and persisted (or known) */
   fullyProcessed: boolean;
   failures: string[];
@@ -158,6 +160,9 @@ async function fetchFactoryLogsAdaptive(
 /**
  * Scan [fromBlock, toBlock] inclusive for launches; persist idempotently.
  * Does NOT advance cursors — caller owns cursor progression after full success.
+ *
+ * After cutover, set productionStartBlock so launch_block ≤ B are not inserted
+ * (startup rewind may re-read logs ≤ B without polluting production ACTIVE watch).
  */
 export async function scanFactoryRange(input: {
   rpc: ChainRpc;
@@ -165,6 +170,8 @@ export async function scanFactoryRange(input: {
   factories: readonly PonsFactoryDefinition[];
   fromBlock: number;
   toBlock: number;
+  /** Last pre-production block B; skip insert when launch_block ≤ B */
+  productionStartBlock?: number;
   /** Optional: called after each newly inserted launch */
   onInserted?: (launch: ResolvedPonsLaunch) => void;
 }): Promise<FactoryScanResult> {
@@ -211,6 +218,7 @@ export async function scanFactoryRange(input: {
   const failures: string[] = [];
   let inserted = 0;
   let alreadyKnown = 0;
+  let skippedPreBoundary = 0;
 
   for (const candidate of candidates) {
     try {
@@ -220,6 +228,20 @@ export async function scanFactoryRange(input: {
         getBlockTimestampUnix,
       });
       discovered.push(resolved);
+
+      if (
+        input.productionStartBlock !== undefined &&
+        !isProductionEligibleLaunchBlock(
+          resolved.launchBlockNumber,
+          input.productionStartBlock,
+        )
+      ) {
+        skippedPreBoundary += 1;
+        workerLog(
+          `skip pre-boundary launch block=${resolved.launchBlockNumber} (B=${input.productionStartBlock}) token=${resolved.tokenAddress}`,
+        );
+        continue;
+      }
 
       const result: InsertLaunchResult = await insertLaunchIdempotent(
         supabase,
@@ -263,6 +285,7 @@ export async function scanFactoryRange(input: {
     discovered,
     inserted,
     alreadyKnown,
+    skippedPreBoundary,
     fullyProcessed,
     failures,
   };

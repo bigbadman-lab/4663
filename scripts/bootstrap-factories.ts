@@ -24,6 +24,7 @@ import {
   loadCursor,
   upsertCursor,
 } from "@/lib/worker/repositories/cursors";
+import { loadProductionState } from "@/lib/worker/repositories/production-state";
 import {
   createWorkerSupabase,
   proveSupabaseConnectivity,
@@ -79,6 +80,14 @@ async function main(): Promise<void> {
   const config = loadWorkerConfig();
   const supabase = createWorkerSupabase(config);
   await proveSupabaseConnectivity(supabase);
+
+  const production = await loadProductionState(supabase, config.chainId);
+  if (production) {
+    throw new Error(
+      `refused: production cutover already at B=${production.productionStartBlock}. Bootstrap cannot rewrite production cursors.`,
+    );
+  }
+
   const rpc = createChainRpc(config.alchemyRpcUrl);
 
   const head = await rpc.getBlockNumber();

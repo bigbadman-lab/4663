@@ -3,6 +3,7 @@ import type {
   Address,
   WorkerMemoryModel,
 } from "@/lib/pons/types";
+import { isProductionEligibleLaunchBlock } from "@/lib/pons/production-boundary";
 import type { ActiveLaunchRow, FirstBuyerRow } from "@/lib/worker/db-types";
 import {
   normalizeAddress,
@@ -11,6 +12,7 @@ import {
 
 /**
  * Reconstruct Stage 2 in-memory state from durable ACTIVE launches + buyers.
+ * Callers must pass only production-eligible ACTIVE launches after cutover.
  * Does NOT prune by wall clock — chain-time pruning happens later with real chain progress.
  */
 export function reconstructWorkerMemory(
@@ -52,7 +54,7 @@ export function reconstructWorkerMemory(
   for (const buyer of sorted) {
     const tokenAddress = normalizeAddress(buyer.tokenAddress);
     if (!activeTokens.has(tokenAddress)) {
-      // Buyers for non-active tokens are ignored during reconstruction.
+      // Buyers for non-active / non-production tokens are ignored.
       continue;
     }
 
@@ -83,7 +85,10 @@ export function activeTokenCount(memory: WorkerMemoryModel): number {
   return memory.activeTokens.size;
 }
 
-/** Inject a newly persisted ACTIVE launch into runtime RAM (Stage 4 option A). */
+/**
+ * Inject a newly persisted ACTIVE launch into runtime RAM.
+ * No-op when production boundary is set and launch_block ≤ B.
+ */
 export function addActiveLaunchToMemory(
   memory: WorkerMemoryModel,
   launch: {
@@ -95,7 +100,18 @@ export function addActiveLaunchToMemory(
     launchBlockNumber: number;
     launchBlockTimestampIso: string;
   },
+  opts?: { productionStartBlock?: number },
 ): void {
+  if (
+    opts?.productionStartBlock !== undefined &&
+    !isProductionEligibleLaunchBlock(
+      launch.launchBlockNumber,
+      opts.productionStartBlock,
+    )
+  ) {
+    return;
+  }
+
   const tokenAddress = normalizeAddress(launch.tokenAddress);
   if (memory.activeTokens.has(tokenAddress)) return;
 

@@ -45,6 +45,8 @@ export async function catchUpTransferCursor(input: {
   startupRewind: boolean;
   maxOuterRangeBlocks?: number;
   maxRanges?: number;
+  /** Production boundary B; passed through factory sub-catch for insert filter */
+  productionStartBlock?: number;
   onFactoryInserted?: (launch: ResolvedPonsLaunch) => void;
 }): Promise<TransferCatchUpResult> {
   const head = await input.rpc.getBlockNumber();
@@ -161,6 +163,7 @@ export async function catchUpTransferCursor(input: {
         startupRewind: false,
         maxOuterRangeBlocks: outer,
         targetThroughBlock: to,
+        productionStartBlock: input.productionStartBlock,
         onInserted: input.onFactoryInserted,
       });
       const factoryAfter = await loadCursor(

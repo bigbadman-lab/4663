@@ -46,6 +46,8 @@ export async function catchUpFactoryCursor(input: {
    * Used so Transfer scan can force factories only through the Transfer range end.
    */
   targetThroughBlock?: number;
+  /** Production boundary B; skips insert of launches at or before B */
+  productionStartBlock?: number;
   onInserted?: (launch: ResolvedPonsLaunch) => void;
 }): Promise<FactoryCatchUpResult> {
   const head = await input.rpc.getBlockNumber();
@@ -140,11 +142,12 @@ export async function catchUpFactoryCursor(input: {
       factories: input.factories,
       fromBlock: next,
       toBlock: to,
+      productionStartBlock: input.productionStartBlock,
       onInserted: input.onInserted,
     });
     rangesScanned += 1;
     inserted += result.inserted;
-    alreadyKnown += result.alreadyKnown;
+    alreadyKnown += result.alreadyKnown + result.skippedPreBoundary;
     launches.push(...result.discovered);
 
     if (!result.fullyProcessed) {
