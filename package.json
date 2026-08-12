@@ -16,7 +16,7 @@
     "worker:cutover-production": "node --import tsx scripts/cutover-production.ts",
     "worker:preflight": "node --import tsx scripts/preflight.ts",
     "worker:inspect-state": "node --import tsx scripts/inspect-state.ts",
-    "test": "node --import tsx --test src/lib/worker/state.test.ts src/lib/pons/launch-discovery/launch-discovery.test.ts src/lib/pons/buy-validation/buy-validation.test.ts src/lib/pons/eligibility-lifecycle.test.ts src/lib/worker/production-cutover.test.ts src/lib/worker/startup-heartbeat.test.ts src/lib/worker/repositories/first-buyers.test.ts"
+    "test": "node --import tsx --test src/lib/worker/state.test.ts src/lib/pons/launch-discovery/launch-discovery.test.ts src/lib/pons/buy-validation/buy-validation.test.ts src/lib/pons/eligibility-lifecycle.test.ts src/lib/worker/production-cutover.test.ts src/lib/worker/startup-heartbeat.test.ts src/lib/worker/repositories/first-buyers.test.ts src/lib/presence/presence-heartbeat.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
