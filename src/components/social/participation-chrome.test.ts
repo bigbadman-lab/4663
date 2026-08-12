@@ -39,7 +39,7 @@ describe("Social 1B / 1C.1 participation control placement", () => {
   it("hero-area UI renders the participation control", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("ParticipationEnterTrigger"));
-    assert.ok(chrome.includes("ParticipationSelfBadge"));
+    assert.ok(chrome.includes("ParticipationSessionControl"));
     assert.ok(chrome.includes("ParticipationEnterForm"));
     assert.ok(chrome.includes("data-4663-chrome-participation"));
     assert.ok(chrome.includes("PARTICIPATION_CONTROL_DEFAULT_STYLE"));
@@ -52,21 +52,25 @@ describe("Social 1B / 1C.1 participation control placement", () => {
     assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.top, "52%");
   });
 
-  it("anonymous state exposes [ ENTER ]; named uses self badge", () => {
+  it("anonymous state exposes [ ENTER ]; named uses session control", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("isParticipating"));
     assert.ok(chrome.includes("ParticipationEnterTrigger"));
-    assert.ok(chrome.includes("ParticipationSelfBadge"));
+    assert.ok(chrome.includes("ParticipationSessionControl"));
+    assert.ok(chrome.includes("onLeave={leave}"));
+    assert.equal(chrome.includes("ParticipationSelfBadge"), false);
 
     const trigger = readSrc(
       "src/components/social/participation-enter-trigger.tsx",
     );
     assert.ok(trigger.includes("[ ENTER ]"));
 
-    const badge = readSrc(
-      "src/components/social/participation-self-badge.tsx",
+    const session = readSrc(
+      "src/components/social/participation-session-control.tsx",
     );
-    assert.ok(badge.includes("[ {name} ]") || badge.includes("name"));
+    assert.ok(session.includes("[ LEAVE ]"));
+    assert.ok(session.includes("data-4663-participation-leave"));
+    assert.ok(session.includes("data-4663-participation-self"));
   });
 
   it("participation control is NOT nested inside hero CanMoveElement", () => {

@@ -1,6 +1,9 @@
 /**
  * Named participation controller: sessionStorage identity + Realtime Presence.
  * Injectable for tests — no live Supabase required.
+ *
+ * Anonymous clients subscribe as observers (no track) so remote pills remain
+ * visible. Named clients track; LEAVE untracks but keeps the observer channel.
  */
 
 import {
@@ -14,6 +17,10 @@ import {
   participantsFromPresenceState,
   presencePayloadFromSession,
 } from "@/lib/social/presence-payload";
+import {
+  notifySessionEnded,
+  type SessionEndedContext,
+} from "@/lib/social/session-cleanup";
 import type {
   ParticipationPresencePayload,
   ParticipationSession,
@@ -27,6 +34,8 @@ export type ParticipationControllerDeps = {
   onParticipants: (participants: ParticipationPresencePayload[]) => void;
   onStatus: (status: ParticipationStatus) => void;
   onError?: (error: unknown) => void;
+  /** Override for tests; defaults to module sessionCleanupRegistry.notify. */
+  onSessionEnded?: (ctx: SessionEndedContext) => void;
   now?: () => Date;
   randomUUID?: () => string;
 };
@@ -36,10 +45,17 @@ export class ParticipationController {
     ParticipationPresenceClient["connect"]
   > | null = null;
   private self: ParticipationSession | null = null;
+  private participants: ParticipationPresencePayload[] = [];
   private stopped = true;
   private trackGeneration = 0;
+  private readonly observerKey: string;
+  private readonly onSessionEnded: (ctx: SessionEndedContext) => void;
 
-  constructor(private readonly deps: ParticipationControllerDeps) {}
+  constructor(private readonly deps: ParticipationControllerDeps) {
+    const randomUUID = deps.randomUUID ?? (() => crypto.randomUUID());
+    this.observerKey = randomUUID();
+    this.onSessionEnded = deps.onSessionEnded ?? notifySessionEnded;
+  }
 
   getSelf(): ParticipationSession | null {
     return this.self;
@@ -47,7 +63,7 @@ export class ParticipationController {
 
   /**
    * Mount: restore sessionStorage identity if valid and connect Presence.
-   * Invalid stored identity → anonymous.
+   * Anonymous and named both subscribe; only named tracks.
    */
   start(): void {
     if (!this.stopped) return;
@@ -57,8 +73,9 @@ export class ParticipationController {
     if (!restored) {
       this.self = null;
       this.deps.onSelf(null);
-      this.deps.onParticipants([]);
+      this.setParticipants([]);
       this.deps.onStatus("anonymous");
+      this.connectPresence(null);
       return;
     }
 
@@ -82,7 +99,6 @@ export class ParticipationController {
     });
     if (!created.ok) return created;
 
-    this.disconnectPresence();
     this.self = created.session;
     this.deps.onSelf(created.session);
     this.connectPresence(created.session);
@@ -90,34 +106,45 @@ export class ParticipationController {
   }
 
   /**
-   * Local leave/clear primitive for Social 1D.
-   * Untracks, unsubscribes, clears sessionStorage, returns to anonymous.
+   * End named participation for this tab.
+   * Untracks Presence, clears sessionStorage, returns to anonymous observer.
+   * Keeps the Realtime channel so remote participants remain visible.
+   * Does not touch anonymous aggregate presence.
    */
   leave(): void {
-    const sub = this.subscription;
-    this.subscription = null;
-    this.trackGeneration += 1;
+    if (this.self === null) return;
 
-    if (sub) {
-      void sub.untrack().catch((error) => this.deps.onError?.(error));
-      sub.disconnect();
-    }
+    const leftId = this.self.sessionId;
+    void this.subscription?.untrack().catch((error) => {
+      this.deps.onError?.(error);
+    });
 
     clearParticipationSession(this.deps.storage);
     this.self = null;
     this.deps.onSelf(null);
-    this.deps.onParticipants([]);
     this.deps.onStatus("anonymous");
+    this.setParticipants(
+      this.participants.filter((p) => p.sessionId !== leftId),
+    );
+
+    this.onSessionEnded({ reason: "leave", sessionId: leftId });
   }
 
   /**
    * Unmount: disconnect channel without clearing sessionStorage
-   * (same-tab refresh can restore).
+   * (same-tab refresh can restore). Does not emit session-ended.
    */
   stop(): void {
     if (this.stopped) return;
     this.stopped = true;
     this.disconnectPresence();
+  }
+
+  private setParticipants(
+    next: ParticipationPresencePayload[],
+  ): void {
+    this.participants = next;
+    this.deps.onParticipants(next);
   }
 
   private disconnectPresence(): void {
@@ -130,26 +157,38 @@ export class ParticipationController {
     }
   }
 
-  private connectPresence(session: ParticipationSession): void {
+  /**
+   * @param session — when set, track after SUBSCRIBED; when null, observe only.
+   */
+  private connectPresence(session: ParticipationSession | null): void {
     this.disconnectPresence();
-    this.deps.onStatus("connecting");
+    this.deps.onStatus(session ? "connecting" : "anonymous");
     const generation = ++this.trackGeneration;
-    const payload = presencePayloadFromSession(session);
+    const presenceKey = session
+      ? session.sessionId
+      : `obs-${this.observerKey}`;
+    const trackPayload = session
+      ? presencePayloadFromSession(session)
+      : null;
 
     this.subscription = this.deps.presence.connect({
-      presenceKey: session.sessionId,
+      presenceKey,
       handlers: {
         onSync: (state) => {
           if (this.stopped || generation !== this.trackGeneration) return;
-          this.deps.onParticipants(participantsFromPresenceState(state));
+          this.setParticipants(participantsFromPresenceState(state));
         },
         onStatus: (status) => {
           if (this.stopped || generation !== this.trackGeneration) return;
           if (status === "SUBSCRIBED") {
-            this.deps.onStatus("live");
-            void this.subscription
-              ?.track(payload)
-              .catch((error) => this.deps.onError?.(error));
+            if (trackPayload) {
+              this.deps.onStatus("live");
+              void this.subscription
+                ?.track(trackPayload)
+                .catch((error) => this.deps.onError?.(error));
+            } else {
+              this.deps.onStatus("anonymous");
+            }
             return;
           }
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -158,7 +197,7 @@ export class ParticipationController {
           }
           if (status === "CLOSED") {
             // Reconnect uses same session identity — do not mint a new one.
-            this.deps.onStatus("connecting");
+            this.deps.onStatus(this.self ? "connecting" : "anonymous");
           }
         },
       },

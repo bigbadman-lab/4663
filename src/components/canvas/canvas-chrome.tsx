@@ -11,7 +11,7 @@ import { CanvasIntroTrigger } from "@/components/canvas/canvas-intro-trigger";
 import { CanvasLiveClock } from "@/components/canvas/canvas-live-clock";
 import { ParticipationEnterForm } from "@/components/social/participation-enter-form";
 import { ParticipationEnterTrigger } from "@/components/social/participation-enter-trigger";
-import { ParticipationSelfBadge } from "@/components/social/participation-self-badge";
+import { ParticipationSessionControl } from "@/components/social/participation-session-control";
 import { PresenceStatus } from "@/components/presence-status";
 import { PARTICIPATION_CONTROL_DEFAULT_STYLE } from "@/lib/canvas/hero";
 import { useParticipation } from "@/lib/social/use-participation";
@@ -23,7 +23,7 @@ export function CanvasChrome() {
   const openIntro = useCallback(() => setIntroOpen(true), []);
   const closeEnter = useCallback(() => setEnterOpen(false), []);
   const openEnter = useCallback(() => setEnterOpen(true), []);
-  const { self, isParticipating, enter } = useParticipation();
+  const { self, isParticipating, enter, leave } = useParticipation();
 
   return (
     <>
@@ -37,9 +37,10 @@ export function CanvasChrome() {
           data-4663-chrome-participation
         >
           {isParticipating && self ? (
-            <ParticipationSelfBadge
+            <ParticipationSessionControl
               name={self.displayName}
               colour={self.colour}
+              onLeave={leave}
             />
           ) : (
             <ParticipationEnterTrigger onOpen={openEnter} />
