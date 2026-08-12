@@ -3,12 +3,21 @@
 /**
  * Stage 10 — single client root for the 4663 canvas.
  * Owns the public events hook exactly once.
+ * PlayHTML mounts client-only (ssr: false) to avoid document access at prerender.
  */
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
-import { CanvasSurface } from "@/components/canvas/canvas-surface";
-import { assignSlots } from "@/lib/canvas/slots";
+import { LiveEventLayer } from "@/components/canvas/live-event-layer";
+import {
+  HERO_SUBTITLE_DEFAULT_STYLE,
+  HERO_TITLE_DEFAULT_STYLE,
+  PLAYHTML_CANVAS_BOUNDS_ID,
+  PLAYHTML_HERO_SUBTITLE_ID,
+  PLAYHTML_HERO_TITLE_ID,
+} from "@/lib/canvas/hero";
+import { assignSlots, type SlottedLiveEvent } from "@/lib/canvas/slots";
 import {
   LIVE_OBJECT_AGE_TICK_MS,
   LIVE_OBJECT_MAX_VISIBLE_DESKTOP,
@@ -16,6 +25,12 @@ import {
   selectVisibleLiveEvents,
 } from "@/lib/canvas/visible-events";
 import { usePublicEvents } from "@/lib/events/use-public-events";
+
+const CanvasPlayTree = dynamic(
+  () =>
+    import("@/components/canvas/canvas-play-tree").then((m) => m.CanvasPlayTree),
+  { ssr: false },
+);
 
 function useLiveObjectCap(): number {
   const [cap, setCap] = useState(() => {
@@ -54,23 +69,66 @@ function useWallClockMs(tickMs: number): number {
   return nowMs;
 }
 
+/** Pre-PlayHTML shell: same default hero origins, no drag. */
+function CanvasShellFallback({
+  liveItems,
+}: {
+  liveItems: readonly SlottedLiveEvent[];
+}) {
+  return (
+    <div
+      className="relative min-h-dvh w-full overflow-x-hidden bg-white text-neutral-900"
+      data-4663-canvas-root
+      data-4663-canvas-fallback
+    >
+      <CanvasChrome />
+      <div
+        id={PLAYHTML_CANVAS_BOUNDS_ID}
+        className="absolute inset-0 z-10"
+        data-4663-canvas-surface
+      >
+        <div
+          id={PLAYHTML_HERO_TITLE_ID}
+          className="absolute z-[15] select-none"
+          style={HERO_TITLE_DEFAULT_STYLE}
+        >
+          <h1 className="-translate-x-1/2 -translate-y-1/2 text-5xl font-semibold tracking-tight text-neutral-900 sm:text-6xl">
+            4663
+          </h1>
+        </div>
+        <div
+          id={PLAYHTML_HERO_SUBTITLE_ID}
+          className="absolute z-[15] max-w-[16rem] select-none sm:max-w-none"
+          style={HERO_SUBTITLE_DEFAULT_STYLE}
+        >
+          <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-neutral-400 sm:text-xs">
+            live intelligence for robinhood chain
+          </p>
+        </div>
+        <LiveEventLayer items={liveItems} />
+      </div>
+    </div>
+  );
+}
+
 export function CanvasRoot() {
   const { events } = usePublicEvents();
   const maxVisible = useLiveObjectCap();
   const nowMs = useWallClockMs(LIVE_OBJECT_AGE_TICK_MS);
+  const [playReady, setPlayReady] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => setPlayReady(true));
+  }, []);
 
   const liveItems = useMemo(() => {
     const visible = selectVisibleLiveEvents(events, nowMs, maxVisible);
     return assignSlots(visible);
   }, [events, nowMs, maxVisible]);
 
-  return (
-    <div
-      className="relative min-h-dvh w-full overflow-x-hidden bg-white text-neutral-900"
-      data-4663-canvas-root
-    >
-      <CanvasChrome />
-      <CanvasSurface liveItems={liveItems} />
-    </div>
-  );
+  if (!playReady) {
+    return <CanvasShellFallback liveItems={liveItems} />;
+  }
+
+  return <CanvasPlayTree liveItems={liveItems} />;
 }

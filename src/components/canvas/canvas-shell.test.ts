@@ -21,7 +21,7 @@ describe("Stage 10A canvas ownership", () => {
     assert.equal(calls.length, 1);
     assert.ok(source.includes('from "@/lib/events/use-public-events"'));
     assert.match(source, /CanvasChrome/);
-    assert.match(source, /CanvasSurface/);
+    assert.match(source, /CanvasPlayTree/);
   });
 
   it("2. layout no longer mounts PublicEventsStream", () => {
@@ -39,8 +39,7 @@ describe("Stage 10A canvas ownership", () => {
   it("4. visible PresenceStatus exists inside canvas chrome", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.match(chrome, /PresenceStatus/);
-    assert.match(chrome, /4663/);
-    assert.match(chrome, /live intelligence for robinhood chain/);
+    assert.equal(chrome.includes("live intelligence for robinhood chain"), false);
   });
 
   it("5. canvas surface exists even with zero events", () => {
