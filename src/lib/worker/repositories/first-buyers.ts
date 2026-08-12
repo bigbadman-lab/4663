@@ -2,8 +2,16 @@ import type { FirstBuyerRow } from "@/lib/worker/db-types";
 import {
   normalizeAddress,
   normalizeTxHash,
+  timestampToUnixSeconds,
 } from "@/lib/worker/normalize";
 import type { WorkerSupabase } from "@/lib/worker/supabase";
+
+/**
+ * Max token addresses per PostgREST `.in("token_address", …)` query.
+ * Keeps restart reconstruction under URL/filter size limits (~1k+ ACTIVE tokens).
+ * Independent of Transfer eth_getLogs address batching.
+ */
+export const FIRST_BUYERS_TOKEN_IN_BATCH_SIZE = 100 as const;
 
 type FirstBuyerDbRow = {
   chain_id: number;
@@ -25,6 +33,23 @@ function mapBuyer(row: FirstBuyerDbRow): FirstBuyerRow {
   };
 }
 
+function chunkAddresses(addresses: string[], size: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < addresses.length; i += size) {
+    out.push(addresses.slice(i, i + size));
+  }
+  return out;
+}
+
+function sortFirstBuyers(rows: FirstBuyerRow[]): FirstBuyerRow[] {
+  return [...rows].sort((a, b) => {
+    const ta = timestampToUnixSeconds(a.firstBuyBlockTimestamp);
+    const tb = timestampToUnixSeconds(b.firstBuyBlockTimestamp);
+    if (ta !== tb) return ta - tb;
+    return a.walletAddress.localeCompare(b.walletAddress);
+  });
+}
+
 /**
  * Load confirmed first buyers for a set of ACTIVE token addresses (batched).
  * Returns empty array when token set is empty (no DB call).
@@ -38,31 +63,42 @@ export async function loadFirstBuyersForTokens(
     return [];
   }
 
-  const normalised = tokenAddresses.map(normalizeAddress);
+  const uniqueTokens = [
+    ...new Set(tokenAddresses.map(normalizeAddress)),
+  ];
+  const batches = chunkAddresses(uniqueTokens, FIRST_BUYERS_TOKEN_IN_BATCH_SIZE);
+  const merged: FirstBuyerRow[] = [];
 
-  const { data, error } = await supabase
-    .from("pons_first_buyers")
-    .select(
-      [
-        "chain_id",
-        "token_address",
-        "wallet_address",
-        "first_buy_tx_hash",
-        "first_buy_block_number",
-        "first_buy_block_timestamp",
-      ].join(", "),
-    )
-    .eq("chain_id", chainId)
-    .in("token_address", normalised)
-    .order("first_buy_block_timestamp", { ascending: true });
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex]!;
+    const { data, error } = await supabase
+      .from("pons_first_buyers")
+      .select(
+        [
+          "chain_id",
+          "token_address",
+          "wallet_address",
+          "first_buy_tx_hash",
+          "first_buy_block_number",
+          "first_buy_block_timestamp",
+        ].join(", "),
+      )
+      .eq("chain_id", chainId)
+      .in("token_address", batch)
+      .order("first_buy_block_timestamp", { ascending: true });
 
-  if (error) {
-    throw new Error(
-      `[4663-worker] loadFirstBuyersForTokens failed: ${error.message}`,
-    );
+    if (error) {
+      throw new Error(
+        `[4663-worker] loadFirstBuyersForTokens failed: ${error.message} (batch ${batchIndex + 1}/${batches.length}, size=${batch.length})`,
+      );
+    }
+
+    for (const row of (data ?? []) as unknown as FirstBuyerDbRow[]) {
+      merged.push(mapBuyer(row));
+    }
   }
 
-  return ((data ?? []) as unknown as FirstBuyerDbRow[]).map(mapBuyer);
+  return sortFirstBuyers(merged);
 }
 
 export type InsertFirstBuyerInput = {
