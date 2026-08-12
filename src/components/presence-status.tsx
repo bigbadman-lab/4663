@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 /**
  * Quiet presence lines for canvas chrome (edge factual text).
  */
@@ -37,7 +35,7 @@ export function PresenceStatus() {
 
   return (
     <div
-      className="flex max-w-sm flex-col items-end gap-0.5 text-right font-mono text-[11px] leading-relaxed tracking-wide text-neutral-400"
+      className="flex max-w-sm flex-col items-start gap-0.5 text-left font-mono text-[10px] leading-relaxed tracking-wide text-neutral-400 sm:text-[11px]"
       data-4663-presence-status
     >
       <p>{countLine}</p>
