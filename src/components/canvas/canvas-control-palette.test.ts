@@ -42,7 +42,7 @@ describe("Stage 10B.8 movable control palette", () => {
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.equal(
-      (surface.match(/<CanvasControlPalette\s*\/>/g) ?? []).length,
+      (surface.match(/<CanvasControlPalette\b/g) ?? []).length,
       1,
     );
 

@@ -8,24 +8,49 @@ import { PlayProvider } from "@playhtml/react";
 import { usePathname } from "next/navigation";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
 import { CanvasSurface } from "@/components/canvas/canvas-surface";
+import { useSummonController } from "@/components/canvas/use-summon-controller";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
+import type { PublicEvent } from "@/lib/events/types";
 
 export type CanvasPlayTreeProps = {
   liveItems: readonly SlottedLiveEvent[];
+  events: readonly PublicEvent[];
+  nowMs: number;
 };
 
-export function CanvasPlayTree({ liveItems }: CanvasPlayTreeProps) {
+function CanvasPlayTreeInner({
+  liveItems,
+  events,
+  nowMs,
+}: CanvasPlayTreeProps) {
+  const summon = useSummonController(events, nowMs);
+
+  return (
+    <div
+      className="relative min-h-dvh w-full overflow-x-hidden bg-white text-neutral-900"
+      data-4663-canvas-root
+    >
+      <CanvasChrome />
+      <CanvasSurface
+        liveItems={liveItems}
+        summonId={summon.summonId}
+        summonItems={summon.items}
+        onSummon={summon.onSummon}
+      />
+    </div>
+  );
+}
+
+export function CanvasPlayTree({ liveItems, events, nowMs }: CanvasPlayTreeProps) {
   const pathname = usePathname();
 
   return (
     <PlayProvider pathname={pathname ?? "/"}>
-      <div
-        className="relative min-h-dvh w-full overflow-x-hidden bg-white text-neutral-900"
-        data-4663-canvas-root
-      >
-        <CanvasChrome />
-        <CanvasSurface liveItems={liveItems} />
-      </div>
+      <CanvasPlayTreeInner
+        liveItems={liveItems}
+        events={events}
+        nowMs={nowMs}
+      />
     </PlayProvider>
   );
 }

@@ -150,5 +150,7 @@ export function CanvasRoot() {
     return <CanvasShellFallback liveItems={liveItems} />;
   }
 
-  return <CanvasPlayTree liveItems={liveItems} />;
+  return (
+    <CanvasPlayTree liveItems={liveItems} events={events} nowMs={nowMs} />
+  );
 }

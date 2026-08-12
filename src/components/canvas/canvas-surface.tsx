@@ -9,14 +9,23 @@ import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
 import { MovableHero } from "@/components/canvas/movable-hero";
 import { MovableLogo } from "@/components/canvas/movable-logo";
+import { SummonLayer, type SummonLayerItem } from "@/components/canvas/summon-layer";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
 
 export type CanvasSurfaceProps = {
   liveItems?: readonly SlottedLiveEvent[];
+  summonId?: string | null;
+  summonItems?: readonly SummonLayerItem[];
+  onSummon?: () => void;
 };
 
-export function CanvasSurface({ liveItems = [] }: CanvasSurfaceProps) {
+export function CanvasSurface({
+  liveItems = [],
+  summonId = null,
+  summonItems = [],
+  onSummon,
+}: CanvasSurfaceProps) {
   return (
     <div
       id={PLAYHTML_CANVAS_BOUNDS_ID}
@@ -26,7 +35,10 @@ export function CanvasSurface({ liveItems = [] }: CanvasSurfaceProps) {
       <MovableLogo />
       <MovableHero />
       <MovableLiveEventLayer items={liveItems} />
-      <CanvasControlPalette />
+      {summonId ? (
+        <SummonLayer summonId={summonId} items={summonItems} />
+      ) : null}
+      <CanvasControlPalette onSummon={onSummon} />
     </div>
   );
 }

@@ -93,7 +93,11 @@ function PlaceholderIcon({ item }: { item: ControlPaletteItem }) {
   );
 }
 
-export function CanvasControlPalette() {
+export function CanvasControlPalette({
+  onSummon,
+}: {
+  onSummon?: () => void;
+}) {
   return (
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
@@ -114,7 +118,13 @@ export function CanvasControlPalette() {
                 title={item.label}
                 aria-label={item.label}
                 data-4663-palette-control={item.id}
-                onClick={() => onPlaceholderAction(item.id)}
+                onClick={() => {
+                  if (item.id === "summon") {
+                    onSummon?.();
+                    return;
+                  }
+                  onPlaceholderAction(item.id);
+                }}
                 onPointerDown={stopMoveStart}
                 onMouseDown={stopMoveStart}
                 onTouchStart={stopMoveStart}
