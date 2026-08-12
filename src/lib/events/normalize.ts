@@ -145,3 +145,44 @@ export function normalizePublicEvent(row: unknown): PublicEvent | null {
     triggerTxHash,
   };
 }
+
+/**
+ * Validate an already-public API DTO (camelCase). Fail closed on malformation.
+ */
+export function validatePublicEventDto(value: unknown): PublicEvent | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+
+  const r = value as Record<string, unknown>;
+
+  if (typeof r.id !== "string" || !UUID_RE.test(r.id.trim())) return null;
+  const id = r.id.trim().toLowerCase();
+
+  if (r.type !== PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY) return null;
+
+  if (typeof r.tokenAddress !== "string") return null;
+  const tokenAddress = r.tokenAddress.trim().toLowerCase();
+  if (!ADDRESS_RE.test(tokenAddress)) return null;
+
+  const newBuyers = asPositiveInt(r.newBuyers);
+  if (newBuyers === null) return null;
+
+  const occurredAt = toIsoOccurredAt(r.occurredAt);
+  if (occurredAt === null) return null;
+
+  const triggerBlockNumber = asNonNegInt(r.triggerBlockNumber);
+  if (triggerBlockNumber === null) return null;
+
+  const triggerTxHash = normalizeTriggerTxHash(r.triggerTxHash);
+  if (triggerTxHash === undefined) return null;
+
+  return {
+    id,
+    type: PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY,
+    tokenAddress,
+    newBuyers,
+    occurredAt,
+    triggerBlockNumber,
+    triggerTxHash,
+  };
+}
