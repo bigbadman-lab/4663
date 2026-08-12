@@ -4,7 +4,7 @@
  */
 
 import type { PonsFactoryDefinition } from "@/lib/pons/factories";
-import { isProductionEligibleLaunchBlock } from "@/lib/pons/production-boundary";
+import { isForwardWatchEligibleLaunchBlock } from "@/lib/pons/production-boundary";
 import {
   annotateFactoryLogs,
   extractLaunchesFromLogs,
@@ -161,8 +161,8 @@ async function fetchFactoryLogsAdaptive(
  * Scan [fromBlock, toBlock] inclusive for launches; persist idempotently.
  * Does NOT advance cursors — caller owns cursor progression after full success.
  *
- * After cutover, set productionStartBlock so launch_block ≤ B are not inserted
- * (startup rewind may re-read logs ≤ B without polluting production ACTIVE watch).
+ * After cutover, set productionStartBlock so non-eligible launches are not inserted
+ * (startup rewind may re-read logs before the watch boundary without polluting RAM).
  */
 export async function scanFactoryRange(input: {
   rpc: ChainRpc;
@@ -170,8 +170,10 @@ export async function scanFactoryRange(input: {
   factories: readonly PonsFactoryDefinition[];
   fromBlock: number;
   toBlock: number;
-  /** Last pre-production block B; skip insert when launch_block ≤ B */
+  /** Last pre-production block B; used with optional observationStartBlock */
   productionStartBlock?: number;
+  /** When set, skip insert when launch_block < X (forward observation) */
+  observationStartBlock?: number | null;
   /** Optional: called after each newly inserted launch */
   onInserted?: (launch: ResolvedPonsLaunch) => void;
 }): Promise<FactoryScanResult> {
@@ -231,15 +233,22 @@ export async function scanFactoryRange(input: {
 
       if (
         input.productionStartBlock !== undefined &&
-        !isProductionEligibleLaunchBlock(
-          resolved.launchBlockNumber,
-          input.productionStartBlock,
-        )
+        !isForwardWatchEligibleLaunchBlock(resolved.launchBlockNumber, {
+          productionStartBlock: input.productionStartBlock,
+          observationStartBlock: input.observationStartBlock ?? null,
+        })
       ) {
         skippedPreBoundary += 1;
-        workerLog(
-          `skip pre-boundary launch block=${resolved.launchBlockNumber} (B=${input.productionStartBlock}) token=${resolved.tokenAddress}`,
-        );
+        const x = input.observationStartBlock;
+        if (x !== null && x !== undefined) {
+          workerLog(
+            `skip pre-observation launch block=${resolved.launchBlockNumber} (X=${x}) token=${resolved.tokenAddress}`,
+          );
+        } else {
+          workerLog(
+            `skip pre-boundary launch block=${resolved.launchBlockNumber} (B=${input.productionStartBlock}) token=${resolved.tokenAddress}`,
+          );
+        }
         continue;
       }
 

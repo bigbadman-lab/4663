@@ -14,6 +14,10 @@ export type ProductionStateRow = {
   productionStartedAt: string;
   cutoverVersion: ProductionCutoverVersion | string;
   createdAt: string;
+  /** null = forward observation not activated (legacy production watch). */
+  observationStartBlock: number | null;
+  observationStartedAt: string | null;
+  observationVersion: string | null;
 };
 
 export type CutoverRpcStatus =
@@ -41,6 +45,9 @@ type ProductionStateDb = {
   production_started_at: string;
   cutover_version: string;
   created_at: string;
+  observation_start_block?: number | string | null;
+  observation_started_at?: string | null;
+  observation_version?: string | null;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -50,6 +57,12 @@ function asRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
+function asNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function mapRow(row: ProductionStateDb): ProductionStateRow {
   return {
     chainId: row.chain_id,
@@ -57,6 +70,9 @@ function mapRow(row: ProductionStateDb): ProductionStateRow {
     productionStartedAt: row.production_started_at,
     cutoverVersion: row.cutover_version,
     createdAt: row.created_at,
+    observationStartBlock: asNullableNumber(row.observation_start_block ?? null),
+    observationStartedAt: row.observation_started_at ?? null,
+    observationVersion: row.observation_version ?? null,
   };
 }
 
@@ -68,7 +84,16 @@ export async function loadProductionState(
   const { data, error } = await supabase
     .from("production_state")
     .select(
-      "chain_id, production_start_block, production_started_at, cutover_version, created_at",
+      [
+        "chain_id",
+        "production_start_block",
+        "production_started_at",
+        "cutover_version",
+        "created_at",
+        "observation_start_block",
+        "observation_started_at",
+        "observation_version",
+      ].join(", "),
     )
     .eq("chain_id", chainId)
     .maybeSingle();

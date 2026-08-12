@@ -33,16 +33,21 @@ function mapLaunch(row: LaunchDbRow): ActiveLaunchRow {
   };
 }
 
-/** Load ACTIVE pons launches for the given chain, optionally after production boundary. */
+/** Load ACTIVE pons launches for the given chain, optionally after watch boundary. */
 export async function loadActiveLaunches(
   supabase: WorkerSupabase,
   chainId: number,
   opts?: {
     /**
-     * Production start block B. When set, only rows with
-     * launch_block_number > B are returned (production-eligible).
+     * Production start block B. When set (and observation unset), only rows with
+     * launch_block_number > B are returned.
      */
     productionStartBlock?: number;
+    /**
+     * Observation start block X. When set, only rows with
+     * launch_block_number >= X are returned (overrides production > B filter).
+     */
+    observationStartBlock?: number | null;
   },
 ): Promise<ActiveLaunchRow[]> {
   let query = supabase
@@ -63,7 +68,12 @@ export async function loadActiveLaunches(
     .eq("chain_id", chainId)
     .eq("status", "active");
 
-  if (opts?.productionStartBlock !== undefined) {
+  if (
+    opts?.observationStartBlock !== undefined &&
+    opts.observationStartBlock !== null
+  ) {
+    query = query.gte("launch_block_number", opts.observationStartBlock);
+  } else if (opts?.productionStartBlock !== undefined) {
     // boundary: launch > B
     query = query.gt("launch_block_number", opts.productionStartBlock);
   }
@@ -81,7 +91,7 @@ export async function loadActiveLaunches(
 
 /**
  * Stage 11B: fired launches still inside the continuation age window
- * (launch_block_timestamp > cutoffIso). Production boundary optional.
+ * (launch_block_timestamp > cutoffIso). Watch boundary optional.
  */
 export async function loadFiredLaunchesForContinuationWatch(
   supabase: WorkerSupabase,
@@ -90,6 +100,7 @@ export async function loadFiredLaunchesForContinuationWatch(
     /** ISO timestamptz: keep launches with launch_block_timestamp > this. */
     launchTimestampAfterIso: string;
     productionStartBlock?: number;
+    observationStartBlock?: number | null;
   },
 ): Promise<ActiveLaunchRow[]> {
   let query = supabase
@@ -111,7 +122,12 @@ export async function loadFiredLaunchesForContinuationWatch(
     .eq("status", "fired")
     .gt("launch_block_timestamp", opts.launchTimestampAfterIso);
 
-  if (opts.productionStartBlock !== undefined) {
+  if (
+    opts.observationStartBlock !== undefined &&
+    opts.observationStartBlock !== null
+  ) {
+    query = query.gte("launch_block_number", opts.observationStartBlock);
+  } else if (opts.productionStartBlock !== undefined) {
     query = query.gt("launch_block_number", opts.productionStartBlock);
   }
 
@@ -126,6 +142,31 @@ export async function loadFiredLaunchesForContinuationWatch(
   return ((data ?? []) as unknown as LaunchDbRow[]).map(mapLaunch);
 }
 
+/**
+ * Max token addresses per PostgREST `.in("token_address", …)` query when
+ * loading existing pons_buyer_continuation rows. Mirrors first-buyer batching
+ * so restart reconstruction stays under URL/filter size limits.
+ */
+export const CONTINUATION_EVENT_TOKEN_IN_BATCH_SIZE = 100 as const;
+
+function chunkAddresses(addresses: string[], size: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < addresses.length; i += size) {
+    out.push(addresses.slice(i, i + size));
+  }
+  return out;
+}
+
+function formatContinuationLookupError(
+  error: { message?: string; code?: string; details?: string; hint?: string },
+): string {
+  const parts = [error.message ?? "unknown error"];
+  if (error.code) parts.push(`code=${error.code}`);
+  if (error.details) parts.push(`details=${error.details}`);
+  if (error.hint) parts.push(`hint=${error.hint}`);
+  return parts.join("; ");
+}
+
 /** Token addresses that already have a pons_buyer_continuation event. */
 export async function loadContinuationEventTokenAddresses(
   supabase: WorkerSupabase,
@@ -135,24 +176,35 @@ export async function loadContinuationEventTokenAddresses(
   const out = new Set<string>();
   if (tokenAddresses.length === 0) return out;
 
-  const normalized = tokenAddresses.map((t) => normalizeAddress(t));
-  const { data, error } = await supabase
-    .from("events")
-    .select("token_address")
-    .eq("chain_id", chainId)
-    .eq("event_type", "pons_buyer_continuation")
-    .in("token_address", normalized);
+  const uniqueTokens = [
+    ...new Set(tokenAddresses.map((t) => normalizeAddress(t))),
+  ];
+  const batches = chunkAddresses(
+    uniqueTokens,
+    CONTINUATION_EVENT_TOKEN_IN_BATCH_SIZE,
+  );
 
-  if (error) {
-    throw new Error(
-      `[4663-worker] loadContinuationEventTokenAddresses failed: ${error.message}`,
-    );
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex]!;
+    const { data, error } = await supabase
+      .from("events")
+      .select("token_address")
+      .eq("chain_id", chainId)
+      .eq("event_type", "pons_buyer_continuation")
+      .in("token_address", batch);
+
+    if (error) {
+      throw new Error(
+        `[4663-worker] loadContinuationEventTokenAddresses batch ${batchIndex + 1}/${batches.length} (${batch.length} addresses) failed: ${formatContinuationLookupError(error)}`,
+      );
+    }
+
+    for (const row of data ?? []) {
+      const addr = (row as { token_address?: string }).token_address;
+      if (addr) out.add(normalizeAddress(addr));
+    }
   }
 
-  for (const row of data ?? []) {
-    const addr = (row as { token_address?: string }).token_address;
-    if (addr) out.add(normalizeAddress(addr));
-  }
   return out;
 }
 

@@ -16,6 +16,9 @@ export type DurableStateSnapshot = {
   productionStartBlock: number | null;
   cutoverVersion: string | null;
   productionStartedAt: string | null;
+  observationStartBlock: number | null;
+  observationVersion: string | null;
+  observationStartedAt: string | null;
   factoryCursor: number | null;
   transferCursor: number | null;
   activeLaunchCount: number;
@@ -25,6 +28,8 @@ export type DurableStateSnapshot = {
   eventCount: number;
   /** ACTIVE launches with block ≤ B when cutover set; or total active when no cutover */
   preBoundaryActiveCount: number;
+  /** ACTIVE launches with block < X when observation set; else 0 */
+  preObservationActiveCount: number;
   oldestActiveLaunchBlock: number | null;
   newestActiveLaunchBlock: number | null;
   workerHealth: {
@@ -106,6 +111,7 @@ export async function inspectDurableState(
   let oldestActiveLaunchBlock: number | null = null;
   let newestActiveLaunchBlock: number | null = null;
   let preBoundaryActiveCount = 0;
+  let preObservationActiveCount = 0;
 
   if (blocks.length > 0) {
     oldestActiveLaunchBlock = blocks[0]!;
@@ -115,6 +121,10 @@ export async function inspectDurableState(
   if (production) {
     const B = production.productionStartBlock;
     preBoundaryActiveCount = blocks.filter((b) => b <= B).length;
+    const X = production.observationStartBlock;
+    if (X !== null) {
+      preObservationActiveCount = blocks.filter((b) => b < X).length;
+    }
   } else {
     preBoundaryActiveCount = activeLaunchCount;
   }
@@ -163,6 +173,9 @@ export async function inspectDurableState(
     productionStartBlock: production?.productionStartBlock ?? null,
     cutoverVersion: production?.cutoverVersion ?? null,
     productionStartedAt: production?.productionStartedAt ?? null,
+    observationStartBlock: production?.observationStartBlock ?? null,
+    observationVersion: production?.observationVersion ?? null,
+    observationStartedAt: production?.observationStartedAt ?? null,
     factoryCursor:
       cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock ?? null,
     transferCursor:
@@ -173,6 +186,7 @@ export async function inspectDurableState(
     firstBuyerCount,
     eventCount,
     preBoundaryActiveCount,
+    preObservationActiveCount,
     oldestActiveLaunchBlock,
     newestActiveLaunchBlock,
     workerHealth,
@@ -189,10 +203,14 @@ export function formatDurableStateReport(
     `production_start_block=${snap.productionStartBlock ?? "NONE"}`,
     `cutover_version=${snap.cutoverVersion ?? "NONE"}`,
     `production_started_at=${snap.productionStartedAt ?? "NONE"}`,
+    `observation_start_block=${snap.observationStartBlock ?? "not_active"}`,
+    `observation_version=${snap.observationVersion ?? "not_active"}`,
+    `observation_started_at=${snap.observationStartedAt ?? "not_active"}`,
     `cursor pons_factories=${snap.factoryCursor ?? "NONE"}`,
     `cursor pons_transfers=${snap.transferCursor ?? "NONE"}`,
     `launches active=${snap.activeLaunchCount} fired=${snap.firedLaunchCount} expired=${snap.expiredLaunchCount}`,
     `pre_boundary_or_dev_active=${snap.preBoundaryActiveCount}`,
+    `pre_observation_active=${snap.preObservationActiveCount}`,
     `active_launch_blocks oldest=${snap.oldestActiveLaunchBlock ?? "n/a"} newest=${snap.newestActiveLaunchBlock ?? "n/a"}`,
     `first_buyers=${snap.firstBuyerCount}`,
     `events=${snap.eventCount}`,

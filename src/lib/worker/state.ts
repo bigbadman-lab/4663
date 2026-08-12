@@ -3,7 +3,7 @@ import type {
   Address,
   WorkerMemoryModel,
 } from "@/lib/pons/types";
-import { isProductionEligibleLaunchBlock } from "@/lib/pons/production-boundary";
+import { isForwardWatchEligibleLaunchBlock } from "@/lib/pons/production-boundary";
 import { isWithinContinuationWatch } from "@/lib/pons/continuation";
 import type { ActiveLaunchRow, FirstBuyerRow } from "@/lib/worker/db-types";
 import {
@@ -224,7 +224,7 @@ export function removeFromContinuationWatch(
 
 /**
  * Inject a newly persisted ACTIVE launch into runtime RAM.
- * No-op when production boundary is set and launch_block ≤ B.
+ * No-op when watch boundary is set and launch is not forward-watch eligible.
  */
 export function addActiveLaunchToMemory(
   memory: WorkerMemoryModel,
@@ -237,16 +237,20 @@ export function addActiveLaunchToMemory(
     launchBlockNumber: number;
     launchBlockTimestampIso: string;
   },
-  opts?: { productionStartBlock?: number },
+  opts?: {
+    productionStartBlock?: number;
+    observationStartBlock?: number | null;
+  },
 ): void {
-  if (
-    opts?.productionStartBlock !== undefined &&
-    !isProductionEligibleLaunchBlock(
-      launch.launchBlockNumber,
-      opts.productionStartBlock,
-    )
-  ) {
-    return;
+  if (opts?.productionStartBlock !== undefined) {
+    if (
+      !isForwardWatchEligibleLaunchBlock(launch.launchBlockNumber, {
+        productionStartBlock: opts.productionStartBlock,
+        observationStartBlock: opts.observationStartBlock ?? null,
+      })
+    ) {
+      return;
+    }
   }
 
   const tokenAddress = normalizeAddress(launch.tokenAddress);

@@ -149,6 +149,9 @@ describe("Stage 7A cutover plan / idempotency / dry-run", () => {
       productionStartedAt: new Date().toISOString(),
       cutoverVersion: PRODUCTION_CUTOVER_VERSION,
       createdAt: new Date().toISOString(),
+      observationStartBlock: null,
+      observationStartedAt: null,
+      observationVersion: null,
     });
     assert.equal(gate.ok, true);
   });
@@ -201,7 +204,7 @@ describe("Stage 7A cutover plan / idempotency / dry-run", () => {
         launchBlockNumber: B,
         launchBlockTimestampIso: new Date().toISOString(),
       },
-      { productionStartBlock: B },
+      { productionStartBlock: B, observationStartBlock: null },
     );
     assert.equal(memory.activeTokens.size, 0);
 
@@ -217,7 +220,49 @@ describe("Stage 7A cutover plan / idempotency / dry-run", () => {
         launchBlockNumber: B + 1,
         launchBlockTimestampIso: new Date().toISOString(),
       },
-      { productionStartBlock: B },
+      { productionStartBlock: B, observationStartBlock: null },
+    );
+    assert.equal(memory.activeTokens.size, 1);
+  });
+
+  it("addActiveLaunchToMemory respects observation boundary when X set", () => {
+    const memory: WorkerMemoryModel = {
+      activeTokens: new Map(),
+      continuationWatch: new Map(),
+      continuationResolved: new Set(),
+      confirmedBuyers: new Map(),
+      rollingFirstBuyers: new Map(),
+    };
+    const X = B + 1000;
+    addActiveLaunchToMemory(
+      memory,
+      {
+        tokenAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        marketAddress: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        factoryAddress: "0xcccccccccccccccccccccccccccccccccccccccc",
+        factoryVersion: "v1",
+        launchTxHash:
+          "0x1111111111111111111111111111111111111111111111111111111111111111",
+        launchBlockNumber: X - 1,
+        launchBlockTimestampIso: new Date().toISOString(),
+      },
+      { productionStartBlock: B, observationStartBlock: X },
+    );
+    assert.equal(memory.activeTokens.size, 0);
+
+    addActiveLaunchToMemory(
+      memory,
+      {
+        tokenAddress: "0xdddddddddddddddddddddddddddddddddddddddd",
+        marketAddress: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        factoryAddress: "0xcccccccccccccccccccccccccccccccccccccccc",
+        factoryVersion: "v2",
+        launchTxHash:
+          "0x2222222222222222222222222222222222222222222222222222222222222222",
+        launchBlockNumber: X,
+        launchBlockTimestampIso: new Date().toISOString(),
+      },
+      { productionStartBlock: B, observationStartBlock: X },
     );
     assert.equal(memory.activeTokens.size, 1);
   });

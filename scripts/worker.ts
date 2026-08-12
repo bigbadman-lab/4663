@@ -117,6 +117,7 @@ async function main(): Promise<void> {
   const gate = requireProductionCutover(production);
 
   let productionStartBlock: number | undefined;
+  let observationStartBlock: number | null = null;
 
   if (!gate.ok) {
     if (devUncutover && once) {
@@ -124,6 +125,7 @@ async function main(): Promise<void> {
         "WARNING: --dev-uncutover (worker:once only) — no production boundary; do not use on Render",
       );
       productionStartBlock = undefined;
+      observationStartBlock = null;
     } else if (devUncutover && !once) {
       throw new Error(
         "[4663-worker] --dev-uncutover is only allowed with --once (worker:once). Continuous worker requires production cutover.",
@@ -133,13 +135,31 @@ async function main(): Promise<void> {
     }
   } else {
     productionStartBlock = gate.productionStartBlock;
+    observationStartBlock = production?.observationStartBlock ?? null;
     workerLog(`production_start_block=${gate.productionStartBlock}`);
     workerLog(`cutover_version=${gate.cutoverVersion}`);
-    workerLog("production mode active");
-    workerLog(
-      `eligibility: launch_block_number > ${gate.productionStartBlock}`,
-    );
+    if (observationStartBlock === null) {
+      workerLog("observation_start_block=not_active");
+      workerLog("production mode active");
+      workerLog(
+        `eligibility: launch_block_number > ${gate.productionStartBlock}`,
+      );
+    } else {
+      workerLog(`observation_start_block=${observationStartBlock}`);
+      if (production?.observationVersion) {
+        workerLog(`observation_version=${production.observationVersion}`);
+      }
+      workerLog("production mode active (forward observation)");
+      workerLog(
+        `eligibility: launch_block_number >= ${observationStartBlock}`,
+      );
+    }
   }
+
+  const watchBoundaryOpts = {
+    productionStartBlock,
+    observationStartBlock,
+  };
 
   const rpc = createChainRpc(config.alchemyRpcUrl);
   const factories = buildFactoryDefinitions({
@@ -161,6 +181,7 @@ async function main(): Promise<void> {
 
   const launches = await loadActiveLaunches(supabase, config.chainId, {
     productionStartBlock,
+    observationStartBlock,
   });
   const tokenAddresses = launches.map((l) => l.tokenAddress);
   const firstBuyers = await loadFirstBuyersForTokens(
@@ -170,9 +191,15 @@ async function main(): Promise<void> {
   );
 
   const memory = reconstructWorkerMemory(launches, firstBuyers);
-  workerLog(
-    `active tokens (production-eligible): ${activeTokenCount(memory)}`,
-  );
+  if (observationStartBlock !== null) {
+    workerLog(
+      `active tokens (observation-eligible): ${activeTokenCount(memory)}`,
+    );
+  } else {
+    workerLog(
+      `active tokens (production-eligible): ${activeTokenCount(memory)}`,
+    );
+  }
   workerLog(`first buyers loaded: ${firstBuyers.length}`);
 
   // Tokens that already have continuation events must not re-fire.
@@ -206,6 +233,7 @@ async function main(): Promise<void> {
       {
         launchTimestampAfterIso: launchAfterIso,
         productionStartBlock,
+        observationStartBlock,
       },
     );
     const contAddrs = firedForCont.map((l) => l.tokenAddress);
@@ -241,7 +269,7 @@ async function main(): Promise<void> {
     launchBlockNumber: number;
     launchBlockTimestampIso: string;
   }) => {
-    addActiveLaunchToMemory(memory, launch, { productionStartBlock });
+    addActiveLaunchToMemory(memory, launch, watchBoundaryOpts);
   };
 
   let latestProcessedBlock = highestProcessed(
@@ -277,6 +305,7 @@ async function main(): Promise<void> {
           startupRewind: true,
           maxRanges: once ? 1 : undefined,
           productionStartBlock,
+          observationStartBlock,
           onInserted: onLaunch,
         });
         latestChainBlock = catchUp.head;
@@ -307,6 +336,7 @@ async function main(): Promise<void> {
           startupRewind: true,
           maxRanges: once ? 1 : undefined,
           productionStartBlock,
+          observationStartBlock,
           onFactoryInserted: onLaunch,
         });
         latestChainBlock = transferCatch.head;
@@ -368,6 +398,7 @@ async function main(): Promise<void> {
             factories,
             startupRewind: false,
             productionStartBlock,
+            observationStartBlock,
             onInserted: onLaunch,
           });
           latestChainBlock = f.head;
@@ -386,6 +417,7 @@ async function main(): Promise<void> {
             memory,
             startupRewind: false,
             productionStartBlock,
+            observationStartBlock,
             onFactoryInserted: onLaunch,
           });
           latestChainBlock = t.head;
