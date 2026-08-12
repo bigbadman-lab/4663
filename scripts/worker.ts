@@ -43,6 +43,7 @@ import {
   addActiveLaunchToMemory,
   reconstructWorkerMemory,
 } from "@/lib/worker/state";
+import { withCatchUpHeartbeat } from "@/lib/worker/startup-heartbeat";
 import {
   createWorkerSupabase,
   proveSupabaseConnectivity,
@@ -191,67 +192,89 @@ async function main(): Promise<void> {
     workerError("initial eth_blockNumber failed", error);
   }
 
-  // 1) Factory catch-up first (discover launches before transfer range work).
-  if (cursors.get(CURSOR_STREAM_PONS_FACTORIES)) {
-    const catchUp = await catchUpFactoryCursor({
-      rpc,
-      supabase,
-      chainId: config.chainId,
-      factories,
-      startupRewind: true,
-      maxRanges: once ? 1 : undefined,
-      productionStartBlock,
-      onInserted: onLaunch,
-    });
-    latestChainBlock = catchUp.head;
-    if (catchUp.lastProcessedBlock !== null) {
+  // Continuous mode: keep worker_health fresh during long startup catch-up.
+  // once mode: no temporary interval (existing post-catch-up heartbeat + exit).
+  await withCatchUpHeartbeat({
+    once,
+    intervalMs: HEARTBEAT_INTERVAL_MS,
+    writeHeartbeat: async () => {
+      await writeHeartbeat(supabase, memory, {
+        latestChainBlock,
+        latestProcessedBlock,
+      });
+      workerLog(
+        `startup-heartbeat head=${latestChainBlock ?? "null"} processed=${latestProcessedBlock ?? "null"} active=${activeTokenCount(memory)}`,
+      );
+    },
+    onHeartbeatError: (error) => {
+      workerError("startup heartbeat failed", error);
+    },
+    runCatchUp: async () => {
+      // 1) Factory catch-up first (discover launches before transfer range work).
+      if (cursors.get(CURSOR_STREAM_PONS_FACTORIES)) {
+        const catchUp = await catchUpFactoryCursor({
+          rpc,
+          supabase,
+          chainId: config.chainId,
+          factories,
+          startupRewind: true,
+          maxRanges: once ? 1 : undefined,
+          productionStartBlock,
+          onInserted: onLaunch,
+        });
+        latestChainBlock = catchUp.head;
+        if (catchUp.lastProcessedBlock !== null) {
+          latestProcessedBlock = highestProcessed(
+            catchUp.lastProcessedBlock,
+            cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
+          );
+        }
+        workerLog(
+          `factory catch-up: inserted=${catchUp.inserted} known=${catchUp.alreadyKnown} ranges=${catchUp.rangesScanned} blocked=${catchUp.blocked}`,
+        );
+      } else {
+        workerLog("no pons_factories cursor — factory discovery idle");
+      }
+
+      workerLog(`active tokens: ${activeTokenCount(memory)}`);
+
+      // 2) Transfer catch-up (enforces factory >= transfer commit barrier).
+      cursors = await loadKnownCursors(supabase, config.chainId);
+      if (cursors.get(CURSOR_STREAM_PONS_TRANSFERS)) {
+        const transferCatch = await catchUpTransferCursor({
+          rpc,
+          supabase,
+          chainId: config.chainId,
+          factories,
+          memory,
+          startupRewind: true,
+          maxRanges: once ? 1 : undefined,
+          productionStartBlock,
+          onFactoryInserted: onLaunch,
+        });
+        latestChainBlock = transferCatch.head;
+        latestProcessedBlock = highestProcessed(
+          (
+            await loadKnownCursors(supabase, config.chainId)
+          ).get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
+          transferCatch.lastProcessedBlock,
+        );
+        workerLog(
+          `transfer catch-up: newBuyers=${transferCatch.newFirstBuyers} ranges=${transferCatch.rangesScanned} blocked=${transferCatch.blocked} fired=${transferCatch.lifecycle?.fired ?? 0} expired=${transferCatch.lifecycle?.expired ?? 0}`,
+        );
+      } else {
+        workerLog(
+          "no pons_transfers cursor — transfer scan idle until bootstrap",
+        );
+      }
+
+      cursors = await loadKnownCursors(supabase, config.chainId);
       latestProcessedBlock = highestProcessed(
-        catchUp.lastProcessedBlock,
+        cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
         cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
       );
-    }
-    workerLog(
-      `factory catch-up: inserted=${catchUp.inserted} known=${catchUp.alreadyKnown} ranges=${catchUp.rangesScanned} blocked=${catchUp.blocked}`,
-    );
-  } else {
-    workerLog("no pons_factories cursor — factory discovery idle");
-  }
-
-  workerLog(`active tokens: ${activeTokenCount(memory)}`);
-
-  // 2) Transfer catch-up (enforces factory >= transfer commit barrier).
-  cursors = await loadKnownCursors(supabase, config.chainId);
-  if (cursors.get(CURSOR_STREAM_PONS_TRANSFERS)) {
-    const transferCatch = await catchUpTransferCursor({
-      rpc,
-      supabase,
-      chainId: config.chainId,
-      factories,
-      memory,
-      startupRewind: true,
-      maxRanges: once ? 1 : undefined,
-      productionStartBlock,
-      onFactoryInserted: onLaunch,
-    });
-    latestChainBlock = transferCatch.head;
-    latestProcessedBlock = highestProcessed(
-      (
-        await loadKnownCursors(supabase, config.chainId)
-      ).get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
-      transferCatch.lastProcessedBlock,
-    );
-    workerLog(
-      `transfer catch-up: newBuyers=${transferCatch.newFirstBuyers} ranges=${transferCatch.rangesScanned} blocked=${transferCatch.blocked} fired=${transferCatch.lifecycle?.fired ?? 0} expired=${transferCatch.lifecycle?.expired ?? 0}`,
-    );
-  } else {
-    workerLog("no pons_transfers cursor — transfer scan idle until bootstrap");
-  }
-
-  cursors = await loadKnownCursors(supabase, config.chainId);
-  latestProcessedBlock = highestProcessed(
-    cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
-    cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
-  );
+    },
+  });
 
   await writeHeartbeat(supabase, memory, {
     latestChainBlock,
