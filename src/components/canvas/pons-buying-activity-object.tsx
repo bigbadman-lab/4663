@@ -71,7 +71,7 @@ export function PonsBuyingActivityContent({
 /** Positioned host class for static (non-PlayHTML) and movable shells. */
 export function ponsBuyingActivityHostClassName(movableChrome: boolean): string {
   return movableChrome
-    ? "absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+    ? "pointer-events-auto absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
     : "absolute z-[15] select-none";
 }
 

@@ -15,7 +15,10 @@ export function MovableLiveEventLayer({ items }: MovableLiveEventLayerProps) {
   if (items.length === 0) return null;
 
   return (
-    <div className="absolute inset-0" data-4663-live-event-layer>
+    <div
+      className="pointer-events-none absolute inset-0"
+      data-4663-live-event-layer
+    >
       {items.map(({ event, slot }) => (
         <MovablePonsBuyingActivityObject
           key={event.id}

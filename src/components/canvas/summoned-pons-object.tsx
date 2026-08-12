@@ -46,7 +46,7 @@ export function SummonedPonsObject({
       id={playhtmlSummonedElementId(summonId, event.id)}
       className={
         movable
-          ? "absolute z-[16] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+          ? "pointer-events-auto absolute z-[16] cursor-grab touch-manipulation select-none active:cursor-grabbing"
           : "absolute z-[16] select-none"
       }
       style={{ left: `${slot.leftPct}%`, top: `${slot.topPct}%` }}

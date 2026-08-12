@@ -22,7 +22,10 @@ export function SummonLayer({ summonId, items }: SummonLayerProps) {
   if (items.length === 0) return null;
 
   return (
-    <div className="absolute inset-0" data-4663-summon-layer>
+    <div
+      className="pointer-events-none absolute inset-0"
+      data-4663-summon-layer
+    >
       {items.map(({ event, slot }) => (
         <SummonedPonsObject
           key={`${summonId}:${event.id}`}

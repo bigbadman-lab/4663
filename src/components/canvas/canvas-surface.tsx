@@ -10,6 +10,7 @@ import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-la
 import { MovableHero } from "@/components/canvas/movable-hero";
 import { MovableLogo } from "@/components/canvas/movable-logo";
 import { SummonLayer, type SummonLayerItem } from "@/components/canvas/summon-layer";
+import { EphemeralTextLayer } from "@/components/social/ephemeral-text-layer";
 import { ParticipantPresenceLayer } from "@/components/social/participant-presence-layer";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
@@ -33,6 +34,7 @@ export function CanvasSurface({
       className="absolute inset-0 z-10"
       data-4663-canvas-surface
     >
+      <EphemeralTextLayer />
       <MovableLogo />
       <MovableHero />
       <MovableLiveEventLayer items={liveItems} />

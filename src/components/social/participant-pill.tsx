@@ -29,8 +29,8 @@ export function ParticipantPill({
   const { sessionId, name, colour } = participant;
   const origin = participantPillOrigin(sessionId);
   const hostClassName = isSelf
-    ? "absolute z-[17] cursor-grab touch-manipulation select-none active:cursor-grabbing"
-    : "absolute z-[17] pointer-events-none select-none";
+    ? "pointer-events-auto absolute z-[17] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+    : "pointer-events-none absolute z-[17] select-none";
 
   return (
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>

@@ -80,7 +80,7 @@ describe("Stage 10B.7 movable live PONS objects", () => {
     assert.ok(source.includes("top: `${slot.topPct}%`"));
     assert.ok(
       source.includes(
-        '"absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"',
+        '"pointer-events-auto absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"',
       ),
     );
     assert.equal(

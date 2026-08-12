@@ -14,7 +14,10 @@ export function ParticipantPresenceLayer() {
   if (participants.length === 0) return null;
 
   return (
-    <div className="absolute inset-0" data-4663-participant-layer>
+    <div
+      className="pointer-events-none absolute inset-0"
+      data-4663-participant-layer
+    >
       {participants.map((participant) => (
         <ParticipantPill
           key={participant.sessionId}
