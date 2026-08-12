@@ -1,7 +1,9 @@
 "use client";
 
+"use client";
+
 /**
- * Quiet presence lines under the homepage tagline.
+ * Quiet presence lines for canvas chrome (edge factual text).
  */
 
 import { useEffect, useState } from "react";
@@ -34,10 +36,13 @@ export function PresenceStatus() {
   const placeLine = formatPresencePlaces(summary);
 
   return (
-    <div className="mt-1 flex max-w-sm flex-col items-center gap-0.5 font-mono text-[11px] leading-relaxed tracking-wide text-neutral-400">
+    <div
+      className="flex max-w-sm flex-col items-end gap-0.5 text-right font-mono text-[11px] leading-relaxed tracking-wide text-neutral-400"
+      data-4663-presence-status
+    >
       <p>{countLine}</p>
       {placeLine ? (
-        <p className="break-words text-center text-neutral-400/90">{placeLine}</p>
+        <p className="break-words text-neutral-400/90">{placeLine}</p>
       ) : null}
     </div>
   );

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PresenceHeartbeat } from "@/components/presence-heartbeat";
-import { PublicEventsStream } from "@/components/public-events-stream";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,9 +24,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-white text-neutral-900">
+      <body className="min-h-full bg-white text-neutral-900">
         <PresenceHeartbeat />
-        <PublicEventsStream />
         {children}
       </body>
     </html>
