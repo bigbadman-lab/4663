@@ -1,0 +1,48 @@
+diff --git a/node_modules/playhtml/dist/index-DlJfxvdB.js b/node_modules/playhtml/dist/index-DlJfxvdB.js
+index b38deff..ed23d30 100644
+--- a/node_modules/playhtml/dist/index-DlJfxvdB.js
++++ b/node_modules/playhtml/dist/index-DlJfxvdB.js
+@@ -13835,8 +13835,10 @@ function Yc(t, e) {
+   if (!r) return;
+   const i = ye(ne.play[t]?.[e]);
+   if (!i || typeof i.observeDeep != "function") return;
++  // Idempotent rebind: claim registry entry before unobserve so concurrent
++  // teardown cannot unobserveDeep the same callback twice.
+   const o = Ge.get(n);
+-  o && i.unobserveDeep(o);
++  o && (Ge.delete(n), i.unobserveDeep(o));
+   let c = !1;
+   const a = () => {
+     c || (c = !0, queueMicrotask(() => {
+@@ -13902,8 +13904,15 @@ function Bn(t) {
+       const r = s.get(e);
+       if (!r || r.element !== t)
+         continue;
+-      const i = `${n}:${e}`, o = ye(ne.play[n]?.[e]), c = Ge.get(i);
+-      o && c && typeof o.unobserveDeep == "function" && o.unobserveDeep(c), Ge.delete(i), Is.delete(i);
++      const i = `${n}:${e}`, c = Ge.get(i);
++      // Idempotent teardown: only unobserveDeep when registry still owns the
++      // callback; delete first so a second Bn/Yc cannot double-remove.
++      if (c) {
++        Ge.delete(i);
++        const o = ye(ne.play[n]?.[e]);
++        o && typeof o.unobserveDeep == "function" && o.unobserveDeep(c);
++      }
++      Is.delete(i);
+       const a = lt.get(i);
+       a !== void 0 && (clearTimeout(a), lt.delete(i)), r.destroy?.(), G?.removeLocalAwareness(n, e), s.delete(e);
+     }
+@@ -14055,12 +14064,12 @@ function l0(t, e) {
+   if (s && typeof s.observeDeep == "function") {
+     const a = Ge.get(n);
+     if (a) {
++      Ge.delete(n);
+       try {
+         s.unobserveDeep(a);
+       } catch (l) {
+         console.warn(`[PLAYHTML] Failed to remove observer for ${n}:`, l);
+       }
+-      Ge.delete(n);
+     }
+   }
+   const r = ne.play[t];

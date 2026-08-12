@@ -18,7 +18,8 @@
     "worker:inspect-state": "node --import tsx scripts/inspect-state.ts",
     "worker:activate-observation": "node --import tsx scripts/activate-observation.ts",
     "worker:continuation-cohort": "node --import tsx scripts/continuation-cohort.ts",
-    "test": "node --import tsx --test src/lib/worker/state.test.ts src/lib/pons/launch-discovery/launch-discovery.test.ts src/lib/pons/buy-validation/buy-validation.test.ts src/lib/pons/eligibility-lifecycle.test.ts src/lib/pons/continuation.test.ts src/lib/worker/production-cutover.test.ts src/lib/worker/observation-activation.test.ts src/lib/worker/observation-eligibility.test.ts src/lib/worker/activate-observation-plan.test.ts src/lib/worker/startup-heartbeat.test.ts src/lib/worker/repositories/first-buyers.test.ts src/lib/worker/repositories/launches-continuation.test.ts src/lib/worker/continuation-cohort.test.ts src/lib/presence/presence-heartbeat.test.ts src/lib/presence/browser-presence.test.ts src/lib/presence/presence-summary.test.ts src/lib/presence/format-presence.test.ts src/lib/events/recent.test.ts src/lib/events/browser-stream.test.ts src/components/canvas/canvas-shell.test.ts src/lib/canvas/live-objects.test.ts src/components/canvas/movable-hero.test.ts src/components/canvas/movable-logo.test.ts src/components/canvas/canvas-chrome.test.ts src/components/canvas/movable-live-events.test.ts src/components/canvas/canvas-control-palette.test.ts src/lib/canvas/summon.test.ts src/components/canvas/pons-visual.test.ts"
+    "test": "node --import tsx --test src/lib/worker/state.test.ts src/lib/pons/launch-discovery/launch-discovery.test.ts src/lib/pons/buy-validation/buy-validation.test.ts src/lib/pons/eligibility-lifecycle.test.ts src/lib/pons/continuation.test.ts src/lib/worker/production-cutover.test.ts src/lib/worker/observation-activation.test.ts src/lib/worker/observation-eligibility.test.ts src/lib/worker/activate-observation-plan.test.ts src/lib/worker/startup-heartbeat.test.ts src/lib/worker/repositories/first-buyers.test.ts src/lib/worker/repositories/launches-continuation.test.ts src/lib/worker/continuation-cohort.test.ts src/lib/presence/presence-heartbeat.test.ts src/lib/presence/browser-presence.test.ts src/lib/presence/presence-summary.test.ts src/lib/presence/format-presence.test.ts src/lib/events/recent.test.ts src/lib/events/browser-stream.test.ts src/components/canvas/canvas-shell.test.ts src/lib/canvas/live-objects.test.ts src/components/canvas/movable-hero.test.ts src/components/canvas/movable-logo.test.ts src/components/canvas/canvas-chrome.test.ts src/components/canvas/movable-live-events.test.ts src/components/canvas/canvas-control-palette.test.ts src/lib/canvas/summon.test.ts src/components/canvas/pons-visual.test.ts src/lib/canvas/playhtml-observer-registry.test.ts",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@playhtml/react": "^2.1.0",
@@ -37,6 +38,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "patch-package": "^8.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"
