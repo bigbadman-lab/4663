@@ -7,15 +7,18 @@
  */
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
 import { LiveEventLayer } from "@/components/canvas/live-event-layer";
 import {
   HERO_SUBTITLE_DEFAULT_STYLE,
   HERO_TITLE_DEFAULT_STYLE,
+  LOGO_DEFAULT_STYLE,
   PLAYHTML_CANVAS_BOUNDS_ID,
   PLAYHTML_HERO_SUBTITLE_ID,
   PLAYHTML_HERO_TITLE_ID,
+  PLAYHTML_LOGO_ID,
 } from "@/lib/canvas/hero";
 import { assignSlots, type SlottedLiveEvent } from "@/lib/canvas/slots";
 import {
@@ -87,6 +90,23 @@ function CanvasShellFallback({
         className="absolute inset-0 z-10"
         data-4663-canvas-surface
       >
+        <div
+          id={PLAYHTML_LOGO_ID}
+          className="absolute z-[15] select-none"
+          style={LOGO_DEFAULT_STYLE}
+        >
+          <div className="h-16 w-16 overflow-hidden rounded-[16px] sm:h-[72px] sm:w-[72px] sm:rounded-[18px]">
+            <Image
+              src="/4663pfp.png"
+              alt="4663"
+              width={72}
+              height={72}
+              className="h-full w-full object-cover"
+              draggable={false}
+              priority
+            />
+          </div>
+        </div>
         <div
           id={PLAYHTML_HERO_TITLE_ID}
           className="absolute z-[15] select-none"

@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * Main relative surface for live objects + movable PlayHTML hero.
+ * Main relative surface for live objects + movable PlayHTML objects.
  * Stable id is the PlayHTML movement bounds container.
  */
 
 import { LiveEventLayer } from "@/components/canvas/live-event-layer";
 import { MovableHero } from "@/components/canvas/movable-hero";
+import { MovableLogo } from "@/components/canvas/movable-logo";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
 
@@ -21,6 +22,7 @@ export function CanvasSurface({ liveItems = [] }: CanvasSurfaceProps) {
       className="absolute inset-0 z-10"
       data-4663-canvas-surface
     >
+      <MovableLogo />
       <MovableHero />
       <LiveEventLayer items={liveItems} />
     </div>
