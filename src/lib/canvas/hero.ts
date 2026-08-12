@@ -8,6 +8,11 @@ export const PLAYHTML_HERO_TITLE_ID = "4663-hero-title" as const;
 export const PLAYHTML_HERO_SUBTITLE_ID = "4663-hero-subtitle" as const;
 export const PLAYHTML_LOGO_ID = "4663-logo" as const;
 
+/** Stable PlayHTML element id for a live public event object. */
+export function playhtmlEventElementId(eventId: string): string {
+  return `4663-event-${eventId}`;
+}
+
 /** CSS origin for title — viewport midpoint, slightly above optical center. */
 export const HERO_TITLE_DEFAULT_STYLE = {
   left: "50%",
@@ -24,4 +29,12 @@ export const HERO_SUBTITLE_DEFAULT_STYLE = {
 export const LOGO_DEFAULT_STYLE = {
   left: "24px",
   top: "24px",
+} as const;
+
+export const PLAYHTML_CONTROL_PALETTE_ID = "4663-control-palette" as const;
+
+/** CSS origin for control palette — bottom-center. */
+export const CONTROL_PALETTE_DEFAULT_STYLE = {
+  left: "50%",
+  bottom: "24px",
 } as const;

@@ -1,0 +1,154 @@
+/**
+ * Stage 10B.7 — movable PlayHTML live PONS objects (structural).
+ */
+
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+import { copyTextQuiet } from "@/lib/canvas/clipboard";
+import {
+  PLAYHTML_CANVAS_BOUNDS_ID,
+  PLAYHTML_HERO_SUBTITLE_ID,
+  PLAYHTML_HERO_TITLE_ID,
+  PLAYHTML_LOGO_ID,
+  playhtmlEventElementId,
+} from "@/lib/canvas/hero";
+import { assignSlots } from "@/lib/canvas/slots";
+import {
+  LIVE_OBJECT_MAX_AGE_MS,
+  LIVE_OBJECT_MAX_VISIBLE_DESKTOP,
+  LIVE_OBJECT_MAX_VISIBLE_NARROW,
+} from "@/lib/canvas/visible-events";
+
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+);
+
+function readSrc(rel: string): string {
+  return readFileSync(path.join(root, rel), "utf8");
+}
+
+describe("Stage 10B.7 movable live PONS objects", () => {
+  it("1–3. stable PlayHTML id + CanMoveElement bounds", () => {
+    const eventId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    assert.equal(
+      playhtmlEventElementId(eventId),
+      `4663-event-${eventId}`,
+    );
+
+    const movable = readSrc(
+      "src/components/canvas/movable-pons-buying-activity-object.tsx",
+    );
+    assert.ok(movable.includes("CanMoveElement"));
+    assert.ok(movable.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"));
+    assert.ok(movable.includes("isolateAddressPointer"));
+    assert.ok(movable.includes("movableChrome"));
+    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-canvas");
+
+    const object = readSrc(
+      "src/components/canvas/pons-buying-activity-object.tsx",
+    );
+    assert.ok(object.includes("playhtmlEventElementId(event.id)"));
+    assert.equal(object.includes('from "@playhtml/react"'), false);
+    assert.equal(object.includes("CanMoveElement bounds"), false);
+  });
+
+  it("4–6. slot % origin on outer; centering only on inner", () => {
+    const source = readSrc(
+      "src/components/canvas/pons-buying-activity-object.tsx",
+    );
+    assert.ok(source.includes("left: `${slot.leftPct}%`"));
+    assert.ok(source.includes("top: `${slot.topPct}%`"));
+    assert.ok(
+      source.includes(
+        '"absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"',
+      ),
+    );
+    assert.equal(
+      source.includes(
+        '"absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing -translate',
+      ),
+      false,
+    );
+    assert.ok(source.includes("-translate-x-1/2 -translate-y-1/2"));
+    assert.ok(source.includes("<article"));
+  });
+
+  it("7–9. address stops move-start; still copies full address quietly", async () => {
+    const source = readSrc(
+      "src/components/canvas/pons-buying-activity-object.tsx",
+    );
+    assert.ok(
+      source.includes(
+        "onPointerDown={isolateAddressPointer ? stopMoveStart : undefined}",
+      ),
+    );
+    assert.ok(
+      source.includes(
+        "onMouseDown={isolateAddressPointer ? stopMoveStart : undefined}",
+      ),
+    );
+    assert.ok(
+      source.includes(
+        "onTouchStart={isolateAddressPointer ? stopMoveStart : undefined}",
+      ),
+    );
+    assert.ok(source.includes("stopPropagation"));
+    assert.ok(source.includes("copyTextQuiet(event.tokenAddress)"));
+    assert.ok(source.includes("data-4663-event-address"));
+
+    const full = "0xabcdef0123456789abcdef0123456789abcdef01";
+    let written: string | undefined;
+    assert.equal(
+      await copyTextQuiet(full, async (value) => {
+        written = value;
+      }),
+      true,
+    );
+    assert.equal(written, full);
+    assert.equal(
+      await copyTextQuiet(full, async () => {
+        throw new Error("denied");
+      }),
+      false,
+    );
+  });
+
+  it("10–12. lifetime, caps, and assignSlots remain unchanged", () => {
+    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 90_000);
+    assert.equal(LIVE_OBJECT_MAX_VISIBLE_DESKTOP, 6);
+    assert.equal(LIVE_OBJECT_MAX_VISIBLE_NARROW, 4);
+
+    const slotsSource = readSrc("src/lib/canvas/slots.ts");
+    assert.ok(slotsSource.includes("preferredSlotIndex"));
+    assert.ok(slotsSource.includes("export function assignSlots"));
+
+    const rootSource = readSrc("src/components/canvas/canvas-root.tsx");
+    assert.ok(rootSource.includes("assignSlots"));
+    assert.ok(rootSource.includes("selectVisibleLiveEvents"));
+    assert.equal(typeof assignSlots, "function");
+  });
+
+  it("13–14. hero/logo ids unchanged; single PlayProvider; SSR-safe split", () => {
+    assert.equal(PLAYHTML_HERO_TITLE_ID, "4663-hero-title");
+    assert.equal(PLAYHTML_HERO_SUBTITLE_ID, "4663-hero-subtitle");
+    assert.equal(PLAYHTML_LOGO_ID, "4663-logo");
+
+    const playTree = readSrc("src/components/canvas/canvas-play-tree.tsx");
+    assert.equal((playTree.match(/<PlayProvider\b/g) ?? []).length, 1);
+
+    const rootSource = readSrc("src/components/canvas/canvas-root.tsx");
+    assert.equal((rootSource.match(/<PlayProvider\b/g) ?? []).length, 0);
+    assert.ok(rootSource.includes("LiveEventLayer"));
+    assert.equal(rootSource.includes("MovableLiveEventLayer"), false);
+
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("MovableLiveEventLayer"));
+
+    const staticLayer = readSrc("src/components/canvas/live-event-layer.tsx");
+    assert.equal(staticLayer.includes("@playhtml/react"), false);
+  });
+});

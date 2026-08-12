@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Renders slotted live PONS activity objects. Does not own the event stream.
+ * Static slotted live PONS objects. Safe for pre-PlayHTML fallback shell.
  */
 
 import { PonsBuyingActivityObject } from "@/components/canvas/pons-buying-activity-object";
