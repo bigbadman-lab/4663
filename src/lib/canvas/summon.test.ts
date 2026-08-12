@@ -245,7 +245,7 @@ describe("Stage 10B.9 summon wiring", () => {
     assert.equal(CANVAS_SLOTS.length, 6);
 
     const summoned = readSrc("src/components/canvas/summoned-pons-object.tsx");
-    assert.ok(summoned.includes(">earlier<") || summoned.includes("earlier"));
+    assert.ok(summoned.includes("EARLIER") || summoned.includes("earlierLabel"));
     assert.ok(summoned.includes("playhtmlSummonedElementId"));
     assert.ok(summoned.includes("CanMoveElement"));
     assert.equal(summoned.includes("aria-live"), false);

@@ -51,6 +51,8 @@ function memoryWithBuyers(
   const confirmed = new Set(rolling.map((r) => r.walletAddress));
   return {
     activeTokens: new Map([[TOKEN, token]]),
+    continuationWatch: new Map(),
+    continuationResolved: new Set(),
     confirmedBuyers: new Map([[TOKEN, confirmed]]),
     rollingFirstBuyers: new Map([[TOKEN, rolling]]),
   };
@@ -101,6 +103,9 @@ function mockSupabase(opts: {
           },
           error: null,
         };
+      }
+      if (name === "fire_pons_buyer_continuation") {
+        return { data: { status: "not_eligible", reason: "below_threshold" }, error: null };
       }
       if (name === "expire_pons_launch") {
         expireArgs.push(args);
@@ -223,8 +228,10 @@ describe("Stage 6 lifecycle evaluateTokenLifecycle (mocked durable layer)", () =
     assert.equal(result.fired, 1);
     assert.equal(result.fireAttempts, 1);
     assert.equal(memory.activeTokens.has(TOKEN), false);
-    assert.equal(memory.rollingFirstBuyers.has(TOKEN), false);
-    assert.equal(memory.confirmedBuyers.has(TOKEN), false);
+    // Stage 11B: burst fire retains observation on continuation watch when age < 300.
+    assert.equal(memory.continuationWatch.has(TOKEN), true);
+    assert.equal(memory.rollingFirstBuyers.has(TOKEN), true);
+    assert.equal(memory.confirmedBuyers.has(TOKEN), true);
     assert.equal(fireArgs.length, 1);
   });
 
@@ -241,6 +248,7 @@ describe("Stage 6 lifecycle evaluateTokenLifecycle (mocked durable layer)", () =
     });
     assert.equal(result.fired, 1);
     assert.ok(!memory.activeTokens.has(TOKEN));
+    assert.ok(memory.continuationWatch.has(TOKEN));
   });
 
   it("F: already_fired from RPC removes token without second event path", async () => {
@@ -262,6 +270,7 @@ describe("Stage 6 lifecycle evaluateTokenLifecycle (mocked durable layer)", () =
     assert.equal(result.fired, 0);
     assert.equal(fireArgs.length, 1);
     assert.ok(!memory.activeTokens.has(TOKEN));
+    assert.ok(memory.continuationWatch.has(TOKEN));
   });
 
   it("I: fire vs expiry — fire first; expiry skipped when terminal", async () => {
@@ -376,7 +385,9 @@ describe("Stage 6 lifecycle evaluateTokenLifecycle (mocked durable layer)", () =
     assert.equal(r.expired, 0);
   });
 
-  it("B prune inside lifecycle removes early buyers from RAM queue", async () => {
+  it("B burst screen uses pruned window copy; durable RAM timestamps retained", async () => {
+    // Early buyers fall outside the rolling 180s screen at T0+400 → no fire attempt,
+    // but Stage 11B keeps full first-buy timestamps for Candidate B.
     const memory = memoryWithBuyers([1, 2, 3, 4, 5]);
     const { supabase, fireArgs } = mockSupabase({});
     const r = await evaluateTokenLifecycle({
@@ -389,8 +400,7 @@ describe("Stage 6 lifecycle evaluateTokenLifecycle (mocked durable layer)", () =
     assert.equal(r.fireAttempts, 0);
     assert.equal(fireArgs.length, 0);
     const q = memory.rollingFirstBuyers.get(TOKEN) ?? [];
-    assert.equal(q.length, 0);
-    // Still active until TTL
+    assert.equal(q.length, 5);
     assert.equal(memory.activeTokens.has(TOKEN), true);
   });
 

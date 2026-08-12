@@ -34,13 +34,21 @@ import {
   requireProductionCutover,
 } from "@/lib/worker/production-mode";
 import { loadKnownCursors } from "@/lib/worker/repositories/cursors";
+import { CONTINUATION_WATCH_END_SECONDS } from "@/lib/pons/constants";
 import { loadFirstBuyersForTokens } from "@/lib/worker/repositories/first-buyers";
-import { loadActiveLaunches } from "@/lib/worker/repositories/launches";
+import {
+  loadActiveLaunches,
+  loadContinuationEventTokenAddresses,
+  loadFiredLaunchesForContinuationWatch,
+} from "@/lib/worker/repositories/launches";
 import { loadProductionState } from "@/lib/worker/repositories/production-state";
 import { upsertWorkerHealth } from "@/lib/worker/repositories/worker-health";
 import {
   activeTokenCount,
   addActiveLaunchToMemory,
+  addContinuationWatchLaunches,
+  applyFirstBuyersToMemory,
+  continuationWatchCount,
   reconstructWorkerMemory,
 } from "@/lib/worker/state";
 import { withCatchUpHeartbeat } from "@/lib/worker/startup-heartbeat";
@@ -167,6 +175,63 @@ async function main(): Promise<void> {
   );
   workerLog(`first buyers loaded: ${firstBuyers.length}`);
 
+  // Tokens that already have continuation events must not re-fire.
+  const alreadyContinuedActive = await loadContinuationEventTokenAddresses(
+    supabase,
+    config.chainId,
+    tokenAddresses,
+  );
+  for (const addr of alreadyContinuedActive) {
+    memory.continuationResolved.add(addr);
+  }
+
+  let latestChainBlock: number | null = null;
+  let tipUnix: number | null = null;
+  try {
+    latestChainBlock = await rpc.getBlockNumber();
+    workerLog(`chain head: ${latestChainBlock}`);
+    const tipBlock = await rpc.getBlock(latestChainBlock);
+    tipUnix = tipBlock.timestamp;
+  } catch (error) {
+    workerError("initial eth_blockNumber failed", error);
+  }
+
+  // Stage 11B: reconstruct continuation watch for fired launches still age < 300.
+  if (tipUnix !== null) {
+    const launchAfterUnix = tipUnix - CONTINUATION_WATCH_END_SECONDS;
+    const launchAfterIso = new Date(launchAfterUnix * 1000).toISOString();
+    const firedForCont = await loadFiredLaunchesForContinuationWatch(
+      supabase,
+      config.chainId,
+      {
+        launchTimestampAfterIso: launchAfterIso,
+        productionStartBlock,
+      },
+    );
+    const contAddrs = firedForCont.map((l) => l.tokenAddress);
+    const alreadyContinued = await loadContinuationEventTokenAddresses(
+      supabase,
+      config.chainId,
+      contAddrs,
+    );
+    const added = addContinuationWatchLaunches(memory, firedForCont, tipUnix, {
+      continuationEventTokenAddresses: alreadyContinued,
+    });
+    if (added > 0) {
+      const contBuyers = await loadFirstBuyersForTokens(
+        supabase,
+        config.chainId,
+        [...memory.continuationWatch.keys()],
+      );
+      applyFirstBuyersToMemory(memory, contBuyers);
+      workerLog(`continuation watch reconstructed: ${added}`);
+      workerLog(`continuation first buyers loaded: ${contBuyers.length}`);
+    }
+    workerLog(
+      `continuation watch tokens: ${continuationWatchCount(memory)}`,
+    );
+  }
+
   const onLaunch = (launch: {
     tokenAddress: string;
     marketAddress: string;
@@ -179,18 +244,10 @@ async function main(): Promise<void> {
     addActiveLaunchToMemory(memory, launch, { productionStartBlock });
   };
 
-  let latestChainBlock: number | null = null;
   let latestProcessedBlock = highestProcessed(
     cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
     cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
   );
-
-  try {
-    latestChainBlock = await rpc.getBlockNumber();
-    workerLog(`chain head: ${latestChainBlock}`);
-  } catch (error) {
-    workerError("initial eth_blockNumber failed", error);
-  }
 
   // Continuous mode: keep worker_health fresh during long startup catch-up.
   // once mode: no temporary interval (existing post-catch-up heartbeat + exit).

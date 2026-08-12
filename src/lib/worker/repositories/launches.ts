@@ -79,6 +79,83 @@ export async function loadActiveLaunches(
   return ((data ?? []) as unknown as LaunchDbRow[]).map(mapLaunch);
 }
 
+/**
+ * Stage 11B: fired launches still inside the continuation age window
+ * (launch_block_timestamp > cutoffIso). Production boundary optional.
+ */
+export async function loadFiredLaunchesForContinuationWatch(
+  supabase: WorkerSupabase,
+  chainId: number,
+  opts: {
+    /** ISO timestamptz: keep launches with launch_block_timestamp > this. */
+    launchTimestampAfterIso: string;
+    productionStartBlock?: number;
+  },
+): Promise<ActiveLaunchRow[]> {
+  let query = supabase
+    .from("pons_launches")
+    .select(
+      [
+        "chain_id",
+        "token_address",
+        "market_address",
+        "factory_address",
+        "factory_version",
+        "launch_tx_hash",
+        "launch_block_number",
+        "launch_block_timestamp",
+        "status",
+      ].join(", "),
+    )
+    .eq("chain_id", chainId)
+    .eq("status", "fired")
+    .gt("launch_block_timestamp", opts.launchTimestampAfterIso);
+
+  if (opts.productionStartBlock !== undefined) {
+    query = query.gt("launch_block_number", opts.productionStartBlock);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(
+      `[4663-worker] loadFiredLaunchesForContinuationWatch failed: ${error.message}`,
+    );
+  }
+
+  return ((data ?? []) as unknown as LaunchDbRow[]).map(mapLaunch);
+}
+
+/** Token addresses that already have a pons_buyer_continuation event. */
+export async function loadContinuationEventTokenAddresses(
+  supabase: WorkerSupabase,
+  chainId: number,
+  tokenAddresses: string[],
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (tokenAddresses.length === 0) return out;
+
+  const normalized = tokenAddresses.map((t) => normalizeAddress(t));
+  const { data, error } = await supabase
+    .from("events")
+    .select("token_address")
+    .eq("chain_id", chainId)
+    .eq("event_type", "pons_buyer_continuation")
+    .in("token_address", normalized);
+
+  if (error) {
+    throw new Error(
+      `[4663-worker] loadContinuationEventTokenAddresses failed: ${error.message}`,
+    );
+  }
+
+  for (const row of data ?? []) {
+    const addr = (row as { token_address?: string }).token_address;
+    if (addr) out.add(normalizeAddress(addr));
+  }
+  return out;
+}
+
 export type InsertLaunchResult =
   | { outcome: "inserted"; row: ActiveLaunchRow }
   | {

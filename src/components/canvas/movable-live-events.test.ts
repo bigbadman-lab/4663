@@ -81,24 +81,18 @@ describe("Stage 10B.7 movable live PONS objects", () => {
     const source = readSrc(
       "src/components/canvas/pons-buying-activity-object.tsx",
     );
-    assert.ok(
-      source.includes(
-        "onPointerDown={isolateAddressPointer ? stopMoveStart : undefined}",
-      ),
+    assert.ok(source.includes("stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}"));
+    assert.ok(source.includes("PonsAddressCopyControl"));
+    assert.ok(source.includes("copyTextQuiet"));
+
+    const control = readSrc(
+      "src/components/canvas/pons-address-copy-control.tsx",
     );
-    assert.ok(
-      source.includes(
-        "onMouseDown={isolateAddressPointer ? stopMoveStart : undefined}",
-      ),
-    );
-    assert.ok(
-      source.includes(
-        "onTouchStart={isolateAddressPointer ? stopMoveStart : undefined}",
-      ),
-    );
-    assert.ok(source.includes("stopPropagation"));
-    assert.ok(source.includes("copyTextQuiet(event.tokenAddress)"));
-    assert.ok(source.includes("data-4663-event-address"));
+    assert.ok(control.includes("onPointerDown={stopMoveStart}"));
+    assert.ok(control.includes("onMouseDown={stopMoveStart}"));
+    assert.ok(control.includes("onTouchStart={stopMoveStart}"));
+    assert.ok(control.includes("stopPropagation"));
+    assert.ok(control.includes("data-4663-event-address"));
 
     const full = "0xabcdef0123456789abcdef0123456789abcdef01";
     let written: string | undefined;

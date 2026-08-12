@@ -24,10 +24,15 @@ import {
 } from "@/lib/worker/constants";
 import { workerLog } from "@/lib/worker/log";
 import { normalizeAddress } from "@/lib/worker/normalize";
+import { tryFireBuyerContinuation } from "@/lib/worker/pons/continuation-eval";
 import {
   insertFirstBuyerIdempotent,
 } from "@/lib/worker/repositories/first-buyers";
-import { addFirstBuyerToMemory } from "@/lib/worker/state";
+import {
+  addFirstBuyerToMemory,
+  getWatchedToken,
+  watchedTokensForScan,
+} from "@/lib/worker/state";
 import type { WorkerSupabase } from "@/lib/worker/supabase";
 
 export type TransferScanMetrics = {
@@ -186,8 +191,8 @@ export async function scanTransferRange(input: {
   let alreadyKnownBuyers = 0;
   let notBuys = 0;
 
-  // Tokens that exist by the end of this range may yield logs.
-  const eligible = [...memory.activeTokens.values()].filter(
+  // ACTIVE ∪ continuation-watch tokens that exist by the end of this range.
+  const eligible = watchedTokensForScan(memory).filter(
     (t) => t.launchBlock <= toBlock,
   );
   const eligibleMap = new Map(
@@ -363,6 +368,29 @@ export async function scanTransferRange(input: {
         firstBuyBlockTimestampUnix: existingTs,
       });
       confirmedThisRange.add(pairKey);
+
+      // Candidate B: fire immediately when the second continuation buyer lands.
+      if (insert.outcome === "inserted") {
+        const watched = getWatchedToken(memory, buy.tokenAddress);
+        if (watched) {
+          try {
+            await tryFireBuyerContinuation({
+              supabase,
+              chainId,
+              memory,
+              token: watched,
+              evaluationTimestampUnix: existingTs,
+              evaluationBlockNumber: buy.blockNumber,
+            });
+          } catch (contErr) {
+            const cmsg =
+              contErr instanceof Error ? contErr.message : String(contErr);
+            workerLog(
+              `CONTINUATION FIRE OPERATIONAL FAIL token=${buy.tokenAddress}: ${cmsg}`,
+            );
+          }
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       failures.push(`tx ${d.transactionHash}: ${msg}`);

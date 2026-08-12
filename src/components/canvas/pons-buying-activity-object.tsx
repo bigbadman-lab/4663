@@ -6,8 +6,9 @@
  */
 
 import { useState } from "react";
+import { PonsActivityCopy } from "@/components/canvas/pons-activity-copy";
+import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
-import { formatShortAddress } from "@/lib/canvas/format-address";
 import { playhtmlEventElementId } from "@/lib/canvas/hero";
 import type { CanvasSlot } from "@/lib/canvas/slots";
 import type { PublicEvent } from "@/lib/events/types";
@@ -54,24 +55,15 @@ export function PonsBuyingActivityObject({
       data-4663-live-event={event.id}
       data-4663-slot={slot.id}
     >
-      <article className="-translate-x-1/2 -translate-y-1/2 max-w-[11.5rem] border border-neutral-300 bg-white px-2.5 py-2 font-mono text-[11px] leading-snug text-neutral-700 transition-opacity duration-200 sm:max-w-[13rem]">
-        <p className="text-neutral-800">
-          {event.newBuyers} new wallets bought this token
-        </p>
-        <button
-          type="button"
-          onClick={() => {
+      <article className="-translate-x-1/2 -translate-y-1/2 max-w-[11.5rem] border border-neutral-300 bg-white px-2.5 py-2 font-mono leading-snug transition-opacity duration-200 sm:max-w-[13rem]">
+        <PonsActivityCopy newBuyers={event.newBuyers} />
+        <PonsAddressCopyControl
+          tokenAddress={event.tokenAddress}
+          onCopy={() => {
             void onCopy();
           }}
-          onPointerDown={isolateAddressPointer ? stopMoveStart : undefined}
-          onMouseDown={isolateAddressPointer ? stopMoveStart : undefined}
-          onTouchStart={isolateAddressPointer ? stopMoveStart : undefined}
-          className="mt-1.5 block w-full cursor-pointer touch-manipulation text-left text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline"
-          aria-label={`Copy token address ${event.tokenAddress}`}
-          data-4663-event-address
-        >
-          {formatShortAddress(event.tokenAddress)}
-        </button>
+          stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
+        />
         {copied ? (
           <p className="mt-1 text-[10px] tracking-wide text-neutral-400">
             copied

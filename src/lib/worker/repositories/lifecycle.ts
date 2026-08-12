@@ -94,6 +94,72 @@ export async function callFirePonsBuyingActivity(
   };
 }
 
+export type ContinuationFireRpcResult = {
+  status: FireRpcStatus;
+  reason?: string;
+  eventId?: string | null;
+  newBuyers?: number;
+  pre3mBuyers?: number;
+  continuationBuyers?: number;
+  tokenAgeSeconds?: number;
+  triggerTxHash?: string | null;
+  triggerBlockNumber?: number;
+  raw: Record<string, unknown>;
+};
+
+export async function callFirePonsBuyerContinuation(
+  supabase: WorkerSupabase,
+  input: {
+    chainId: number;
+    tokenAddress: string;
+    evaluationTimestampIso: string;
+    evaluationBlockNumber: number;
+  },
+): Promise<ContinuationFireRpcResult> {
+  const { data, error } = await supabase.rpc("fire_pons_buyer_continuation", {
+    p_chain_id: input.chainId,
+    p_token_address: input.tokenAddress,
+    p_evaluation_timestamp: input.evaluationTimestampIso,
+    p_evaluation_block_number: input.evaluationBlockNumber,
+  });
+
+  if (error) {
+    throw new Error(
+      `[4663-worker] fire_pons_buyer_continuation RPC failed: ${error.message}`,
+    );
+  }
+
+  const raw = asRecord(data);
+  const status = String(raw.status ?? "error") as FireRpcStatus;
+
+  return {
+    status,
+    reason: raw.reason ? String(raw.reason) : undefined,
+    eventId: raw.event_id ? String(raw.event_id) : null,
+    newBuyers:
+      typeof raw.new_buyers === "number" ? raw.new_buyers : undefined,
+    pre3mBuyers:
+      typeof raw.pre_3m_buyers === "number" ? raw.pre_3m_buyers : undefined,
+    continuationBuyers:
+      typeof raw.continuation_buyers === "number"
+        ? raw.continuation_buyers
+        : undefined,
+    tokenAgeSeconds:
+      typeof raw.token_age_seconds === "number"
+        ? raw.token_age_seconds
+        : undefined,
+    triggerTxHash:
+      raw.trigger_tx_hash === null || raw.trigger_tx_hash === undefined
+        ? null
+        : String(raw.trigger_tx_hash),
+    triggerBlockNumber:
+      typeof raw.trigger_block_number === "number"
+        ? raw.trigger_block_number
+        : undefined,
+    raw,
+  };
+}
+
 export async function callExpirePonsLaunch(
   supabase: WorkerSupabase,
   input: {

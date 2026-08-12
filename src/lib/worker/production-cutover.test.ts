@@ -184,6 +184,8 @@ describe("Stage 7A cutover plan / idempotency / dry-run", () => {
   it("addActiveLaunchToMemory respects production boundary", () => {
     const memory: WorkerMemoryModel = {
       activeTokens: new Map(),
+      continuationWatch: new Map(),
+      continuationResolved: new Set(),
       confirmedBuyers: new Map(),
       rollingFirstBuyers: new Map(),
     };

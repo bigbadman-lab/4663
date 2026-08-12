@@ -1,5 +1,6 @@
 import {
   EVENT_SOURCE_PONS,
+  EVENT_TYPE_PONS_BUYER_CONTINUATION,
   EVENT_TYPE_PONS_BUYING_ACTIVITY,
   FACTORY_VERSIONS,
   LAUNCH_STATUSES,
@@ -13,6 +14,8 @@ export type FactoryVersion = (typeof FACTORY_VERSIONS)[number];
 export type CursorStreamName = "pons_factories" | "pons_transfers";
 
 export type PonsBuyingEventType = typeof EVENT_TYPE_PONS_BUYING_ACTIVITY;
+export type PonsBuyerContinuationEventType =
+  typeof EVENT_TYPE_PONS_BUYER_CONTINUATION;
 export type PonsEventSource = typeof EVENT_SOURCE_PONS;
 
 /** Unix seconds derived from chain block timestamps (UTC). */
@@ -51,6 +54,14 @@ export type RollingFirstBuyer = {
  */
 export type WorkerMemoryModel = {
   activeTokens: Map<Address, ActiveTokenState>;
+  /**
+   * Fired (or otherwise removed from ACTIVE burst path) tokens still observed
+   * for Candidate B until age >= 300 or continuation fires.
+   * Disjoint from activeTokens.
+   */
+  continuationWatch: Map<Address, ActiveTokenState>;
+  /** Tokens that already resolved continuation (fired or watch ended). */
+  continuationResolved: Set<Address>;
   confirmedBuyers: Map<Address, Set<Address>>;
   rollingFirstBuyers: Map<Address, RollingFirstBuyer[]>;
 };

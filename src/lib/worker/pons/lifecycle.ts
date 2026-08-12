@@ -1,6 +1,9 @@
 /**
  * Chain-time lifecycle evaluation: fire candidates (RAM screen) + durable RPC,
  * then expire past watch TTL. Never uses wall clock as semantic authority.
+ *
+ * Stage 11B: burst fire no longer ends all observation — tokens under age 300
+ * move to continuationWatch for Candidate B (pons_buyer_continuation).
  */
 
 import {
@@ -20,9 +23,17 @@ import type { ChainRpc } from "@/lib/worker/chain/rpc";
 import { workerLog } from "@/lib/worker/log";
 import { normalizeAddress } from "@/lib/worker/normalize";
 import {
+  markActivePastContinuationWindow,
+  pruneContinuationWatchByAge,
+  tryFireBuyerContinuation,
+} from "@/lib/worker/pons/continuation-eval";
+import {
   callExpirePonsLaunch,
   callFirePonsBuyingActivity,
 } from "@/lib/worker/repositories/lifecycle";
+import {
+  moveActiveToContinuationWatch,
+} from "@/lib/worker/state";
 import type { WorkerSupabase } from "@/lib/worker/supabase";
 
 export type LifecycleEvaluationResult = {
@@ -36,6 +47,9 @@ export type LifecycleEvaluationResult = {
   fireOperationalFailures: number;
   expired: number;
   expireBlocked: number;
+  continuationFireAttempts: number;
+  continuationFired: number;
+  continuationWatchPruned: number;
 };
 
 export function removeTokenFromWatch(
@@ -44,17 +58,18 @@ export function removeTokenFromWatch(
 ): void {
   const token = normalizeAddress(tokenAddress);
   memory.activeTokens.delete(token);
+  memory.continuationWatch.delete(token);
   memory.confirmedBuyers.delete(token);
   memory.rollingFirstBuyers.delete(token);
 }
 
-function pruneRollingInPlace(
+function pruneRollingTimestamps(
   memory: WorkerMemoryModel,
   tokenAddress: string,
   evaluationUnix: number,
 ): number[] {
   const rolling = memory.rollingFirstBuyers.get(tokenAddress) ?? [];
-  const kept = rolling
+  return rolling
     .filter((r) =>
       isInsideInclusiveWindow(
         r.firstBuyBlockTimestamp,
@@ -67,9 +82,8 @@ function pruneRollingInPlace(
         return a.firstBuyBlockTimestamp - b.firstBuyBlockTimestamp;
       }
       return a.walletAddress.localeCompare(b.walletAddress);
-    });
-  memory.rollingFirstBuyers.set(tokenAddress, kept);
-  return kept.map((r) => r.firstBuyBlockTimestamp);
+    })
+    .map((r) => r.firstBuyBlockTimestamp);
 }
 
 /**
@@ -78,6 +92,9 @@ function pruneRollingInPlace(
  *
  * Order per token: fire attempt (if RAM eligible) before expiry.
  * Operational fire failure blocks expiry for that token this cycle.
+ *
+ * After ACTIVE pass: prune continuation watch by age and attempt Candidate B
+ * for remaining continuation + ACTIVE-under-300 tokens.
  */
 export async function evaluateTokenLifecycle(input: {
   supabase: WorkerSupabase;
@@ -105,17 +122,20 @@ export async function evaluateTokenLifecycle(input: {
     fireOperationalFailures: 0,
     expired: 0,
     expireBlocked: 0,
+    continuationFireAttempts: 0,
+    continuationFired: 0,
+    continuationWatchPruned: 0,
   };
 
   const tokens = [...memory.activeTokens.values()];
 
   for (const token of tokens) {
     const addr = token.tokenAddress;
-    const prunedTimestamps = pruneRollingInPlace(memory, addr, T);
+    const prunedTimestamps = pruneRollingTimestamps(memory, addr, T);
     const age = tokenAgeSeconds(T, token.launchTimestamp);
 
     let fireOperationalFail = false;
-    let terminal = false;
+    let leftActive = false;
 
     const ramEligible = defaultFireEligibility(
       token.launchTimestamp,
@@ -142,15 +162,15 @@ export async function evaluateTokenLifecycle(input: {
           workerLog(
             `event fired token=${addr} buyers=${fire.newBuyers} age=${fire.tokenAgeSeconds}s block=${evaluationBlockNumber}`,
           );
-          removeTokenFromWatch(memory, addr);
-          terminal = true;
+          moveActiveToContinuationWatch(memory, addr, T);
+          leftActive = true;
         } else if (fire.status === "already_fired") {
           result.alreadyFired += 1;
-          removeTokenFromWatch(memory, addr);
-          terminal = true;
+          moveActiveToContinuationWatch(memory, addr, T);
+          leftActive = true;
         } else if (fire.status === "already_expired") {
           removeTokenFromWatch(memory, addr);
-          terminal = true;
+          leftActive = true;
         } else {
           result.notEligible += 1;
         }
@@ -162,7 +182,7 @@ export async function evaluateTokenLifecycle(input: {
       }
     }
 
-    if (terminal) continue;
+    if (leftActive) continue;
 
     if (fireOperationalFail) {
       // Keep ACTIVE for retry — never expire a potentially genuine event.
@@ -171,8 +191,6 @@ export async function evaluateTokenLifecycle(input: {
 
     // Past inclusive 60m boundary: expire if still active.
     if (isExpireEligible(T, token.launchTimestamp)) {
-      // Age > 3600 ⇒ fire ineligible; safe expiry.
-      // If count>=5 but age just crossed, fire was not allowed past TTL.
       try {
         const exp = await callExpirePonsLaunch(supabase, {
           chainId,
@@ -187,7 +205,7 @@ export async function evaluateTokenLifecycle(input: {
           removeTokenFromWatch(memory, addr);
         } else if (exp.status === "already_fired") {
           result.alreadyFired += 1;
-          removeTokenFromWatch(memory, addr);
+          moveActiveToContinuationWatch(memory, addr, T);
         } else if (exp.status === "already_expired") {
           removeTokenFromWatch(memory, addr);
         } else {
@@ -198,6 +216,38 @@ export async function evaluateTokenLifecycle(input: {
         const msg = err instanceof Error ? err.message : String(err);
         workerLog(`EXPIRE OPERATIONAL FAIL token=${addr}: ${msg}`);
       }
+    }
+  }
+
+  // Continuation watch age prune + Candidate B for ACTIVE ∪ continuationWatch.
+  result.continuationWatchPruned = pruneContinuationWatchByAge(memory, T);
+  markActivePastContinuationWindow(memory, T);
+
+  const continuationCandidates = [
+    ...memory.activeTokens.values(),
+    ...memory.continuationWatch.values(),
+  ];
+  const seen = new Set<string>();
+  for (const token of continuationCandidates) {
+    const addr = token.tokenAddress;
+    if (seen.has(addr)) continue;
+    seen.add(addr);
+    if (memory.continuationResolved.has(addr)) continue;
+
+    try {
+      const cont = await tryFireBuyerContinuation({
+        supabase,
+        chainId,
+        memory,
+        token,
+        evaluationTimestampUnix: T,
+        evaluationBlockNumber,
+      });
+      if (cont.attempted) result.continuationFireAttempts += 1;
+      if (cont.fired) result.continuationFired += 1;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      workerLog(`CONTINUATION FIRE OPERATIONAL FAIL token=${addr}: ${msg}`);
     }
   }
 

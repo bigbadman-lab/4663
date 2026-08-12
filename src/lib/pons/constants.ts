@@ -27,7 +27,12 @@ export const CURSOR_STREAM_PONS_FACTORIES = "pons_factories" as const;
 export const CURSOR_STREAM_PONS_TRANSFERS = "pons_transfers" as const;
 
 export const EVENT_TYPE_PONS_BUYING_ACTIVITY = "pons_buying_activity" as const;
+export const EVENT_TYPE_PONS_BUYER_CONTINUATION =
+  "pons_buyer_continuation" as const;
 export const EVENT_SOURCE_PONS = "pons" as const;
+
+/** Candidate B: continuation watch ends at this token age (exclusive). */
+export const CONTINUATION_WATCH_END_SECONDS = 300 as const;
 
 /** Normalised lowercase factory addresses (DB / worker write form). */
 export const PONS_FACTORY_V1 =
