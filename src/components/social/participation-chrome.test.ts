@@ -1,5 +1,5 @@
 /**
- * Social 1B — chrome enter affordance structural checks.
+ * Social 1B / 1C.1 — participation control placement + boundaries.
  */
 
 import assert from "node:assert/strict";
@@ -7,6 +7,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import {
+  HERO_SUBTITLE_DEFAULT_STYLE,
+  HERO_TITLE_DEFAULT_STYLE,
+  PARTICIPATION_CONTROL_DEFAULT_STYLE,
+} from "@/lib/canvas/hero";
 import { PARTICIPATION_SESSION_STORAGE_KEY } from "@/lib/social/participation-session";
 import { PARTICIPATION_CHANNEL_NAME } from "@/lib/social/participation-realtime";
 import { PRESENCE_SESSION_STORAGE_KEY } from "@/lib/presence/browser-session";
@@ -20,15 +25,72 @@ function readSrc(rel: string): string {
   return readFileSync(path.join(root, rel), "utf8");
 }
 
-describe("Social 1B chrome + boundaries", () => {
-  it("enter affordance lives in canvas chrome top-left", () => {
+describe("Social 1B / 1C.1 participation control placement", () => {
+  it("CanvasChrome no longer places participation in top-left", () => {
+    const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
+    assert.equal(chrome.includes("top-5 left-5"), false);
+    assert.equal(chrome.includes("sm:top-6 sm:left-6"), false);
+    assert.equal(
+      /data-4663-chrome-participation[\s\S]*?top-5 left-5/.test(chrome),
+      false,
+    );
+  });
+
+  it("hero-area UI renders the participation control", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("ParticipationEnterTrigger"));
+    assert.ok(chrome.includes("ParticipationSelfBadge"));
     assert.ok(chrome.includes("ParticipationEnterForm"));
     assert.ok(chrome.includes("data-4663-chrome-participation"));
-    assert.ok(chrome.includes("top-5 left-5") || chrome.includes("sm:top-6 sm:left-6"));
+    assert.ok(chrome.includes("PARTICIPATION_CONTROL_DEFAULT_STYLE"));
     assert.ok(chrome.includes("useParticipation"));
     assert.equal(chrome.includes("CanMoveElement"), false);
+
+    assert.equal(PARTICIPATION_CONTROL_DEFAULT_STYLE.left, "50%");
+    assert.equal(PARTICIPATION_CONTROL_DEFAULT_STYLE.top, "53.5%");
+    assert.equal(HERO_TITLE_DEFAULT_STYLE.top, "42%");
+    assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.top, "52%");
+  });
+
+  it("anonymous state exposes [ ENTER ]; named uses self badge", () => {
+    const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
+    assert.ok(chrome.includes("isParticipating"));
+    assert.ok(chrome.includes("ParticipationEnterTrigger"));
+    assert.ok(chrome.includes("ParticipationSelfBadge"));
+
+    const trigger = readSrc(
+      "src/components/social/participation-enter-trigger.tsx",
+    );
+    assert.ok(trigger.includes("[ ENTER ]"));
+
+    const badge = readSrc(
+      "src/components/social/participation-self-badge.tsx",
+    );
+    assert.ok(badge.includes("[ {name} ]") || badge.includes("name"));
+  });
+
+  it("participation control is NOT nested inside hero CanMoveElement", () => {
+    const hero = readSrc("src/components/canvas/movable-hero.tsx");
+    assert.equal(hero.includes("ParticipationEnter"), false);
+    assert.equal(hero.includes("ParticipationSelf"), false);
+    assert.equal(hero.includes("useParticipation"), false);
+    assert.equal(hero.includes("PARTICIPATION_CONTROL"), false);
+    assert.equal((hero.match(/<CanMoveElement\b/g) ?? []).length, 2);
+
+    const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
+    assert.ok(chrome.includes("data-4663-chrome-participation"));
+  });
+
+  it("ParticipantPresenceLayer remains unchanged wiring", () => {
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("ParticipantPresenceLayer"));
+    assert.ok(surface.includes("MovableHero"));
+
+    const layer = readSrc(
+      "src/components/social/participant-presence-layer.tsx",
+    );
+    assert.ok(layer.includes("useParticipation"));
+    assert.ok(layer.includes("ParticipantPill"));
   });
 
   it("ParticipationProvider wraps canvas root once", () => {

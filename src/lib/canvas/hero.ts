@@ -25,6 +25,15 @@ export const HERO_SUBTITLE_DEFAULT_STYLE = {
   top: "52%",
 } as const;
 
+/**
+ * Fixed chrome participation control ([ ENTER ] / [ NAME ]).
+ * Anchored under the default hero/subtitle composition — not a PlayHTML child.
+ */
+export const PARTICIPATION_CONTROL_DEFAULT_STYLE = {
+  left: "50%",
+  top: "53.5%",
+} as const;
+
 /** CSS origin for logo — top-left; PlayHTML offsets from here. */
 export const LOGO_DEFAULT_STYLE = {
   left: "24px",

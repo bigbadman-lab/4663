@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Fixed canvas chrome: intro (top-right), participation enter (top-left),
+ * Fixed canvas chrome: intro (top-right), hero-area participation,
  * presence + clock footer. Outside PlayHTML — never movable.
  */
 
@@ -13,6 +13,7 @@ import { ParticipationEnterForm } from "@/components/social/participation-enter-
 import { ParticipationEnterTrigger } from "@/components/social/participation-enter-trigger";
 import { ParticipationSelfBadge } from "@/components/social/participation-self-badge";
 import { PresenceStatus } from "@/components/presence-status";
+import { PARTICIPATION_CONTROL_DEFAULT_STYLE } from "@/lib/canvas/hero";
 import { useParticipation } from "@/lib/social/use-participation";
 
 export function CanvasChrome() {
@@ -31,7 +32,8 @@ export function CanvasChrome() {
         data-4663-canvas-chrome
       >
         <div
-          className="pointer-events-auto absolute top-5 left-5 sm:top-6 sm:left-6"
+          className="pointer-events-auto absolute -translate-x-1/2 text-center"
+          style={PARTICIPATION_CONTROL_DEFAULT_STYLE}
           data-4663-chrome-participation
         >
           {isParticipating && self ? (
