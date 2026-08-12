@@ -8,6 +8,7 @@ import {
   PresenceHeartbeatController,
   PRESENCE_HEARTBEAT_INTERVAL_MS,
   postPresenceHeartbeat,
+  type PresenceHeartbeatDeps,
 } from "@/lib/presence/browser-heartbeat";
 import {
   getOrCreatePresenceSessionId,
@@ -58,12 +59,12 @@ function createEnv(opts?: { visibility?: DocumentVisibilityState }) {
   const setIntervalFn = ((fn: () => void, ms: number) => {
     const id = nextId++;
     timers.set(id, { id, ms, fn });
-    return id as unknown as ReturnType<typeof setInterval>;
-  }) as typeof setInterval;
+    return id;
+  }) as PresenceHeartbeatDeps["setIntervalFn"];
 
-  const clearIntervalFn = ((id: ReturnType<typeof setInterval>) => {
-    timers.delete(id as unknown as number);
-  }) as typeof clearInterval;
+  const clearIntervalFn = ((id: unknown) => {
+    timers.delete(id as number);
+  }) as PresenceHeartbeatDeps["clearIntervalFn"];
 
   const controller = new PresenceHeartbeatController({
     getSessionId: () => VALID,

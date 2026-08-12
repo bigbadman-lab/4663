@@ -18,8 +18,10 @@ export function PresenceHeartbeat() {
       sendHeartbeat: (sessionId) => postPresenceHeartbeat(sessionId),
       getVisibilityState: () => document.visibilityState,
       // Bind to window — bare setInterval/clearInterval refs throw Illegal invocation
-      setIntervalFn: (handler, ms) => window.setInterval(handler, ms),
-      clearIntervalFn: (id) => window.clearInterval(id),
+      setIntervalFn: (handler: () => void, ms: number) =>
+        window.setInterval(handler, ms),
+      clearIntervalFn: (id: unknown) =>
+        window.clearInterval(id as number),
       addEventListener: (type, listener) =>
         window.addEventListener(type, listener),
       removeEventListener: (type, listener) =>

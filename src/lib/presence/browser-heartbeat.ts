@@ -13,8 +13,8 @@ export type PresenceHeartbeatDeps = {
   /** POST heartbeat; may reject — controller swallows */
   sendHeartbeat: (sessionId: string) => Promise<void>;
   getVisibilityState: () => DocumentVisibilityState;
-  setIntervalFn: typeof setInterval;
-  clearIntervalFn: typeof clearInterval;
+  setIntervalFn: (handler: () => void, ms: number) => unknown;
+  clearIntervalFn: (id: unknown) => void;
   addEventListener: (
     type: string,
     listener: EventListenerOrEventListenerObject,
@@ -46,7 +46,7 @@ export async function postPresenceHeartbeat(
 }
 
 export class PresenceHeartbeatController {
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private timer: unknown = null;
   private inFlight = false;
   private stopped = true;
   private readonly onVisibility: () => void;
