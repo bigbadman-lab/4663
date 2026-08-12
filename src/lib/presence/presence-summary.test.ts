@@ -39,13 +39,15 @@ describe("normalizePresenceSummary", () => {
     ]);
   });
 
-  it("3. city count 1 removed", () => {
+  it("3. city count 1 retained", () => {
     const out = normalizePresenceSummary({
       live_users: 1,
       by_country: { GB: 1 },
       by_city: [{ city: "London", country_code: "GB", count: 1 }],
     });
-    assert.deepEqual(out.byCity, []);
+    assert.deepEqual(out.byCity, [
+      { city: "London", countryCode: "GB", count: 1 },
+    ]);
   });
 
   it("4. city count 2+ retained", () => {

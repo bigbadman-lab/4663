@@ -45,7 +45,7 @@ function asPositiveInt(value: unknown): number | null {
 
 /**
  * Normalize a DB view row (or null) into the public API contract.
- * Strips city entries with count < 2. Keeps country count = 1.
+ * City entries with valid count >= 1 are retained (anonymous aggregates only).
  */
 export function normalizePresenceSummary(
   row: unknown,
@@ -97,8 +97,6 @@ export function normalizePresenceSummary(
 
       const count = asPositiveInt(e.count);
       if (count === null) continue;
-      // Privacy: suppress singleton cities
-      if (count < 2) continue;
 
       byCity.push({ city, countryCode, count });
     }
