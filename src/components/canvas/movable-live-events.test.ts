@@ -32,7 +32,7 @@ function readSrc(rel: string): string {
 }
 
 describe("Stage 10B.7 movable live PONS objects", () => {
-  it("1–3. stable PlayHTML id + CanMoveElement bounds", () => {
+  it("1–3. stable PlayHTML id + CanMoveElement direct DOM host", () => {
     const eventId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
     assert.equal(
       playhtmlEventElementId(eventId),
@@ -44,8 +44,17 @@ describe("Stage 10B.7 movable live PONS objects", () => {
     );
     assert.ok(movable.includes("CanMoveElement"));
     assert.ok(movable.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"));
+    assert.ok(movable.includes("playhtmlEventElementId(event.id)"));
+    assert.ok(movable.includes("<div"));
+    assert.ok(movable.includes("id={playhtmlEventElementId(event.id)}"));
+    // PlayHTML walks props.children — custom component as sole child throws.
+    assert.equal(
+      /<CanMoveElement[^>]*>\s*<PonsBuyingActivityObject\b/.test(movable),
+      false,
+    );
+    assert.equal(movable.includes("<PonsBuyingActivityObject"), false);
+    assert.ok(movable.includes("PonsBuyingActivityContent"));
     assert.ok(movable.includes("isolateAddressPointer"));
-    assert.ok(movable.includes("movableChrome"));
     assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-canvas");
 
     const object = readSrc(
@@ -57,6 +66,13 @@ describe("Stage 10B.7 movable live PONS objects", () => {
   });
 
   it("4–6. slot % origin on outer; centering only on inner", () => {
+    const movable = readSrc(
+      "src/components/canvas/movable-pons-buying-activity-object.tsx",
+    );
+    assert.ok(movable.includes("left: `${slot.leftPct}%`"));
+    assert.ok(movable.includes("top: `${slot.topPct}%`"));
+    assert.ok(movable.includes("ponsBuyingActivityHostClassName(true)"));
+
     const source = readSrc(
       "src/components/canvas/pons-buying-activity-object.tsx",
     );
@@ -85,6 +101,11 @@ describe("Stage 10B.7 movable live PONS objects", () => {
     assert.ok(source.includes("PonsAddressCopyControl"));
     assert.ok(source.includes("copyTextQuiet"));
 
+    const movable = readSrc(
+      "src/components/canvas/movable-pons-buying-activity-object.tsx",
+    );
+    assert.ok(movable.includes("isolateAddressPointer"));
+
     const control = readSrc(
       "src/components/canvas/pons-address-copy-control.tsx",
     );
@@ -108,6 +129,34 @@ describe("Stage 10B.7 movable live PONS objects", () => {
         throw new Error("denied");
       }),
       false,
+    );
+  });
+
+  it("PlayHTML: SUMMON and live movable both use direct DOM hosts", () => {
+    const summoned = readSrc(
+      "src/components/canvas/summoned-pons-object.tsx",
+    );
+    assert.ok(summoned.includes("CanMoveElement"));
+    assert.ok(/<CanMoveElement[^>]*>\s*\{node\}/.test(summoned));
+    assert.ok(summoned.includes("<div"));
+    assert.ok(summoned.includes("playhtmlSummonedElementId"));
+
+    const movable = readSrc(
+      "src/components/canvas/movable-pons-buying-activity-object.tsx",
+    );
+    assert.ok(
+      /<CanMoveElement[^>]*>\s*<div\b/.test(movable),
+      "CanMoveElement must wrap a direct <div>",
+    );
+    // Single playhtmlEventElementId call site on the host (no nested duplicate id).
+    assert.equal(
+      (movable.match(/playhtmlEventElementId\(event\.id\)/g) ?? []).length,
+      1,
+    );
+    assert.equal(movable.includes("<PonsBuyingActivityObject"), false);
+    assert.equal(
+      movable.includes('from "@/components/canvas/pons-buying-activity-object"'),
+      true,
     );
   });
 

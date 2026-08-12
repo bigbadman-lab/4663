@@ -3,6 +3,10 @@
 /**
  * Compact live PONS buying-activity object (presentational).
  * Slot % is CSS origin; optical centering lives on the inner article.
+ *
+ * Outer host owns position / z-index / PlayHTML id.
+ * Inner content is shared with MovablePonsBuyingActivityObject so CanMoveElement
+ * can wrap a direct DOM host without a duplicate wrapper.
  */
 
 import { useState } from "react";
@@ -28,12 +32,14 @@ function stopMoveStart(event: { stopPropagation(): void }): void {
   event.stopPropagation();
 }
 
-export function PonsBuyingActivityObject({
+/** Inner card content only — no positioned host. */
+export function PonsBuyingActivityContent({
   event,
-  slot,
   isolateAddressPointer = false,
-  movableChrome = false,
-}: PonsBuyingActivityObjectProps) {
+}: {
+  event: PublicEvent;
+  isolateAddressPointer?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function onCopy(): Promise<void> {
@@ -44,32 +50,49 @@ export function PonsBuyingActivityObject({
   }
 
   return (
+    <article className="-translate-x-1/2 -translate-y-1/2 max-w-[11.5rem] border border-neutral-300 bg-white px-2.5 py-2 font-mono leading-snug transition-opacity duration-200 sm:max-w-[13rem]">
+      <PonsActivityCopy newBuyers={event.newBuyers} />
+      <PonsAddressCopyControl
+        tokenAddress={event.tokenAddress}
+        onCopy={() => {
+          void onCopy();
+        }}
+        stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
+      />
+      {copied ? (
+        <p className="mt-1 text-[10px] tracking-wide text-neutral-400">
+          copied
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+/** Positioned host class for static (non-PlayHTML) and movable shells. */
+export function ponsBuyingActivityHostClassName(movableChrome: boolean): string {
+  return movableChrome
+    ? "absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+    : "absolute z-[15] select-none";
+}
+
+export function PonsBuyingActivityObject({
+  event,
+  slot,
+  isolateAddressPointer = false,
+  movableChrome = false,
+}: PonsBuyingActivityObjectProps) {
+  return (
     <div
       id={playhtmlEventElementId(event.id)}
-      className={
-        movableChrome
-          ? "absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
-          : "absolute z-[15] select-none"
-      }
+      className={ponsBuyingActivityHostClassName(movableChrome)}
       style={{ left: `${slot.leftPct}%`, top: `${slot.topPct}%` }}
       data-4663-live-event={event.id}
       data-4663-slot={slot.id}
     >
-      <article className="-translate-x-1/2 -translate-y-1/2 max-w-[11.5rem] border border-neutral-300 bg-white px-2.5 py-2 font-mono leading-snug transition-opacity duration-200 sm:max-w-[13rem]">
-        <PonsActivityCopy newBuyers={event.newBuyers} />
-        <PonsAddressCopyControl
-          tokenAddress={event.tokenAddress}
-          onCopy={() => {
-            void onCopy();
-          }}
-          stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
-        />
-        {copied ? (
-          <p className="mt-1 text-[10px] tracking-wide text-neutral-400">
-            copied
-          </p>
-        ) : null}
-      </article>
+      <PonsBuyingActivityContent
+        event={event}
+        isolateAddressPointer={isolateAddressPointer}
+      />
     </div>
   );
 }
