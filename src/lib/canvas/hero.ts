@@ -33,8 +33,8 @@ export const LOGO_DEFAULT_STYLE = {
 
 export const PLAYHTML_CONTROL_PALETTE_ID = "4663-control-palette" as const;
 
-/** CSS origin for control palette — bottom-center. */
+/** CSS origin for control palette — bottom-center, above footer chrome. */
 export const CONTROL_PALETTE_DEFAULT_STYLE = {
   left: "50%",
-  bottom: "24px",
+  bottom: "52px",
 } as const;

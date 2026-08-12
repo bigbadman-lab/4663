@@ -5,6 +5,7 @@
  * Stable id is the PlayHTML movement bounds container.
  */
 
+import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette";
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
 import { MovableHero } from "@/components/canvas/movable-hero";
 import { MovableLogo } from "@/components/canvas/movable-logo";
@@ -25,6 +26,7 @@ export function CanvasSurface({ liveItems = [] }: CanvasSurfaceProps) {
       <MovableLogo />
       <MovableHero />
       <MovableLiveEventLayer items={liveItems} />
+      <CanvasControlPalette />
     </div>
   );
 }
