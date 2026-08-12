@@ -17,3 +17,40 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/**
+ * Stage 10B.6 — subtle coordinate field for the canvas world.
+ * CSS only; sits on the root background below all objects (no pointer hit).
+ */
+[data-4663-canvas-root] {
+  --4663-dot-minor: rgba(23, 23, 23, 0.045);
+  --4663-dot-major: rgba(23, 23, 23, 0.09);
+  background-image:
+    radial-gradient(circle, var(--4663-dot-major) 1px, transparent 1.1px),
+    radial-gradient(circle, var(--4663-dot-minor) 1px, transparent 1.1px),
+    radial-gradient(
+      ellipse 68% 52% at 50% 42%,
+      rgba(23, 23, 23, 0.016),
+      transparent 70%
+    );
+  background-size:
+    100px 100px,
+    25px 25px,
+    100% 100%;
+  background-position:
+    0 0,
+    0 0,
+    center;
+  background-repeat: repeat, repeat, no-repeat;
+}
+
+@media (max-width: 640px) {
+  [data-4663-canvas-root] {
+    --4663-dot-minor: rgba(23, 23, 23, 0.035);
+    --4663-dot-major: rgba(23, 23, 23, 0.07);
+    background-size:
+      88px 88px,
+      22px 22px,
+      100% 100%;
+  }
+}
