@@ -47,23 +47,16 @@ describe("Stage 10A canvas ownership", () => {
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.match(surface, /data-4663-canvas-surface/);
     assert.equal(surface.includes("usePublicEvents"), false);
-    assert.equal(surface.includes("events.map"), false);
   });
 
-  it("6. no event objects are rendered in 10A", () => {
+  it("6. live objects render only via LiveEventLayer from CanvasRoot stream", () => {
     const rootSource = readSrc("src/components/canvas/canvas-root.tsx");
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
-    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     const page = readSrc("src/app/page.tsx");
-    for (const source of [rootSource, chrome, surface, page]) {
-      assert.equal(source.includes("tokenAddress"), false);
-      assert.equal(source.includes("newBuyers"), false);
-      assert.equal(source.includes("pons_buying_activity"), false);
-      assert.equal(source.includes("PonsBuying"), false);
-    }
-    // Root may call the hook but must not render events array
-    assert.equal(rootSource.includes("events.map"), false);
-    assert.equal(rootSource.includes(".events"), false);
+    assert.ok(rootSource.includes("selectVisibleLiveEvents"));
+    assert.ok(rootSource.includes("assignSlots"));
+    assert.equal(chrome.includes("PonsBuyingActivityObject"), false);
+    assert.equal(page.includes("usePublicEvents"), false);
   });
 
   it("7. no duplicate event subscription owner exists", () => {
@@ -79,7 +72,6 @@ describe("Stage 10A canvas ownership", () => {
     assert.equal(owners.length, 1);
     assert.equal(owners[0], rootSource);
 
-    // Dead null-island component must be gone
     assert.throws(() => readSrc("src/components/public-events-stream.tsx"));
   });
 });
