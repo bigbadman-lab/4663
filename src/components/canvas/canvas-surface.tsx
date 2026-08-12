@@ -10,6 +10,7 @@ import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-la
 import { MovableHero } from "@/components/canvas/movable-hero";
 import { MovableLogo } from "@/components/canvas/movable-logo";
 import { SummonLayer, type SummonLayerItem } from "@/components/canvas/summon-layer";
+import { ParticipantPresenceLayer } from "@/components/social/participant-presence-layer";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
 
@@ -38,6 +39,7 @@ export function CanvasSurface({
       {summonId ? (
         <SummonLayer summonId={summonId} items={summonItems} />
       ) : null}
+      <ParticipantPresenceLayer />
       <CanvasControlPalette onSummon={onSummon} />
     </div>
   );

@@ -28,6 +28,7 @@ import {
   selectVisibleLiveEvents,
 } from "@/lib/canvas/visible-events";
 import { usePublicEvents } from "@/lib/events/use-public-events";
+import { ParticipationProvider } from "@/lib/social/use-participation";
 
 const CanvasPlayTree = dynamic(
   () =>
@@ -146,11 +147,13 @@ export function CanvasRoot() {
     return assignSlots(visible);
   }, [events, nowMs, maxVisible]);
 
-  if (!playReady) {
-    return <CanvasShellFallback liveItems={liveItems} />;
-  }
-
   return (
-    <CanvasPlayTree liveItems={liveItems} events={events} nowMs={nowMs} />
+    <ParticipationProvider>
+      {!playReady ? (
+        <CanvasShellFallback liveItems={liveItems} />
+      ) : (
+        <CanvasPlayTree liveItems={liveItems} events={events} nowMs={nowMs} />
+      )}
+    </ParticipationProvider>
   );
 }
