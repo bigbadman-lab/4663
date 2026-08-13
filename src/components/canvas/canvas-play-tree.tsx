@@ -12,6 +12,7 @@ import { useSummonController } from "@/components/canvas/use-summon-controller";
 import type { PinnedLayerItem } from "@/components/canvas/pinned-pons-layer";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
 import type { PublicEvent } from "@/lib/events/types";
+import { useCanvasMarks } from "@/lib/social/use-canvas-marks";
 import { useParticipation } from "@/lib/social/use-participation";
 
 export type CanvasPlayTreeProps = {
@@ -33,8 +34,13 @@ function CanvasPlayTreeInner({
   isPinned,
   onPin,
 }: CanvasPlayTreeProps) {
-  const { isParticipating, resetContent } = useParticipation();
+  const { isParticipating, resetContent, self } = useParticipation();
   const summon = useSummonController(events, nowMs);
+  const { hasMarkForSession } = useCanvasMarks();
+
+  const canCreate = isParticipating && !!self;
+  const canMark =
+    canCreate && !!self && !hasMarkForSession(self.sessionId);
 
   return (
     <div
@@ -52,6 +58,9 @@ function CanvasPlayTreeInner({
         onReset={() => {
           resetContent();
         }}
+        canText={canCreate}
+        canDraw={canCreate}
+        canMark={canMark}
         canSummon={summon.canSummon}
         summonActive={summon.active !== null}
         isSummonOwner={summon.isOwner}

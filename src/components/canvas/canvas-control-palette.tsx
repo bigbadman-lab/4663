@@ -1,196 +1,193 @@
 "use client";
 
 /**
- * Shared movable control palette — SUMMON / RESET / placeholders.
+ * Social 8A — responsive bottom control dock (TEXT / DRAW / MARK / SUMMON / RESET).
+ * Fixed viewport-bottom tray; not PlayHTML-movable. Pointer-events only on the dock shell.
  */
 
-import { CanMoveElement } from "@playhtml/react";
 import {
-  CONTROL_PALETTE_ITEMS,
-  type ControlPaletteActionId,
-  type ControlPaletteItem,
+  CONTROL_DOCK_ITEMS,
+  type ControlDockActionId,
+  type ControlDockItem,
 } from "@/lib/canvas/control-palette";
-import {
-  CONTROL_PALETTE_DEFAULT_STYLE,
-  PLAYHTML_CANVAS_BOUNDS_ID,
-  PLAYHTML_CONTROL_PALETTE_ID,
-} from "@/lib/canvas/hero";
-
-function stopMoveStart(event: { stopPropagation(): void }): void {
-  event.stopPropagation();
-}
-
-function onPlaceholderAction(id: ControlPaletteActionId): void {
-  if (process.env.NODE_ENV !== "production") {
-    console.debug(`[4663-palette] placeholder action: ${id}`);
-  }
-}
-
-/** Temporary glyph — replace the children of the icon slot with <img> later. */
-function PlaceholderIcon({ item }: { item: ControlPaletteItem }) {
-  const { placeholderColor: color, placeholderShape: shape, id } = item;
-
-  if (shape === "triangle") {
-    return (
-      <span
-        data-4663-palette-icon={id}
-        className="pointer-events-none block h-0 w-0 border-x-[7px] border-b-[12px] border-x-transparent"
-        style={{ borderBottomColor: color }}
-        aria-hidden
-      />
-    );
-  }
-
-  if (shape === "plus") {
-    return (
-      <span
-        data-4663-palette-icon={id}
-        className="pointer-events-none relative block h-3.5 w-3.5"
-        aria-hidden
-      >
-        <span
-          className="absolute top-1/2 left-0 h-0.5 w-full -translate-y-1/2 rounded-full"
-          style={{ backgroundColor: color }}
-        />
-        <span
-          className="absolute top-0 left-1/2 h-full w-0.5 -translate-x-1/2 rounded-full"
-          style={{ backgroundColor: color }}
-        />
-      </span>
-    );
-  }
-
-  if (shape === "diamond") {
-    return (
-      <span
-        data-4663-palette-icon={id}
-        className="pointer-events-none block h-3 w-3 rotate-45 rounded-[2px]"
-        style={{ backgroundColor: color }}
-        aria-hidden
-      />
-    );
-  }
-
-  if (shape === "square") {
-    return (
-      <span
-        data-4663-palette-icon={id}
-        className="pointer-events-none block h-3.5 w-3.5 rounded-[3px]"
-        style={{ backgroundColor: color }}
-        aria-hidden
-      />
-    );
-  }
-
-  return (
-    <span
-      data-4663-palette-icon={id}
-      className="pointer-events-none block h-3.5 w-3.5 rounded-full"
-      style={{ backgroundColor: color }}
-      aria-hidden
-    />
-  );
-}
+import { PLAYHTML_CONTROL_PALETTE_ID } from "@/lib/canvas/hero";
+import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
 
 export type CanvasControlPaletteProps = {
   onSummon?: () => void;
   onDismissSummon?: () => void;
   onReset?: () => void;
+  onText?: () => void;
+  onDraw?: () => void;
+  onMark?: () => void;
+  canText?: boolean;
+  canDraw?: boolean;
+  canMark?: boolean;
   canSummon?: boolean;
   summonActive?: boolean;
   isSummonOwner?: boolean;
   canReset?: boolean;
 };
 
+function DockIcon({ item }: { item: ControlDockItem }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- tiny static public icons
+    <img
+      src={item.iconSrc}
+      alt=""
+      width={24}
+      height={24}
+      draggable={false}
+      className="pointer-events-none h-5 w-5 object-contain select-none sm:h-6 sm:w-6"
+      data-4663-dock-icon={item.id}
+      data-4663-palette-icon-slot={item.id}
+    />
+  );
+}
+
+function isDisabled(
+  id: ControlDockActionId,
+  props: CanvasControlPaletteProps,
+): boolean {
+  switch (id) {
+    case "text":
+      return !(props.canText ?? false);
+    case "draw":
+      return !(props.canDraw ?? false);
+    case "mark":
+      return !(props.canMark ?? false);
+    case "summon":
+      return !(props.canSummon ?? false) || !!props.summonActive;
+    case "reset":
+      return !(props.canReset ?? false);
+    default:
+      return true;
+  }
+}
+
 export function CanvasControlPalette({
   onSummon,
   onDismissSummon,
   onReset,
+  onText,
+  onDraw,
+  onMark,
+  canText = false,
+  canDraw = false,
+  canMark = false,
   canSummon = false,
   summonActive = false,
   isSummonOwner = false,
   canReset = false,
 }: CanvasControlPaletteProps) {
+  const props: CanvasControlPaletteProps = {
+    canText,
+    canDraw,
+    canMark,
+    canSummon,
+    summonActive,
+    canReset,
+  };
+
+  const runCreate = (kind: "text" | "draw" | "mark") => {
+    const bridge = getCanvasCreateActions();
+    if (kind === "text") {
+      onText?.();
+      bridge?.openText();
+      return;
+    }
+    if (kind === "draw") {
+      onDraw?.();
+      bridge?.openDraw();
+      return;
+    }
+    onMark?.();
+    bridge?.openMark();
+  };
+
   return (
-    <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center"
+      style={{
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)",
+      }}
+      data-4663-control-dock
+      data-4663-control-palette
+    >
       <div
         id={PLAYHTML_CONTROL_PALETTE_ID}
-        className="absolute z-[18] cursor-grab touch-manipulation select-none active:cursor-grabbing"
-        style={CONTROL_PALETTE_DEFAULT_STYLE}
-        data-4663-control-palette
+        className="pointer-events-auto mx-2 flex max-w-[min(100%,22rem)] flex-col items-center gap-1 sm:max-w-[min(100%,24rem)]"
+        data-4663-control-palette-shell
       >
-        <div className="-translate-x-1/2">
-          <div
-            className="flex max-w-[calc(100vw-2rem)] flex-col items-center gap-1"
-            data-4663-control-palette-shell
-          >
-            <div className="flex items-center gap-1 rounded-md border border-neutral-300 bg-white p-1 sm:gap-1.5 sm:p-1.5">
-              {CONTROL_PALETTE_ITEMS.map((item) => {
-                const summonDisabled =
-                  item.id === "summon" && (!canSummon || summonActive);
-                const resetDisabled = item.id === "reset" && !canReset;
-                const disabled =
-                  (item.id === "summon" && summonDisabled) ||
-                  (item.id === "reset" && resetDisabled);
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    title={item.label}
-                    aria-label={item.label}
-                    aria-disabled={disabled ? true : undefined}
-                    data-4663-palette-control={item.id}
-                    data-4663-palette-disabled={disabled ? "true" : "false"}
-                    data-4663-palette-summon-active={
-                      item.id === "summon" && summonActive ? "true" : undefined
-                    }
-                    disabled={disabled}
-                    onClick={() => {
-                      if (item.id === "summon") {
-                        if (!canSummon || summonActive) return;
-                        onSummon?.();
-                        return;
-                      }
-                      if (item.id === "reset") {
-                        if (!canReset) return;
-                        onReset?.();
-                        return;
-                      }
-                      onPlaceholderAction(item.id);
-                    }}
-                    onPointerDown={stopMoveStart}
-                    onMouseDown={stopMoveStart}
-                    onTouchStart={stopMoveStart}
-                    className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded border border-transparent hover:border-neutral-200 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400 disabled:cursor-not-allowed disabled:opacity-40 sm:h-11 sm:w-11"
-                  >
-                    <span
-                      className="flex h-6 w-6 items-center justify-center"
-                      data-4663-palette-icon-slot={item.id}
-                    >
-                      <PlaceholderIcon item={item} />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {summonActive && isSummonOwner ? (
+        <div
+          className="flex w-full items-stretch justify-between gap-0.5 rounded-2xl border border-neutral-300/90 bg-white/90 px-1 py-1 shadow-sm backdrop-blur-[2px] sm:gap-1 sm:px-1.5 sm:py-1.5"
+          data-4663-control-dock-tray
+        >
+          {CONTROL_DOCK_ITEMS.map((item) => {
+            const disabled = isDisabled(item.id, props);
+            return (
               <button
+                key={item.id}
                 type="button"
-                className="font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
-                data-4663-summon-dismiss
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onDismissSummon?.();
+                title={item.label}
+                aria-label={item.label}
+                aria-disabled={disabled ? true : undefined}
+                data-4663-palette-control={item.id}
+                data-4663-dock-control={item.id}
+                data-4663-palette-disabled={disabled ? "true" : "false"}
+                data-4663-palette-summon-active={
+                  item.id === "summon" && summonActive ? "true" : undefined
+                }
+                disabled={disabled}
+                onClick={() => {
+                  if (disabled) return;
+                  if (item.id === "text") {
+                    runCreate("text");
+                    return;
+                  }
+                  if (item.id === "draw") {
+                    runCreate("draw");
+                    return;
+                  }
+                  if (item.id === "mark") {
+                    runCreate("mark");
+                    return;
+                  }
+                  if (item.id === "summon") {
+                    onSummon?.();
+                    return;
+                  }
+                  if (item.id === "reset") {
+                    onReset?.();
+                  }
                 }}
-                onPointerDown={stopMoveStart}
+                className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1 font-mono text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400 active:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-12 sm:gap-1 sm:px-1"
               >
-                [ DISMISS ]
+                <DockIcon item={item} />
+                <span
+                  className="max-w-full truncate text-[8px] leading-none tracking-wide sm:text-[9px]"
+                  data-4663-dock-label={item.id}
+                >
+                  {item.label}
+                </span>
               </button>
-            ) : null}
-          </div>
+            );
+          })}
         </div>
+        {summonActive && isSummonOwner ? (
+          <button
+            type="button"
+            className="pointer-events-auto font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+            data-4663-summon-dismiss
+            onClick={(event) => {
+              event.stopPropagation();
+              onDismissSummon?.();
+            }}
+          >
+            [ DISMISS ]
+          </button>
+        ) : null}
       </div>
-    </CanMoveElement>
+    </div>
   );
 }

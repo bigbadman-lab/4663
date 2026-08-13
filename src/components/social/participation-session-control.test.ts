@@ -47,7 +47,7 @@ describe("Social 1D session control", () => {
     const defs = readSrc("src/lib/canvas/control-palette.ts");
     assert.ok(defs.includes('"reset"'));
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
-    assert.ok(palette.includes("onPlaceholderAction"));
+    assert.ok(palette.includes("onReset"));
     assert.equal(palette.includes("leave("), false);
     assert.equal(palette.includes("ParticipationController"), false);
   });

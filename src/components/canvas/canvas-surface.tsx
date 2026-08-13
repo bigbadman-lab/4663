@@ -27,6 +27,9 @@ export type CanvasSurfaceProps = {
   onSummon?: () => void;
   onDismissSummon?: () => void;
   onReset?: () => void;
+  canText?: boolean;
+  canDraw?: boolean;
+  canMark?: boolean;
   canSummon?: boolean;
   summonActive?: boolean;
   isSummonOwner?: boolean;
@@ -45,6 +48,9 @@ export function CanvasSurface({
   onSummon,
   onDismissSummon,
   onReset,
+  canText = false,
+  canDraw = false,
+  canMark = false,
   canSummon = false,
   summonActive = false,
   isSummonOwner = false,
@@ -75,6 +81,9 @@ export function CanvasSurface({
         onSummon={onSummon}
         onDismissSummon={onDismissSummon}
         onReset={onReset}
+        canText={canText}
+        canDraw={canDraw}
+        canMark={canMark}
         canSummon={canSummon}
         summonActive={summonActive}
         isSummonOwner={isSummonOwner}

@@ -5,7 +5,7 @@
  * Not session-ephemeral: do not register with LEAVE/RESET/Presence cleanup.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 import {
   canvasMarkFromRow,
@@ -85,10 +85,13 @@ export function useCanvasMarks(): UseCanvasMarksResult {
     return () => window.clearInterval(id);
   }, []);
 
-  const hasMarkForSession = (sessionId: string | null | undefined) =>
-    sessionHasMark(marksRef.current, sessionId, Date.now());
+  const hasMarkForSession = useCallback(
+    (sessionId: string | null | undefined) =>
+      sessionHasMark(marksRef.current, sessionId, Date.now()),
+    [],
+  );
 
-  const createMark = async (input: PostCanvasMarkInput) => {
+  const createMark = useCallback(async (input: PostCanvasMarkInput) => {
     if (sessionHasMark(marksRef.current, input.ownerSessionId, Date.now())) {
       return { ok: false as const, error: "Already marked this session." };
     }
@@ -104,10 +107,12 @@ export function useCanvasMarks(): UseCanvasMarksResult {
     }
     setMarks((prev) => upsertCanvasMark(prev, result.mark));
     return { ok: true as const, mark: result.mark };
-  };
+  }, []);
 
+  // Return state marks directly — expiry tick already prunes.
+  // Do NOT reallocate a new array every render (breaks effect deps).
   return {
-    marks: pruneExpiredMarks(marks, Date.now()),
+    marks,
     hasMarkForSession,
     createMark,
   };

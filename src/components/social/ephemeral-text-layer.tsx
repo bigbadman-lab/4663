@@ -92,6 +92,10 @@ import {
   type TextDraft,
 } from "@/lib/social/text-draft";
 import { useParticipation } from "@/lib/social/use-participation";
+import {
+  DOCK_CREATE_DEFAULT_PCT,
+  registerCanvasCreateActions,
+} from "@/lib/social/canvas-create-actions";
 
 type CreateUi =
   | null
@@ -541,6 +545,98 @@ export function EphemeralTextLayer() {
 
   const canMark =
     isParticipating && !!self && !hasMarkForSession(self.sessionId);
+
+  const isParticipatingRef = useRef(isParticipating);
+  const selfRef = useRef(self);
+  const hasMarkForSessionRef = useRef(hasMarkForSession);
+  isParticipatingRef.current = isParticipating;
+  selfRef.current = self;
+  hasMarkForSessionRef.current = hasMarkForSession;
+
+  // Social 8A — dock TEXT/DRAW/MARK opens existing create flows at default position.
+  // Register once; read latest participation/mark state from refs (avoid update-depth loops).
+  useEffect(() => {
+    const abandonLocalDrafts = () => {
+      const currentSelf = selfRef.current;
+      const ui = createUiRef.current;
+      if (ui?.mode === "compose" && currentSelf) {
+        clearLocalDraftBroadcast(ui.draftId, currentSelf.sessionId);
+      }
+      if (ui?.mode === "draw" && currentSelf) {
+        clearLocalDrawingDraftBroadcast(
+          ui.draftDrawingId,
+          currentSelf.sessionId,
+        );
+      }
+    };
+
+    const openDrawAt = (leftPct: number, topPct: number) => {
+      const zone = drawingZoneOriginFromClick(leftPct, topPct);
+      const canvas = document.getElementById(PLAYHTML_CANVAS_BOUNDS_ID);
+      const canvasRect = canvas?.getBoundingClientRect();
+      const measured =
+        canvasRect != null
+          ? measureDrawingZoneAspectRatio(
+              canvasRect.width,
+              canvasRect.height,
+              zone.widthPct,
+              zone.heightPct,
+            )
+          : null;
+      const aspectRatio =
+        measured ??
+        fallbackAspectRatioFromSizePct(zone.widthPct, zone.heightPct) ??
+        1;
+      setCreateUi({
+        mode: "draw",
+        draftDrawingId: createDrawingDraftId(),
+        ...zone,
+        aspectRatio,
+      });
+    };
+
+    return registerCanvasCreateActions({
+      canCreate: () =>
+        Boolean(isParticipatingRef.current && selfRef.current),
+      canMark: () => {
+        const currentSelf = selfRef.current;
+        return Boolean(
+          isParticipatingRef.current &&
+            currentSelf &&
+            !hasMarkForSessionRef.current(currentSelf.sessionId),
+        );
+      },
+      openText: () => {
+        if (!isParticipatingRef.current || !selfRef.current) return;
+        abandonLocalDrafts();
+        setCreateUi({
+          mode: "compose",
+          leftPct: DOCK_CREATE_DEFAULT_PCT.leftPct,
+          topPct: DOCK_CREATE_DEFAULT_PCT.topPct,
+          draftId: createTextDraftId(),
+        });
+      },
+      openDraw: () => {
+        if (!isParticipatingRef.current || !selfRef.current) return;
+        abandonLocalDrafts();
+        openDrawAt(
+          DOCK_CREATE_DEFAULT_PCT.leftPct,
+          DOCK_CREATE_DEFAULT_PCT.topPct,
+        );
+      },
+      openMark: () => {
+        const currentSelf = selfRef.current;
+        if (!isParticipatingRef.current || !currentSelf) return;
+        if (hasMarkForSessionRef.current(currentSelf.sessionId)) return;
+        abandonLocalDrafts();
+        setCreateUi({
+          mode: "mark",
+          leftPct: DOCK_CREATE_DEFAULT_PCT.leftPct,
+          topPct: DOCK_CREATE_DEFAULT_PCT.topPct,
+        });
+      },
+    });
+  }, []);
 
   const visibleRemoteDrafts = draftsForRemoteView(
     remoteDrafts,

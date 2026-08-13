@@ -1,52 +1,35 @@
 /**
- * Control palette slot definitions (actions wired in later stages).
+ * Social 8A — bottom control dock definitions (TEXT / DRAW / MARK / SUMMON / RESET).
  */
 
-export type ControlPaletteActionId =
+export type ControlDockActionId =
+  | "text"
+  | "draw"
+  | "mark"
   | "summon"
-  | "last-event"
-  | "clear"
-  | "reset"
-  | "about";
+  | "reset";
 
-export type ControlPaletteItem = {
-  id: ControlPaletteActionId;
+export type ControlDockItem = {
+  id: ControlDockActionId;
   label: string;
-  /** Solid CSS color for the temporary placeholder glyph. */
-  placeholderColor: string;
-  /** Placeholder geometry — replace later with an image asset. */
-  placeholderShape: "circle" | "square" | "triangle" | "diamond" | "plus";
+  /** Public PNG path under /public */
+  iconSrc: `/${string}.png`;
 };
 
-export const CONTROL_PALETTE_ITEMS: readonly ControlPaletteItem[] = [
-  {
-    id: "summon",
-    label: "Summon",
-    placeholderColor: "#3B82F6",
-    placeholderShape: "circle",
-  },
-  {
-    id: "last-event",
-    label: "Last event",
-    placeholderColor: "#F59E0B",
-    placeholderShape: "square",
-  },
-  {
-    id: "clear",
-    label: "Clear",
-    placeholderColor: "#EF4444",
-    placeholderShape: "triangle",
-  },
-  {
-    id: "reset",
-    label: "Reset",
-    placeholderColor: "#64748B",
-    placeholderShape: "diamond",
-  },
-  {
-    id: "about",
-    label: "About",
-    placeholderColor: "#0D9488",
-    placeholderShape: "plus",
-  },
+/** Canonical dock order — do not reorder. */
+export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
+  { id: "text", label: "TEXT", iconSrc: "/text.png" },
+  { id: "draw", label: "DRAW", iconSrc: "/draw.png" },
+  { id: "mark", label: "MARK", iconSrc: "/mark.png" },
+  { id: "summon", label: "SUMMON", iconSrc: "/summon.png" },
+  { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
+
+/** @deprecated Prefer CONTROL_DOCK_ITEMS — kept for transitional imports. */
+export const CONTROL_PALETTE_ITEMS = CONTROL_DOCK_ITEMS;
+
+/** @deprecated Prefer ControlDockActionId */
+export type ControlPaletteActionId = ControlDockActionId;
+
+/** @deprecated Prefer ControlDockItem */
+export type ControlPaletteItem = ControlDockItem;
