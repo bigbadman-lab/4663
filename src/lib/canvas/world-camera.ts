@@ -260,8 +260,10 @@ export const HOME_FIT_MIN_SCALE = 0.34 as const;
 export const WORLD_CAMERA_SCALE_ATTR = "data-4663-world-scale" as const;
 
 /**
- * Canonical HOME content rectangle (world px) for fit-scale.
- * Fits logo + hero + subtitle — not the entire 1440×900 artboard.
+ * Canonical HOME content rectangle (world px) for fit-scale / mobile HOME.
+ * IC3.9 — brand-first: frame H1 + subtitle so the title is intentionally
+ * centred. Logo is included when it lies inside that band; it is not allowed
+ * to pull the composition off-centre the way a logo→hero union box did.
  */
 export function homeFitContentBounds(): {
   left: number;
@@ -271,11 +273,11 @@ export function homeFitContentBounds(): {
   width: number;
   height: number;
 } {
-  const left = HOME_LOGO_WORLD.x - HOME_FIT_PAD_PX;
-  const top = HOME_LOGO_WORLD.y - HOME_FIT_PAD_PX;
-  const right =
-    Math.max(HOME_HERO_TITLE_WORLD.x, HOME_HERO_SUBTITLE_WORLD.x) +
-    HOME_FIT_HERO_HALF_WIDTH_PX;
+  const heroHalf = HOME_FIT_HERO_HALF_WIDTH_PX + HOME_FIT_PAD_PX;
+  const left = HOME_HERO_TITLE_WORLD.x - heroHalf;
+  const right = HOME_HERO_TITLE_WORLD.x + heroHalf;
+  // Title optical center sits mid-glyph; pad above for the H1 block.
+  const top = HOME_HERO_TITLE_WORLD.y - HOME_FIT_HERO_HALF_WIDTH_PX;
   const bottom = HOME_HERO_SUBTITLE_WORLD.y + HOME_FIT_BELOW_SUBTITLE_PX;
   return {
     left,
@@ -382,7 +384,7 @@ export function frameHomeCameraForViewport(
 
 /**
  * Initial boot/refresh landing camera (IC3.2.1).
- * Narrow mobile may use fit scale < 1 so logo+hero+subtitle read on first paint.
+ * Narrow mobile may use fit scale < 1 so H1+subtitle read centred on first paint.
  */
 export function initialHomeCameraForViewport(
   viewportWidth: number,

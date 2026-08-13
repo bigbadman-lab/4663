@@ -1,5 +1,5 @@
 /**
- * Stage 10B.6 — PlayHTML movable logo structural tests.
+ * Stage 10B.6 / IC3.9 — brand logo anchor (canonical, non-movable).
  */
 
 import assert from "node:assert/strict";
@@ -26,19 +26,20 @@ function readSrc(rel: string): string {
   return readFileSync(path.join(root, rel), "utf8");
 }
 
-describe("Stage 10B.6 PlayHTML movable logo", () => {
-  it("logo object exists with stable PlayHTML id 4663-logo", () => {
+describe("Stage 10B.6 / IC3.9 brand logo", () => {
+  it("logo object exists with stable id 4663-logo", () => {
     assert.equal(PLAYHTML_LOGO_ID, "4663-logo");
     const logo = readSrc("src/components/canvas/movable-logo.tsx");
     assert.ok(logo.includes("MovableLogo"));
     assert.ok(logo.includes(PLAYHTML_LOGO_ID));
-    assert.ok(logo.includes("CanMoveElement"));
+    assert.equal(logo.includes("CanMoveElement"), false);
     assert.ok(logo.includes("/4663pfp.png"));
+    assert.ok(logo.includes('data-4663-brand-anchor="logo"'));
   });
 
-  it("logo is bound to 4663-world", () => {
+  it("logo sits in world surface; not a can-move target", () => {
     const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.ok(logo.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"));
+    assert.equal(logo.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"), false);
     assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-world");
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
@@ -63,13 +64,13 @@ describe("Stage 10B.6 PlayHTML movable logo", () => {
     assert.equal(logo.includes("rounded-full"), false);
   });
 
-  it("PlayHTML owns outer transform; clip/size on inner wrapper", () => {
+  it("no PlayHTML transform owner; clip/size on inner wrapper", () => {
     const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.ok(logo.includes("CanMoveElement"));
+    assert.equal(logo.includes("CanMoveElement"), false);
     assert.equal(logo.includes("onPointerDown"), false);
     assert.equal(logo.includes("onMouseDown"), false);
     assert.equal(logo.includes("localStorage"), false);
-    // Outer movable div should not use competing translate utilities.
+    assert.equal(logo.includes("setData"), false);
     const outerMatch = logo.match(
       /id=\{PLAYHTML_LOGO_ID\}[\s\S]*?className="([^"]+)"/,
     );
@@ -77,7 +78,7 @@ describe("Stage 10B.6 PlayHTML movable logo", () => {
     assert.equal(outerMatch![1].includes("translate"), false);
   });
 
-  it("existing hero objects remain unchanged", () => {
+  it("hero origins unchanged; also non-movable brand anchors", () => {
     assert.equal(PLAYHTML_HERO_TITLE_ID, "4663-hero-title");
     assert.equal(PLAYHTML_HERO_SUBTITLE_ID, "4663-hero-subtitle");
     assert.equal(HERO_TITLE_DEFAULT_STYLE.left, "50%");
@@ -86,7 +87,7 @@ describe("Stage 10B.6 PlayHTML movable logo", () => {
     assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.top, "52%");
 
     const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    assert.equal((hero.match(/<CanMoveElement\b/g) ?? []).length, 2);
+    assert.equal((hero.match(/<CanMoveElement\b/g) ?? []).length, 0);
     assert.ok(hero.includes(PLAYHTML_HERO_TITLE_ID));
     assert.ok(hero.includes(PLAYHTML_HERO_SUBTITLE_ID));
     assert.equal(hero.includes(PLAYHTML_LOGO_ID), false);

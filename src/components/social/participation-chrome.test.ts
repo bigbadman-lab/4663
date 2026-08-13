@@ -73,13 +73,13 @@ describe("Social 1B / 1C.1 participation control placement", () => {
     assert.ok(session.includes("data-4663-participation-self"));
   });
 
-  it("participation control is NOT nested inside hero CanMoveElement", () => {
+  it("participation control is NOT nested inside brand hero", () => {
     const hero = readSrc("src/components/canvas/movable-hero.tsx");
     assert.equal(hero.includes("ParticipationEnter"), false);
     assert.equal(hero.includes("ParticipationSelf"), false);
     assert.equal(hero.includes("useParticipation"), false);
     assert.equal(hero.includes("PARTICIPATION_CONTROL"), false);
-    assert.equal((hero.match(/<CanMoveElement\b/g) ?? []).length, 2);
+    assert.equal((hero.match(/<CanMoveElement\b/g) ?? []).length, 0);
 
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("data-4663-chrome-participation"));

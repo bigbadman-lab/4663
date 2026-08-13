@@ -71,11 +71,12 @@ describe("Stage IC3 mobile pan + touch gesture ownership", () => {
     assert.ok(surface.includes("touch-none"));
     assert.ok(surface.includes("data-4663-canvas-empty-hit"));
 
-    // Movable hosts keep touch-manipulation (PlayHTML touch drag).
+    // Movable collaborative hosts keep touch-manipulation (PlayHTML touch drag).
+    // Brand anchors (IC3.9) are non-movable and do not need touch-manipulation.
     const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    assert.ok(hero.includes("touch-manipulation"));
+    assert.equal(hero.includes("CanMoveElement"), false);
     const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.ok(logo.includes("touch-manipulation"));
+    assert.equal(logo.includes("CanMoveElement"), false);
     const pons = readSrc(
       "src/components/canvas/pons-buying-activity-object.tsx",
     );

@@ -105,8 +105,10 @@ function CanvasShellFallback({
       >
         <div
           id={PLAYHTML_LOGO_ID}
-          className="absolute z-[15] select-none"
+          className="pointer-events-none absolute z-[15] select-none"
           style={LOGO_DEFAULT_STYLE}
+          data-4663-logo
+          data-4663-brand-anchor="logo"
         >
           <div className="h-16 w-16 overflow-hidden rounded-[16px] sm:h-[72px] sm:w-[72px] sm:rounded-[18px]">
             <Image
@@ -114,7 +116,7 @@ function CanvasShellFallback({
               alt="4663"
               width={72}
               height={72}
-              className="h-full w-full object-cover"
+              className="pointer-events-none h-full w-full object-cover"
               draggable={false}
               priority
             />
@@ -122,8 +124,10 @@ function CanvasShellFallback({
         </div>
         <div
           id={PLAYHTML_HERO_TITLE_ID}
-          className="absolute z-[15] select-none"
+          className="pointer-events-none absolute z-[15] select-none"
           style={HERO_TITLE_DEFAULT_STYLE}
+          data-4663-hero-title
+          data-4663-brand-anchor="title"
         >
           <h1 className="-translate-x-1/2 -translate-y-1/2 text-5xl font-semibold tracking-tight text-[color:var(--canvas-fg,#171717)] sm:text-6xl">
             4663
@@ -131,8 +135,10 @@ function CanvasShellFallback({
         </div>
         <div
           id={PLAYHTML_HERO_SUBTITLE_ID}
-          className="absolute z-[15] max-w-[16rem] select-none sm:max-w-none"
+          className="pointer-events-none absolute z-[15] max-w-[16rem] select-none sm:max-w-none"
           style={HERO_SUBTITLE_DEFAULT_STYLE}
+          data-4663-hero-subtitle
+          data-4663-brand-anchor="subtitle"
         >
           <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] sm:text-xs">
             the live canvas for robinhood chain

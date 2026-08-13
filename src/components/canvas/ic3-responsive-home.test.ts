@@ -67,7 +67,7 @@ describe("Stage IC3.1 responsive HOME framing", () => {
     assert.ok(HOME_FRAME_DESKTOP_MIN_WIDTH_PX === 1024);
   });
 
-  it("2–5. mobile portrait initial fit shows logo+hero+subtitle via local scale", () => {
+  it("2–5. mobile portrait boot centres hero+subtitle at scale 1 (IC3.9)", () => {
     for (const [vw, vh] of [
       [320, 568],
       [375, 812],
@@ -76,8 +76,7 @@ describe("Stage IC3.1 responsive HOME framing", () => {
     ] as const) {
       const cam = initialHomeCameraForViewport(vw, vh);
       assertInWorldBounds(cam, vw, vh);
-      assert.ok(cam.scale <= 1);
-      assert.ok(cam.scale < 1);
+      assert.equal(cam.scale, 1);
       assert.equal(
         isWorldPointInCameraView(HOME_HERO_TITLE_WORLD, cam, vw, vh),
         true,
@@ -88,16 +87,17 @@ describe("Stage IC3.1 responsive HOME framing", () => {
         true,
         `subtitle in view at ${vw}x${vh}`,
       );
-      assert.equal(
-        isWorldPointInCameraView(HOME_LOGO_WORLD, cam, vw, vh),
-        true,
-        `logo in view at ${vw}x${vh}`,
+      const titleScreenX =
+        (HOME_HERO_TITLE_WORLD.x - cam.x) * cam.scale;
+      assert.ok(
+        Math.abs(titleScreenX / vw - 0.5) < 0.08,
+        `title centred at ${vw}x${vh}`,
       );
       assert.equal(homeCameraForViewport(vw, vh).scale, 1);
     }
   });
 
-  it("3. logo within HOME view on tablet / landscape-capable sizes", () => {
+  it("3. hero/subtitle within HOME view on tablet / landscape-capable sizes", () => {
     for (const [vw, vh] of [
       [768, 1024],
       [820, 1180],
@@ -105,14 +105,16 @@ describe("Stage IC3.1 responsive HOME framing", () => {
     ] as const) {
       const cam = initialHomeCameraForViewport(vw, vh);
       assert.equal(
-        isWorldPointInCameraView(HOME_LOGO_WORLD, cam, vw, vh),
-        true,
-        `logo in view at ${vw}x${vh}`,
-      );
-      assert.equal(
         isWorldPointInCameraView(HOME_HERO_TITLE_WORLD, cam, vw, vh),
         true,
+        `hero in view at ${vw}x${vh}`,
       );
+      assert.equal(
+        isWorldPointInCameraView(HOME_HERO_SUBTITLE_WORLD, cam, vw, vh),
+        true,
+      );
+      // Logo remains a launch amenity when geometry allows (not required on all crops).
+      void HOME_LOGO_WORLD;
     }
   });
 

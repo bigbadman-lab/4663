@@ -15,6 +15,7 @@ import {
   HOME_REGION_TOP_PX,
   homeCameraForViewport,
   initialHomeCameraForViewport,
+  frameHomeCameraForViewport,
   normalizeCameraScale,
   normalizeCameraToScaleOnePreservingCenter,
   panCamera,
@@ -33,7 +34,7 @@ function readSrc(rel: string): string {
 }
 
 describe("Stage IC3.2.1 mobile scale recovery", () => {
-  it("1. initial narrow mobile boot may return scale < 1", () => {
+  it("1. initial narrow mobile boot centres brand at scale 1 (IC3.9)", () => {
     for (const [vw, vh] of [
       [320, 568],
       [375, 812],
@@ -41,7 +42,8 @@ describe("Stage IC3.2.1 mobile scale recovery", () => {
       [430, 932],
     ] as const) {
       const cam = initialHomeCameraForViewport(vw, vh);
-      assert.ok(cam.scale < 1, `${vw}: expected fit scale < 1`);
+      // Brand-first fit bounds fit at scale 1 — no zoomed-out trap.
+      assert.equal(cam.scale, 1, `${vw}: expected scale 1`);
       assert.ok(cam.scale >= HOME_FIT_MIN_SCALE - 1e-9);
     }
   });
@@ -52,10 +54,11 @@ describe("Stage IC3.2.1 mobile scale recovery", () => {
     assert.equal(homeCameraForViewport(1440, 900).scale, 1);
   });
 
-  it("3–5. first real pan normalizes to 1 preserving center; tap does not", () => {
+  it("3–5. first real pan normalizes fitted scale to 1 preserving center; tap does not", () => {
     const vw = 390;
     const vh = 844;
-    const fitted = initialHomeCameraForViewport(vw, vh);
+    // Synthesize a fitted landing camera (recovery path still required if fit < 1).
+    const fitted = frameHomeCameraForViewport(vw, vh, 0.5);
     assert.ok(fitted.scale < 1);
 
     const before = visibleWorldSize(vw, vh, fitted.scale);
@@ -100,11 +103,10 @@ describe("Stage IC3.2.1 mobile scale recovery", () => {
       const home = homeCameraForViewport(vw, vh);
       assert.equal(home.scale, 1, `${vw}x${vh}`);
     }
-    const fitted = initialHomeCameraForViewport(390, 844);
+    const boot = initialHomeCameraForViewport(390, 844);
     const home = homeCameraForViewport(390, 844);
-    assert.ok(fitted.scale < 1);
+    assert.equal(boot.scale, 1);
     assert.equal(home.scale, 1);
-    assert.notDeepEqual(fitted, home);
 
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("applyCamera(homeCameraForViewport(vw, vh))"));

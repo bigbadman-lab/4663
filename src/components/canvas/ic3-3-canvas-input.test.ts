@@ -164,10 +164,10 @@ describe("Stage IC3.3 DRAW world visibility", () => {
       assert.ok(p.y >= 0 && p.y <= 1);
     }
     const before = { ...created.drawing };
-    const fitted = initialHomeCameraForViewport(390, 844);
-    const normal = normalizeCameraToScaleOnePreservingCenter(fitted, 390, 844);
+    const boot = initialHomeCameraForViewport(390, 844);
+    const normal = normalizeCameraToScaleOnePreservingCenter(boot, 390, 844);
     const home = homeCameraForViewport(390, 844);
-    assert.ok(fitted.scale < 1);
+    assert.equal(boot.scale, 1);
     assert.equal(normal.scale, 1);
     assert.equal(home.scale, 1);
     assert.equal(created.drawing.leftPct, before.leftPct);

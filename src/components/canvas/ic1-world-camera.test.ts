@@ -115,8 +115,10 @@ describe("Stage IC1 large world + local camera wiring", () => {
       "src/components/social/ephemeral-drawing-object.tsx",
     );
     assert.ok(drawObj.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"));
+    // IC3.9 — brand hero is not a can-move target.
     const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    assert.ok(hero.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"));
+    assert.equal(hero.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"), false);
+    assert.equal(hero.includes("CanMoveElement"), false);
     const controller = readSrc(
       "src/components/canvas/use-summon-controller.ts",
     );

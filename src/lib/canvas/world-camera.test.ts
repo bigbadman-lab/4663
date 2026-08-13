@@ -43,7 +43,7 @@ describe("Stage IC1 world + camera helpers", () => {
     assert.equal(cam.y, HOME_REGION_TOP_PX);
   });
 
-  it("IC3.1/IC3.2 desktop band preserves centre framing; mobile initial uses fit scale", () => {
+  it("IC3.1/IC3.2/IC3.9 desktop band preserves centre framing; mobile brand fits at 1", () => {
     const desktop = homeCameraForViewport(1280, 800);
     assert.equal(desktop.scale, 1);
     assert.equal(
@@ -53,8 +53,8 @@ describe("Stage IC1 world + camera helpers", () => {
     const mobileHome = homeCameraForViewport(390, 844);
     assert.equal(mobileHome.scale, 1);
     const mobile = initialHomeCameraForViewport(390, 844);
-    assert.ok(mobile.scale < 1);
-    assert.ok(mobile.scale > 0);
+    // IC3.9 brand-first bounds fit on phone at scale 1 (centred H1+subtitle).
+    assert.equal(mobile.scale, 1);
   });
 
   it("18. camera cannot leave finite world bounds", () => {

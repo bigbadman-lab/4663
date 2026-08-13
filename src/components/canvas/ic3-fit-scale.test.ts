@@ -13,7 +13,6 @@ import {
   HOME_FRAME_DESKTOP_MIN_WIDTH_PX,
   HOME_HERO_SUBTITLE_WORLD,
   HOME_HERO_TITLE_WORLD,
-  HOME_LOGO_WORLD,
   HOME_REGION_LEFT_PX,
   HOME_REGION_TOP_PX,
   homeCameraForViewport,
@@ -50,7 +49,7 @@ describe("Stage IC3.2 HOME fit scale", () => {
     assert.equal(initialHomeCameraForViewport(1440, 900).scale, 1);
   });
 
-  it("2–5. mobile portrait initial fit uses scale < 1 for logo+hero+subtitle", () => {
+  it("2–5. mobile portrait boot centres hero+subtitle at scale 1 (IC3.9)", () => {
     for (const [vw, vh] of [
       [320, 568],
       [375, 812],
@@ -58,14 +57,8 @@ describe("Stage IC3.2 HOME fit scale", () => {
       [430, 932],
     ] as const) {
       const cam = initialHomeCameraForViewport(vw, vh);
-      assert.ok(cam.scale < 1, `${vw}: expected scale < 1, got ${cam.scale}`);
-      assert.ok(cam.scale <= 1);
+      assert.equal(cam.scale, 1, `${vw}: expected scale 1, got ${cam.scale}`);
       assert.ok(cam.scale >= HOME_FIT_MIN_SCALE - 1e-9);
-      assert.equal(
-        isWorldPointInCameraView(HOME_LOGO_WORLD, cam, vw, vh),
-        true,
-        `logo @ ${vw}`,
-      );
       assert.equal(
         isWorldPointInCameraView(HOME_HERO_TITLE_WORLD, cam, vw, vh),
         true,
@@ -75,6 +68,13 @@ describe("Stage IC3.2 HOME fit scale", () => {
         isWorldPointInCameraView(HOME_HERO_SUBTITLE_WORLD, cam, vw, vh),
         true,
         `subtitle @ ${vw}`,
+      );
+      // Brand-first framing: title near horizontal centre of viewport.
+      const s = cam.scale;
+      const titleScreenX = (HOME_HERO_TITLE_WORLD.x - cam.x) * s;
+      assert.ok(
+        Math.abs(titleScreenX / vw - 0.5) < 0.08,
+        `title not centred @ ${vw}: frac=${titleScreenX / vw}`,
       );
       const vis = visibleWorldSize(vw, vh, cam.scale);
       assert.ok(cam.x >= 0);
@@ -175,7 +175,13 @@ describe("Stage IC3.2 HOME fit scale", () => {
     assert.ok(patch.includes("data-4663-world-scale"));
     assert.ok(patch.includes("read4663WorldScale"));
     const bounds = homeFitContentBounds();
-    assert.ok(bounds.width > 600);
-    assert.ok(bounds.height > 400);
+    // Brand-first band around H1 + subtitle (IC3.9) — not the old logo→hero union.
+    assert.ok(bounds.width > 200);
+    assert.ok(bounds.height > 200);
+    assert.ok(
+      Math.abs(
+        (bounds.left + bounds.right) / 2 - HOME_HERO_TITLE_WORLD.x,
+      ) < 1e-6,
+    );
   });
 });

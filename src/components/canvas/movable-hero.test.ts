@@ -1,5 +1,5 @@
 /**
- * Stage 10B.5 — PlayHTML movable hero structural tests.
+ * Stage 10B.5 / IC3.9 — brand hero anchors (canonical, non-movable).
  */
 
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ function readSrc(rel: string): string {
   return readFileSync(path.join(root, rel), "utf8");
 }
 
-describe("Stage 10B.5 PlayHTML movable hero", () => {
+describe("Stage 10B.5 / IC3.9 brand hero", () => {
   it("1–2. PlayHTML deps present; one PlayProvider on canvas play tree", () => {
     const pkg = JSON.parse(readSrc("package.json")) as {
       dependencies: Record<string, string>;
@@ -43,19 +43,14 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
     assert.equal((rootSource.match(/<PlayProvider\b/g) ?? []).length, 0);
   });
 
-  it("3–6. stable ids, independent CanMoveElement, shared canvas bounds", () => {
+  it("3–6. stable ids; brand is not CanMove; world bounds still exist", () => {
     const hero = readSrc("src/components/canvas/movable-hero.tsx");
     assert.ok(hero.includes(PLAYHTML_HERO_TITLE_ID));
     assert.ok(hero.includes(PLAYHTML_HERO_SUBTITLE_ID));
     assert.notEqual(PLAYHTML_HERO_TITLE_ID, PLAYHTML_HERO_SUBTITLE_ID);
-
-    const moves = hero.match(/<CanMoveElement\b/g) ?? [];
-    assert.equal(moves.length, 2);
-    assert.equal(
-      (hero.match(new RegExp(`bounds=\{PLAYHTML_CANVAS_BOUNDS_ID\}`, "g")) ?? [])
-        .length,
-      2,
-    );
+    assert.equal(hero.includes("CanMoveElement"), false);
+    assert.ok(hero.includes('data-4663-brand-anchor="title"'));
+    assert.ok(hero.includes('data-4663-brand-anchor="subtitle"'));
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("id={PLAYHTML_WORLD_BOUNDS_ID}"));
@@ -63,9 +58,11 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
     assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-world");
   });
 
-  it("7–8. default H1 centered; subtitle beneath", () => {
+  it("7–8. default H1 centered; subtitle beneath; single semantic h1", () => {
     assert.equal(HERO_TITLE_DEFAULT_STYLE.left, "50%");
+    assert.equal(HERO_TITLE_DEFAULT_STYLE.top, "42%");
     assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.left, "50%");
+    assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.top, "52%");
     const titleTop = Number.parseFloat(HERO_TITLE_DEFAULT_STYLE.top);
     const subTop = Number.parseFloat(HERO_SUBTITLE_DEFAULT_STYLE.top);
     assert.ok(subTop > titleTop);
@@ -76,6 +73,7 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
     assert.ok(hero.includes("-translate-x-1/2"));
     assert.ok(hero.includes("the live canvas for robinhood chain"));
     assert.equal(hero.includes("live intelligence for robinhood chain"), false);
+    assert.equal((hero.match(/<h1\b/g) ?? []).length, 1);
   });
 
   it("9–10. CanvasChrome drops brand; PresenceStatus remains", () => {
@@ -97,7 +95,7 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
     assert.ok(live.includes("10 * 60 * 1000") || live.includes("600_000"));
   });
 
-  it("13. no custom drag implementation", () => {
+  it("13. no custom drag / no PlayHTML brand can-move", () => {
     const hero = readSrc("src/components/canvas/movable-hero.tsx");
     const playTree = readSrc("src/components/canvas/canvas-play-tree.tsx");
     for (const source of [hero, playTree]) {
@@ -106,6 +104,7 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
       assert.equal(source.includes("dnd-kit"), false);
       assert.equal(source.includes("react-draggable"), false);
     }
-    assert.ok(hero.includes("CanMoveElement"));
+    assert.equal(hero.includes("CanMoveElement"), false);
+    assert.equal(hero.includes("setData"), false);
   });
 });

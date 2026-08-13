@@ -1,7 +1,9 @@
 /**
- * Stable PlayHTML identities and default hero origins for Stage 10B.5.
- * Positions are CSS origins; PlayHTML persists translate(x,y) offsets from these.
- * IC1: PlayHTML bounds are the fixed world (`PLAYHTML_WORLD_BOUNDS_ID`).
+ * Stable PlayHTML identities and default hero origins for Stage 10B.5 / IC3.9.
+ * Positions are CSS origins inside `#4663-home-region`.
+ * IC3.9: brand H1 / subtitle / logo are canonical non-movable anchors
+ * (ids retained for DOM stability / tests; they are not can-move targets).
+ * IC1: PlayHTML bounds for other objects are the fixed world (`PLAYHTML_WORLD_BOUNDS_ID`).
  */
 
 export {
@@ -39,7 +41,7 @@ export const PARTICIPATION_CONTROL_DEFAULT_STYLE = {
   top: "53.5%",
 } as const;
 
-/** CSS origin for logo — top-left; PlayHTML offsets from here. */
+/** CSS origin for logo — top-left of home region (canonical brand anchor). */
 export const LOGO_DEFAULT_STYLE = {
   left: "24px",
   top: "24px",
