@@ -53,14 +53,16 @@ describe("hero preferences (local appearance)", () => {
     assert.ok(brand.includes("return null"));
   });
 
-  it("2. selecting hero reveals COLOR / HIDE controls", () => {
+  it("2. H1 click cycles colour; HIDE sits above the title (no COLOR control)", () => {
     const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     assert.ok(brand.includes("data-4663-hero-appearance-tools"));
-    assert.ok(brand.includes("data-4663-hero-color"));
     assert.ok(brand.includes("data-4663-hero-hide"));
-    assert.ok(brand.includes("COLOR"));
     assert.ok(brand.includes("HIDE"));
-    assert.ok(brand.includes("menuOpen"));
+    assert.equal(brand.includes('data-4663-hero-color"'), false);
+    assert.equal(/\bCOLOR\b/.test(brand), false);
+    assert.ok(brand.includes("cycleColor()"));
+    assert.ok(brand.includes('data-4663-hero-select="title"'));
+    assert.ok(brand.includes("top-[calc(42%-3.25rem)]"));
     assert.ok(brand.includes('type="button"'));
     assert.ok(brand.includes("touch-manipulation"));
     assert.ok(brand.includes("min-h-11"));
