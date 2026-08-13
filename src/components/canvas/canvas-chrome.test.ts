@@ -47,6 +47,7 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     assert.ok(chrome.includes("CanvasLiveClock"));
     assert.ok(chrome.includes("data-4663-chrome-clock"));
     assert.ok(chrome.includes("bottom-5 right-5") || chrome.includes("sm:bottom-6 sm:right-6"));
+    assert.ok(chrome.includes("pointer-events-auto"));
 
     const clock = readSrc("src/components/canvas/canvas-live-clock.tsx");
     assert.ok(clock.includes("setInterval"));
@@ -54,6 +55,11 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     assert.ok(clock.includes('aria-live="off"'));
     assert.ok(clock.includes("formatLocalClock"));
     assert.equal(clock.includes("fetch("), false);
+    assert.ok(clock.includes("https://x.com/4663live"));
+    assert.ok(clock.includes('data-4663-x-link'));
+    assert.ok(clock.includes('aria-label="4663 on X"'));
+    assert.ok(clock.includes('target="_blank"'));
+    assert.ok(clock.includes("noopener noreferrer"));
   });
 
   it("formatLocalClock is deterministic", () => {

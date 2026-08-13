@@ -19,7 +19,7 @@ const SITE_URL = "https://4663.live";
 const SITE_NAME = "4663";
 const SITE_TITLE = "live intelligence for 4663";
 const SITE_DESCRIPTION =
-  "Watch Robinhood Chain happen live with everyone else who is here.";
+  "One shared canvas. Everyone here. Robinhood Chain happening live.";
 const OG_IMAGE_PATH = "/4663meta.jpg";
 const FAVICON_PATH = "/4663fav.png";
 

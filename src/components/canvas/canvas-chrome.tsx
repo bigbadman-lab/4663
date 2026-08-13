@@ -83,7 +83,7 @@ export function CanvasChrome() {
         </div>
 
         <div
-          className="pointer-events-none absolute bottom-5 right-5 max-w-[min(14rem,calc(50%-0.75rem))] text-right sm:bottom-6 sm:right-6"
+          className="pointer-events-auto absolute bottom-5 right-5 max-w-[min(14rem,calc(50%-0.75rem))] text-right sm:bottom-6 sm:right-6"
           data-4663-chrome-clock
         >
           <CanvasLiveClock />
