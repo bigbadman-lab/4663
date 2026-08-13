@@ -9,6 +9,7 @@ import { useCallback, useState } from "react";
 import { CanvasIntroNote } from "@/components/canvas/canvas-intro-note";
 import { CanvasIntroTrigger } from "@/components/canvas/canvas-intro-trigger";
 import { CanvasLiveClock } from "@/components/canvas/canvas-live-clock";
+import { CanvasToneControl } from "@/components/canvas/canvas-tone-control";
 import { ParticipationEnterForm } from "@/components/social/participation-enter-form";
 import { ParticipationEnterTrigger } from "@/components/social/participation-enter-trigger";
 import { ParticipationSessionControl } from "@/components/social/participation-session-control";
@@ -47,7 +48,11 @@ export function CanvasChrome() {
           )}
         </div>
 
-        <div className="pointer-events-auto absolute top-5 right-5 sm:top-6 sm:right-6">
+        <div
+          className="pointer-events-auto absolute top-5 right-5 flex flex-col items-end gap-1 sm:top-6 sm:right-6"
+          data-4663-chrome-top-right
+        >
+          <CanvasToneControl />
           <CanvasIntroTrigger onOpen={openIntro} />
         </div>
 

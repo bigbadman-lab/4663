@@ -52,8 +52,8 @@ describe("Social 8A responsive bottom control dock", () => {
     );
     assert.ok(palette.includes("aria-label={item.label}"));
     assert.ok(palette.includes("title={item.label}"));
-    assert.ok(palette.includes('width={24}'));
-    assert.ok(palette.includes('height={24}'));
+    assert.ok(palette.includes('width={32}'));
+    assert.ok(palette.includes('height={32}'));
     assert.ok(palette.includes("draggable={false}"));
     assert.ok(palette.includes("object-contain"));
     for (const src of [
@@ -74,7 +74,8 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(palette.includes("justify-center"));
     assert.ok(palette.includes("bottom-0"));
     assert.ok(palette.includes("safe-area-inset-bottom"));
-    assert.ok(palette.includes("sm:h-6") || palette.includes("sm:min-h-12"));
+    assert.ok(palette.includes("3.75rem"));
+    assert.ok(palette.includes("sm:h-8") || palette.includes("sm:min-h-14"));
     assert.ok(palette.includes("rounded-2xl"));
     assert.equal(PLAYHTML_CONTROL_PALETTE_ID, "4663-control-palette");
   });

@@ -48,7 +48,7 @@ function CanvasPlayTreeInner({
 
   return (
     <div
-      className="relative min-h-dvh w-full overflow-x-hidden bg-white text-neutral-900"
+      className="relative min-h-dvh w-full overflow-x-hidden bg-[var(--canvas-bg,#ffffff)] text-[color:var(--canvas-fg,#171717)]"
       data-4663-canvas-root
     >
       <CanvasChrome />

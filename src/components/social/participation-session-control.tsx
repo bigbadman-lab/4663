@@ -56,7 +56,7 @@ export function ParticipationSessionControl({
     >
       <button
         type="button"
-        className="font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+        className="font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         data-4663-participation-self
@@ -76,7 +76,7 @@ export function ParticipationSessionControl({
           <button
             type="button"
             role="menuitem"
-            className="text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+            className="text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
             data-4663-participation-leave
             onClick={() => {
               setOpen(false);

@@ -93,7 +93,7 @@ function CanvasShellFallback({
 }) {
   return (
     <div
-      className="relative min-h-dvh w-full overflow-x-hidden bg-white text-neutral-900"
+      className="relative min-h-dvh w-full overflow-x-hidden bg-[var(--canvas-bg,#ffffff)] text-[color:var(--canvas-fg,#171717)]"
       data-4663-canvas-root
       data-4663-canvas-fallback
     >
@@ -125,7 +125,7 @@ function CanvasShellFallback({
           className="absolute z-[15] select-none"
           style={HERO_TITLE_DEFAULT_STYLE}
         >
-          <h1 className="-translate-x-1/2 -translate-y-1/2 text-5xl font-semibold tracking-tight text-neutral-900 sm:text-6xl">
+          <h1 className="-translate-x-1/2 -translate-y-1/2 text-5xl font-semibold tracking-tight text-[color:var(--canvas-fg,#171717)] sm:text-6xl">
             4663
           </h1>
         </div>
@@ -134,7 +134,7 @@ function CanvasShellFallback({
           className="absolute z-[15] max-w-[16rem] select-none sm:max-w-none"
           style={HERO_SUBTITLE_DEFAULT_STYLE}
         >
-          <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-neutral-400 sm:text-xs">
+          <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] sm:text-xs">
             live intelligence for robinhood chain
           </p>
         </div>

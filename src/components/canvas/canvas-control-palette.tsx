@@ -35,10 +35,10 @@ function DockIcon({ item }: { item: ControlDockItem }) {
     <img
       src={item.iconSrc}
       alt=""
-      width={24}
-      height={24}
+      width={32}
+      height={32}
       draggable={false}
-      className="pointer-events-none h-5 w-5 object-contain select-none sm:h-6 sm:w-6"
+      className="pointer-events-none h-7 w-7 object-contain select-none sm:h-8 sm:w-8"
       data-4663-dock-icon={item.id}
       data-4663-palette-icon-slot={item.id}
     />
@@ -109,18 +109,19 @@ export function CanvasControlPalette({
     <div
       className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center"
       style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)",
+        /* Sit above bottom-left presence + bottom-right clock (chrome ~bottom-5/6). */
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 3.75rem)",
       }}
       data-4663-control-dock
       data-4663-control-palette
     >
       <div
         id={PLAYHTML_CONTROL_PALETTE_ID}
-        className="pointer-events-auto mx-2 flex max-w-[min(100%,22rem)] flex-col items-center gap-1 sm:max-w-[min(100%,24rem)]"
+        className="pointer-events-auto mx-2 flex max-w-[min(100%,26rem)] flex-col items-center gap-1.5 sm:max-w-[min(100%,28rem)]"
         data-4663-control-palette-shell
       >
         <div
-          className="flex w-full items-stretch justify-between gap-0.5 rounded-2xl border border-neutral-300/90 bg-white/90 px-1 py-1 shadow-sm backdrop-blur-[2px] sm:gap-1 sm:px-1.5 sm:py-1.5"
+          className="flex w-full items-stretch justify-between gap-1 rounded-2xl border border-neutral-300/90 bg-white/90 px-1.5 py-1.5 shadow-sm backdrop-blur-[2px] sm:gap-1.5 sm:px-2 sm:py-2"
           data-4663-control-dock-tray
         >
           {CONTROL_DOCK_ITEMS.map((item) => {
@@ -161,11 +162,11 @@ export function CanvasControlPalette({
                     onReset?.();
                   }
                 }}
-                className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1 font-mono text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400 active:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-12 sm:gap-1 sm:px-1"
+                className="flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 font-mono text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400 active:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:gap-1 sm:px-1.5"
               >
                 <DockIcon item={item} />
                 <span
-                  className="max-w-full truncate text-[8px] leading-none tracking-wide sm:text-[9px]"
+                  className="max-w-full truncate text-[9px] leading-none tracking-wide sm:text-[10px]"
                   data-4663-dock-label={item.id}
                 >
                   {item.label}

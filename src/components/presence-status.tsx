@@ -35,12 +35,12 @@ export function PresenceStatus() {
 
   return (
     <div
-      className="flex max-w-sm flex-col items-start gap-0.5 text-left font-mono text-[10px] leading-relaxed tracking-wide text-neutral-400 sm:text-[11px]"
+      className="flex max-w-sm flex-col items-start gap-0.5 text-left font-mono text-[10px] leading-relaxed tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] sm:text-[11px]"
       data-4663-presence-status
     >
       <p>{countLine}</p>
       {placeLine ? (
-        <p className="break-words text-neutral-400/90">{placeLine}</p>
+        <p className="break-words opacity-90">{placeLine}</p>
       ) : null}
     </div>
   );

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PresenceHeartbeat } from "@/components/presence-heartbeat";
+import { CANVAS_TONE_BOOT_SCRIPT } from "@/lib/canvas/canvas-tone";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -69,8 +71,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-canvas-tone="white"
+      suppressHydrationWarning
     >
-      <body className="min-h-full bg-white text-neutral-900">
+      <body className="min-h-full text-neutral-900">
+        <Script
+          id="4663-canvas-tone-boot"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: CANVAS_TONE_BOOT_SCRIPT }}
+        />
         <PresenceHeartbeat />
         {children}
       </body>

@@ -23,7 +23,7 @@ export function CanvasLiveClock() {
 
   return (
     <time
-      className="font-mono text-[10px] leading-relaxed tracking-wide text-neutral-400 tabular-nums sm:text-[11px]"
+      className="font-mono text-[10px] leading-relaxed tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] tabular-nums sm:text-[11px]"
       dateTime={now?.toISOString()}
       aria-live="off"
       data-4663-live-clock

@@ -3,6 +3,34 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Social 8A.2 — canvas tone defaults (WHITE); all tones stay light/paper. */
+  --canvas-bg: #ffffff;
+  --canvas-fg: #171717;
+  --canvas-muted: #a3a3a3;
+}
+
+html[data-canvas-tone="white"] {
+  --canvas-bg: #ffffff;
+  --canvas-fg: #171717;
+  --canvas-muted: #a3a3a3;
+}
+
+html[data-canvas-tone="bone"] {
+  --canvas-bg: #f3f0e7;
+  --canvas-fg: #171717;
+  --canvas-muted: #8a8578;
+}
+
+html[data-canvas-tone="mist"] {
+  --canvas-bg: #e8e8e4;
+  --canvas-fg: #171717;
+  --canvas-muted: #7a7a74;
+}
+
+html[data-canvas-tone="slate"] {
+  --canvas-bg: #d3d5d2;
+  --canvas-fg: #171717;
+  --canvas-muted: #6b6f6c;
 }
 
 @theme inline {
@@ -13,18 +41,23 @@
 }
 
 body {
-  background: var(--background);
+  background: var(--canvas-bg);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  transition: background-color 200ms ease;
 }
 
 /**
  * Stage 10B.6 — subtle coordinate field for the canvas world.
  * CSS only; sits on the root background below all objects (no pointer hit).
+ * Social 8A.2 — paper colour from --canvas-bg.
  */
 [data-4663-canvas-root] {
   --4663-dot-minor: rgba(23, 23, 23, 0.045);
   --4663-dot-major: rgba(23, 23, 23, 0.09);
+  background-color: var(--canvas-bg);
+  color: var(--canvas-fg);
+  transition: background-color 200ms ease, color 200ms ease;
   background-image:
     radial-gradient(circle, var(--4663-dot-major) 1px, transparent 1.1px),
     radial-gradient(circle, var(--4663-dot-minor) 1px, transparent 1.1px),

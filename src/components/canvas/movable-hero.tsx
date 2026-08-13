@@ -24,7 +24,7 @@ export function MovableHero() {
           style={HERO_TITLE_DEFAULT_STYLE}
           data-4663-hero-title
         >
-          <h1 className="-translate-x-1/2 -translate-y-1/2 text-5xl font-semibold tracking-tight text-neutral-900 sm:text-6xl">
+          <h1 className="-translate-x-1/2 -translate-y-1/2 text-5xl font-semibold tracking-tight text-[color:var(--canvas-fg,#171717)] sm:text-6xl">
             4663
           </h1>
         </div>
@@ -37,7 +37,7 @@ export function MovableHero() {
           style={HERO_SUBTITLE_DEFAULT_STYLE}
           data-4663-hero-subtitle
         >
-          <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-neutral-400 sm:text-xs">
+          <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] sm:text-xs">
             live intelligence for robinhood chain
           </p>
         </div>
