@@ -9,13 +9,12 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
-import { LiveEventLayer } from "@/components/canvas/live-event-layer";
+import { PonsMonitoringObject } from "@/components/canvas/pons-monitoring-object";
 import type { PinnedLayerItem } from "@/components/canvas/pinned-pons-layer";
 import {
   assignSlots,
   CANVAS_SLOTS,
   preferredSlotIndex,
-  type SlottedLiveEvent,
 } from "@/lib/canvas/slots";
 import {
   LIVE_OBJECT_AGE_TICK_MS,
@@ -75,12 +74,8 @@ function useWallClockMs(tickMs: number): number {
   return nowMs;
 }
 
-/** Pre-PlayHTML shell: brand via CanvasChrome; live events only in surface. */
-function CanvasShellFallback({
-  liveItems,
-}: {
-  liveItems: readonly SlottedLiveEvent[];
-}) {
+/** Pre-PlayHTML shell: brand via CanvasChrome; single monitoring object (not per-token live). */
+function CanvasShellFallback() {
   return (
     <div
       className="relative min-h-dvh w-full overflow-x-hidden bg-[var(--canvas-bg,#ffffff)] text-[color:var(--canvas-fg,#171717)]"
@@ -94,7 +89,9 @@ function CanvasShellFallback({
         data-4663-canvas-surface
         data-4663-canvas-fallback-surface
       >
-        <LiveEventLayer items={liveItems} />
+        <div className="absolute inset-0" data-4663-home-region-fallback>
+          <PonsMonitoringObject />
+        </div>
       </div>
     </div>
   );
@@ -155,7 +152,7 @@ function CanvasRootInner() {
     <>
       <WatchLiveEventPruner eventIds={watchEventIds} />
       {!playReady ? (
-        <CanvasShellFallback liveItems={liveItems} />
+        <CanvasShellFallback />
       ) : (
         <CanvasPlayTree
           liveItems={liveItems}

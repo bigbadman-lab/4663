@@ -48,12 +48,15 @@ describe("Stage 10A canvas ownership", () => {
     assert.equal(surface.includes("usePublicEvents"), false);
   });
 
-  it("6. live objects render only via LiveEventLayer from CanvasRoot stream", () => {
+  it("6. public PONS presentation is the monitoring object (not per-token LiveEventLayer)", () => {
     const rootSource = readSrc("src/components/canvas/canvas-root.tsx");
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     const page = readSrc("src/app/page.tsx");
-    assert.ok(rootSource.includes("selectVisibleLiveEvents"));
-    assert.ok(rootSource.includes("assignSlots"));
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(rootSource.includes("PonsMonitoringObject"));
+    assert.ok(surface.includes("MovablePonsMonitoringObject"));
+    assert.ok(surface.includes("items={[]}"));
+    assert.equal(rootSource.includes("LiveEventLayer"), false);
     assert.equal(chrome.includes("PonsBuyingActivityObject"), false);
     assert.equal(page.includes("usePublicEvents"), false);
   });

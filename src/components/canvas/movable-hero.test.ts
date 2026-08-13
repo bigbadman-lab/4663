@@ -72,7 +72,7 @@ describe("Stage 10B.5 / IC3.10 brand hero", () => {
       BRAND_HERO_SUBTITLE,
       "Create, communicate and interact — with web3 capabilities built in.",
     );
-    assert.equal(BRAND_HERO_TITLE, "A CANVAS FOR THE INTERNET.");
+    assert.equal(BRAND_HERO_TITLE, "A CANVAS FOR\nTHE INTERNET.");
     assert.equal((brand.match(/<h1\b/g) ?? []).length, 1);
   });
 

@@ -134,7 +134,7 @@ export function BrandHero() {
           onClick={toggleMenu}
         >
           <h1
-            className={`text-center text-5xl font-semibold tracking-tight sm:text-6xl ${titleColorClass}`}
+            className={`whitespace-pre-line text-center text-5xl font-semibold tracking-tight sm:text-6xl ${titleColorClass}`}
             style={colorStyle}
           >
             {BRAND_HERO_TITLE}

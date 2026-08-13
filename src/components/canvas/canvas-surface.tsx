@@ -9,6 +9,7 @@
 import { useEffect } from "react";
 import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette";
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
+import { MovablePonsMonitoringObject } from "@/components/canvas/movable-pons-monitoring-object";
 import {
   PinnedPonsLayer,
   type PinnedLayerItem,
@@ -60,7 +61,8 @@ export type CanvasSurfaceProps = {
 };
 
 export function CanvasSurface({
-  liveItems = [],
+  // liveItems intentionally unused: public per-token PONS objects are disabled.
+  liveItems: _liveItems = [],
   pinnedItems = [],
   summonId = null,
   summonItems = [],
@@ -81,6 +83,7 @@ export function CanvasSurface({
   onPin,
   onUnpin,
 }: CanvasSurfaceProps) {
+  void _liveItems;
   const { worldRef, viewportRef, goHome, onViewportPointerDown } =
     useCanvasCamera();
 
@@ -144,8 +147,14 @@ export function CanvasSurface({
               height: HOME_REGION_HEIGHT_PX,
             }}
           >
+            {/*
+              Public PONS presentation is a single monitoring object (continuation
+              watchlist). Per-token live buying-activity objects are no longer mounted.
+              MovableLiveEventLayer remains importable for tests/legacy but receives [].
+            */}
+            <MovablePonsMonitoringObject />
             <MovableLiveEventLayer
-              items={liveItems}
+              items={[]}
               isPinned={isPinned}
               onPin={onPin}
             />

@@ -186,11 +186,14 @@ describe("Stage 10B.7 movable live PONS objects", () => {
 
     const rootSource = readSrc("src/components/canvas/canvas-root.tsx");
     assert.equal((rootSource.match(/<PlayProvider\b/g) ?? []).length, 0);
-    assert.ok(rootSource.includes("LiveEventLayer"));
+    assert.ok(rootSource.includes("PonsMonitoringObject"));
+    assert.equal(rootSource.includes("LiveEventLayer"), false);
     assert.equal(rootSource.includes("MovableLiveEventLayer"), false);
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("MovableLiveEventLayer"));
+    assert.ok(surface.includes("MovablePonsMonitoringObject"));
+    assert.ok(surface.includes("items={[]}"));
 
     const staticLayer = readSrc("src/components/canvas/live-event-layer.tsx");
     assert.equal(staticLayer.includes("@playhtml/react"), false);

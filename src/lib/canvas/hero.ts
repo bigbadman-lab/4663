@@ -21,7 +21,7 @@ export function playhtmlEventElementId(eventId: string): string {
   return `4663-event-${eventId}`;
 }
 
-export const BRAND_HERO_TITLE = "A CANVAS FOR THE INTERNET." as const;
+export const BRAND_HERO_TITLE = "A CANVAS FOR\nTHE INTERNET." as const;
 export const BRAND_HERO_SUBTITLE =
   "Create, communicate and interact — with web3 capabilities built in." as const;
 

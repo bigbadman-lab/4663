@@ -39,7 +39,7 @@ describe("Stage IC3.10 independent brand anchors", () => {
     const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     assert.equal((brand.match(/<h1\b/g) ?? []).length, 1);
     assert.ok(brand.includes("BRAND_HERO_TITLE"));
-    assert.equal(BRAND_HERO_TITLE, "A CANVAS FOR THE INTERNET.");
+    assert.equal(BRAND_HERO_TITLE, "A CANVAS FOR\nTHE INTERNET.");
 
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("BrandAnchors"));
