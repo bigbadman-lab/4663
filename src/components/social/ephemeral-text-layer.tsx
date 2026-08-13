@@ -15,7 +15,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type MouseEvent,
 } from "react";
 import { CanvasCreateMenu } from "@/components/social/canvas-create-menu";
 import { CanvasMarkObject } from "@/components/social/canvas-mark-object";
@@ -48,10 +47,9 @@ import {
 import {
   createEphemeralDrawingObject,
   drawingZoneOriginFromClick,
+  drawingZoneWorldAspectRatio,
   EMPTY_EPHEMERAL_DRAWINGS_PAGE_DATA,
   EPHEMERAL_DRAWINGS_PAGE_DATA_NAME,
-  fallbackAspectRatioFromSizePct,
-  measureDrawingZoneAspectRatio,
   normalizeEphemeralDrawingsPageData,
   removeEphemeralDrawing,
   removeEphemeralDrawingsByOwner,
@@ -60,14 +58,21 @@ import {
   type DrawingStroke,
   type EphemeralDrawingsPageData,
 } from "@/lib/social/ephemeral-drawing";
-import { CANVAS_HOME_REGION_ID } from "@/lib/canvas/world-camera";
-import { shouldSuppressEmptyCanvasClick } from "@/components/canvas/use-canvas-camera";
+import {
+  dockCreateWorldPct,
+  homePctToWorldPct,
+  screenPointToWorldPct,
+} from "@/lib/canvas/world-camera";
+import {
+  getCanvasPlacementSnapshot,
+  setCreateUiBlocksPan,
+  shouldSuppressEmptyCanvasClick,
+} from "@/components/canvas/use-canvas-camera";
 import {
   createEphemeralTextObject,
   EMPTY_EPHEMERAL_TEXTS_PAGE_DATA,
   EPHEMERAL_TEXTS_PAGE_DATA_NAME,
   normalizeEphemeralTextsPageData,
-  pointerToCanvasPct,
   removeEphemeralText,
   removeEphemeralTextsByOwner,
   retainEphemeralTextsForPresentOwners,
@@ -96,6 +101,7 @@ import { useParticipation } from "@/lib/social/use-participation";
 import {
   DOCK_CREATE_DEFAULT_ORIGIN,
   registerCanvasCreateActions,
+  registerEmptyCanvasClick,
 } from "@/lib/social/canvas-create-actions";
 
 type CreateUi =
@@ -377,7 +383,7 @@ export function EphemeralTextLayer() {
     setCreateUi(null);
   };
 
-  const onEmptyCanvasClick = (event: MouseEvent<HTMLDivElement>) => {
+  const onEmptyCanvasClick = (event: MouseEvent) => {
     if (shouldSuppressEmptyCanvasClick()) return;
     if (!isParticipating || !self) return;
     if (createUi) {
@@ -385,14 +391,39 @@ export function EphemeralTextLayer() {
       return;
     }
 
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const { leftPct, topPct } = pointerToCanvasPct(
+    const snap = getCanvasPlacementSnapshot();
+    if (!snap) return;
+    const { leftPct, topPct } = screenPointToWorldPct(
       event.clientX,
       event.clientY,
-      bounds,
+      snap.viewport,
+      snap.camera,
     );
     setCreateUi({ mode: "menu", leftPct, topPct });
   };
+
+  const onEmptyCanvasClickRef = useRef(onEmptyCanvasClick);
+  onEmptyCanvasClickRef.current = onEmptyCanvasClick;
+
+  useEffect(() => {
+    return registerEmptyCanvasClick((event) => {
+      onEmptyCanvasClickRef.current(event);
+    });
+  }, []);
+
+  useEffect(() => {
+    setCreateUiBlocksPan(createUi != null);
+    return () => setCreateUiBlocksPan(false);
+  }, [createUi]);
+
+  useEffect(() => {
+    const hit = document.querySelector("[data-4663-canvas-empty-hit]");
+    if (!(hit instanceof HTMLElement)) return;
+    hit.setAttribute(
+      "data-4663-canvas-empty-named",
+      isParticipating ? "true" : "false",
+    );
+  }, [isParticipating]);
 
   const onDraftBodyChange = (body: string) => {
     if (!self) return;
@@ -558,8 +589,8 @@ export function EphemeralTextLayer() {
   selfRef.current = self;
   hasMarkForSessionRef.current = hasMarkForSession;
 
-  // Social 8A / 8A.1 — dock TEXT/DRAW/MARK at DOCK_CREATE_DEFAULT_ORIGIN (not click pos).
-  // Empty-canvas path still uses pointerToCanvasPct → menu. Register once; refs avoid loops.
+  // IC2 — dock TEXT/DRAW use current camera/viewport → world %; MARK keeps HOME cue.
+  // Empty-canvas path: screenPointToWorldPct → menu. Register once; refs avoid loops.
   useEffect(() => {
     const abandonLocalDrafts = () => {
       const currentSelf = selfRef.current;
@@ -577,27 +608,25 @@ export function EphemeralTextLayer() {
 
     const openDrawAt = (leftPct: number, topPct: number) => {
       const zone = drawingZoneOriginFromClick(leftPct, topPct);
-      const canvas = document.getElementById(CANVAS_HOME_REGION_ID);
-      const canvasRect = canvas?.getBoundingClientRect();
-      const measured =
-        canvasRect != null
-          ? measureDrawingZoneAspectRatio(
-              canvasRect.width,
-              canvasRect.height,
-              zone.widthPct,
-              zone.heightPct,
-            )
-          : null;
-      const aspectRatio =
-        measured ??
-        fallbackAspectRatioFromSizePct(zone.widthPct, zone.heightPct) ??
-        1;
+      const aspectRatio = drawingZoneWorldAspectRatio(
+        zone.widthPct,
+        zone.heightPct,
+      );
       setCreateUi({
         mode: "draw",
         draftDrawingId: createDrawingDraftId(),
         ...zone,
         aspectRatio,
       });
+    };
+
+    const dockWorldOrigin = () => {
+      const snap = getCanvasPlacementSnapshot();
+      if (snap) return dockCreateWorldPct(snap.viewport, snap.camera);
+      return homePctToWorldPct(
+        DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
+        DOCK_CREATE_DEFAULT_ORIGIN.topPct,
+      );
     };
 
     return registerCanvasCreateActions({
@@ -615,20 +644,19 @@ export function EphemeralTextLayer() {
       openText: () => {
         if (!isParticipatingRef.current || !selfRef.current) return;
         abandonLocalDrafts();
+        const origin = dockWorldOrigin();
         setCreateUi({
           mode: "compose",
-          leftPct: DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
-          topPct: DOCK_CREATE_DEFAULT_ORIGIN.topPct,
+          leftPct: origin.leftPct,
+          topPct: origin.topPct,
           draftId: createTextDraftId(),
         });
       },
       openDraw: () => {
         if (!isParticipatingRef.current || !selfRef.current) return;
         abandonLocalDrafts();
-        openDrawAt(
-          DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
-          DOCK_CREATE_DEFAULT_ORIGIN.topPct,
-        );
+        const origin = dockWorldOrigin();
+        openDrawAt(origin.leftPct, origin.topPct);
       },
       openMark: () => {
         if (!MARK_ENABLED) return;
@@ -636,10 +664,14 @@ export function EphemeralTextLayer() {
         if (!isParticipatingRef.current || !currentSelf) return;
         if (hasMarkForSessionRef.current(currentSelf.sessionId)) return;
         abandonLocalDrafts();
+        const origin = homePctToWorldPct(
+          DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
+          DOCK_CREATE_DEFAULT_ORIGIN.topPct,
+        );
         setCreateUi({
           mode: "mark",
-          leftPct: DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
-          topPct: DOCK_CREATE_DEFAULT_ORIGIN.topPct,
+          leftPct: origin.leftPct,
+          topPct: origin.topPct,
         });
       },
     });
@@ -656,17 +688,9 @@ export function EphemeralTextLayer() {
 
   return (
     <div
-      className="pointer-events-none absolute inset-0"
+      className="pointer-events-none absolute inset-0 z-[2]"
       data-4663-ephemeral-text-layer
     >
-      <div
-        className="pointer-events-auto absolute inset-0 z-0 cursor-grab active:cursor-grabbing"
-        data-4663-canvas-empty-hit
-        data-4663-canvas-empty-named={isParticipating ? "true" : "false"}
-        onClick={onEmptyCanvasClick}
-        aria-hidden
-      />
-
       {MARK_ENABLED
         ? marks.map((mark) => (
             <CanvasMarkObject key={mark.id} mark={mark} />
@@ -721,29 +745,14 @@ export function EphemeralTextLayer() {
                 createUi.leftPct,
                 createUi.topPct,
               );
-              const canvas = document.getElementById(CANVAS_HOME_REGION_ID);
-              const canvasRect = canvas?.getBoundingClientRect();
-              const measured =
-                canvasRect != null
-                  ? measureDrawingZoneAspectRatio(
-                      canvasRect.width,
-                      canvasRect.height,
-                      zone.widthPct,
-                      zone.heightPct,
-                    )
-                  : null;
-              const aspectRatio =
-                measured ??
-                fallbackAspectRatioFromSizePct(
-                  zone.widthPct,
-                  zone.heightPct,
-                ) ??
-                1;
               setCreateUi({
                 mode: "draw",
                 draftDrawingId: createDrawingDraftId(),
                 ...zone,
-                aspectRatio,
+                aspectRatio: drawingZoneWorldAspectRatio(
+                  zone.widthPct,
+                  zone.heightPct,
+                ),
               });
             }}
             onChooseMark={() => {

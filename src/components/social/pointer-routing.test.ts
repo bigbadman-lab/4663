@@ -70,13 +70,18 @@ describe("Social 2A.1 empty-canvas pointer routing", () => {
   });
 
   it("empty hit / menu / composer / owner text remain interactive", () => {
-    const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
-    assert.ok(layer.includes("pointer-events-none absolute inset-0"));
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("data-4663-canvas-empty-hit"));
+    assert.ok(surface.includes("dispatchEmptyCanvasClick"));
     assert.ok(
-      layer.includes("pointer-events-auto absolute inset-0 z-0"),
+      surface.includes("pointer-events-auto absolute inset-0 z-0"),
     );
-    assert.ok(layer.includes("data-4663-canvas-empty-hit"));
+    assert.ok(surface.includes("touch-none"));
+
+    const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
+    assert.ok(layer.includes("pointer-events-none absolute inset-0 z-[2]"));
     assert.ok(layer.includes('className="pointer-events-auto"'));
+    assert.ok(layer.includes("registerEmptyCanvasClick"));
 
     const object = readSrc(
       "src/components/social/ephemeral-text-object.tsx",

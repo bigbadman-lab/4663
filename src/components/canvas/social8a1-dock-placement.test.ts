@@ -41,13 +41,14 @@ describe("Social 8A.1 dock default placement", () => {
     );
   });
 
-  it("dock path uses DOCK_CREATE_DEFAULT_ORIGIN; empty-canvas uses click %", () => {
+  it("dock path uses camera/viewport world mapping; empty-canvas uses click world %", () => {
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
     assert.ok(layer.includes("DOCK_CREATE_DEFAULT_ORIGIN"));
+    assert.ok(layer.includes("dockCreateWorldPct"));
+    assert.ok(layer.includes("screenPointToWorldPct"));
     assert.ok(layer.includes("openText"));
     assert.ok(layer.includes("openDraw"));
     assert.ok(layer.includes("openMark"));
-    assert.ok(layer.includes("pointerToCanvasPct"));
     assert.ok(layer.includes("onEmptyCanvasClick"));
     assert.ok(layer.includes('mode: "menu"'));
     // Empty-canvas menu still places at click coords, not dock origin.

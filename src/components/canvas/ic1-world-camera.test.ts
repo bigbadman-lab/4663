@@ -49,17 +49,24 @@ describe("Stage IC1 large world + local camera wiring", () => {
     assert.equal(cam.includes("Broadcast"), false);
     assert.equal(cam.includes("supabase"), false);
     assert.ok(cam.includes("goHome"));
-    assert.ok(cam.includes("isDesktopPointer"));
+    assert.ok(cam.includes("isCanvasPanHitTarget"));
+    // IC3: pan is not desktop-only; primary empty-hit pointer starts pan.
+    assert.equal(cam.includes("isDesktopPointer"), false);
+    assert.ok(cam.includes("event.isPrimary"));
+    assert.ok(cam.includes("panDragThresholdPx"));
   });
 
   it("empty-space pan + click suppress; object drag does not pan", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("isCanvasPanHitTarget"));
-    assert.ok(cam.includes("CANVAS_PAN_DRAG_THRESHOLD_PX"));
+    assert.ok(cam.includes("panDragThresholdPx"));
     assert.ok(cam.includes("shouldSuppressEmptyCanvasClick"));
+    assert.ok(cam.includes("setCreateUiBlocksPan"));
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
     assert.ok(layer.includes("shouldSuppressEmptyCanvasClick"));
-    assert.ok(layer.includes("data-4663-canvas-empty-hit"));
+    assert.ok(layer.includes("setCreateUiBlocksPan"));
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("data-4663-canvas-empty-hit"));
   });
 
   it("HOME dock control resets camera only; not session RESET", () => {
@@ -67,15 +74,19 @@ describe("Stage IC1 large world + local camera wiring", () => {
     assert.ok(getLiveControlDockItems().some((i) => i.id === "home"));
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.id),
-      ["text", "draw", "summon", "home", "reset"],
+      ["text", "draw", "home", "summon", "reset"],
     );
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
     assert.ok(palette.includes("onHome"));
     assert.ok(palette.includes('item.id === "home"'));
+    assert.ok(palette.includes("HOME_VIEW_ARIA_LABEL"));
     assert.equal(palette.includes("resetContent"), false);
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("goHome"));
     assert.ok(surface.includes("onHome={onHome}"));
+    const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
+    assert.ok(cam.includes("cancelActivePan"));
+    assert.ok(cam.includes("homeCameraForViewport(vw, vh)"));
     // Palette is outside the world transform.
     const worldBlock = surface.slice(
       surface.indexOf("data-4663-canvas-world"),
@@ -84,13 +95,16 @@ describe("Stage IC1 large world + local camera wiring", () => {
     assert.equal(worldBlock.includes("CanvasControlPalette"), false);
   });
 
-  it("chrome remains outside world; mobile pan not enabled", () => {
+  it("chrome remains outside world; mobile pan uses empty-hit touch-none", () => {
     const play = readSrc("src/components/canvas/canvas-play-tree.tsx");
     assert.ok(play.includes("CanvasChrome"));
     assert.ok(play.includes("CanvasSurface"));
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
-    assert.ok(cam.includes("(hover: hover) and (pointer: fine)"));
-    assert.equal(cam.includes("touch-action"), false);
+    assert.equal(cam.includes("isDesktopPointer"), false);
+    assert.ok(cam.includes("panDragThresholdPx"));
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("touch-none"));
+    assert.ok(surface.includes("data-4663-canvas-empty-hit"));
   });
 
   it("Summon / TEXT / DRAW / CanMove bounds wiring preserved", () => {

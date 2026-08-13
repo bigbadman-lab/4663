@@ -8,6 +8,8 @@ import {
   CANVAS_PAN_DRAG_THRESHOLD_PX,
   camerasApproximatelyEqual,
   clampCamera,
+  dockCreateWorldPct,
+  DRAWING_ZONE_WIDTH_WORLD_PCT,
   HOME_REGION_HEIGHT_PX,
   HOME_REGION_LEFT_PX,
   HOME_REGION_TOP_PX,
@@ -17,6 +19,7 @@ import {
   panCamera,
   PLAYHTML_CANVAS_BOUNDS_ID,
   PLAYHTML_WORLD_BOUNDS_ID,
+  screenPointToWorldPct,
   WORLD_HEIGHT_PX,
   WORLD_WIDTH_PX,
 } from "@/lib/canvas/world-camera";
@@ -45,7 +48,7 @@ describe("Stage IC1 world + camera helpers", () => {
     assert.equal(cam.y, WORLD_HEIGHT_PX - 900);
   });
 
-  it("pan moves camera opposite to drag; threshold constant set", () => {
+  it("pan moves camera opposite to drag; threshold constants set", () => {
     const origin = homeCameraForViewport(1440, 900);
     const next = panCamera(origin, 40, -20, 1440, 900);
     assert.equal(next.x, origin.x - 40);
@@ -56,5 +59,22 @@ describe("Stage IC1 world + camera helpers", () => {
 
   it("pan hit only empty-hit / world-pan-hit", () => {
     assert.equal(isCanvasPanHitTarget(null), false);
+  });
+
+  it("IC2 helpers: screen→world and dock mapping exist", () => {
+    const cam = homeCameraForViewport(1440, 900);
+    const pct = screenPointToWorldPct(
+      720,
+      450,
+      { left: 0, top: 0, width: 1440, height: 900 },
+      cam,
+    );
+    assert.ok(pct.leftPct > 0 && pct.leftPct < 100);
+    const dock = dockCreateWorldPct(
+      { left: 0, top: 0, width: 1440, height: 900 },
+      cam,
+    );
+    assert.ok(dock.leftPct > 0);
+    assert.ok(DRAWING_ZONE_WIDTH_WORLD_PCT < 10);
   });
 });

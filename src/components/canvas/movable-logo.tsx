@@ -18,7 +18,7 @@ export function MovableLogo() {
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
         id={PLAYHTML_LOGO_ID}
-        className="absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+        className="pointer-events-auto absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
         style={LOGO_DEFAULT_STYLE}
         data-4663-logo
       >

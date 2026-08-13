@@ -25,8 +25,8 @@ export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "text", label: "TEXT", iconSrc: "/text.png" },
   { id: "draw", label: "DRAW", iconSrc: "/draw.png" },
   { id: "mark", label: "MARK", iconSrc: "/mark.png" },
-  { id: "summon", label: "SUMMON", iconSrc: "/summon.png" },
   { id: "home", label: "HOME", iconSrc: "/home.png" },
+  { id: "summon", label: "SUMMON", iconSrc: "/summon.png" },
   { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
 
@@ -38,6 +38,9 @@ export function getLiveControlDockItems(): readonly ControlDockItem[] {
   if (MARK_ENABLED) return CONTROL_DOCK_ITEMS;
   return CONTROL_DOCK_ITEMS.filter((item) => item.id !== "mark");
 }
+
+/** Accessible name for the HOME dock control (IC2.1 viewport reset). */
+export const HOME_VIEW_ARIA_LABEL = "Restore home view" as const;
 
 /**
  * Active SUMMON dock accent — same brand green as PONS buyer-count hierarchy.

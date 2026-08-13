@@ -31,24 +31,24 @@ function readSrc(rel: string): string {
 }
 
 describe("Social 8A responsive bottom control dock", () => {
-  it("1–3. live dock TEXT→DRAW→SUMMON→HOME→RESET; MARK dormant but canonical list intact", () => {
+  it("1–3. live dock TEXT→DRAW→HOME→SUMMON→RESET; MARK dormant but canonical list intact", () => {
     assert.equal(CONTROL_DOCK_ITEMS.length, 6);
     assert.deepEqual(
       CONTROL_DOCK_ITEMS.map((i) => i.id),
-      ["text", "draw", "mark", "summon", "home", "reset"],
+      ["text", "draw", "mark", "home", "summon", "reset"],
     );
     assert.equal(MARK_ENABLED, false);
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.id),
-      ["text", "draw", "summon", "home", "reset"],
+      ["text", "draw", "home", "summon", "reset"],
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.label),
-      ["TEXT", "DRAW", "SUMMON", "HOME", "RESET"],
+      ["TEXT", "DRAW", "HOME", "SUMMON", "RESET"],
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.iconSrc),
-      ["/text.png", "/draw.png", "/summon.png", "/home.png", "/reset.png"],
+      ["/text.png", "/draw.png", "/home.png", "/summon.png", "/reset.png"],
     );
     assert.equal(CONTROL_PALETTE_ITEMS, CONTROL_DOCK_ITEMS);
   });
@@ -57,8 +57,9 @@ describe("Social 8A responsive bottom control dock", () => {
     const palette = readSrc(
       "src/components/canvas/canvas-control-palette.tsx",
     );
-    assert.ok(palette.includes("aria-label={item.id === \"summon\" ? summonLabel : item.label}"));
-    assert.ok(palette.includes("title={item.id === \"summon\" ? summonLabel : item.label}"));
+    assert.ok(palette.includes("aria-label={a11yLabel}"));
+    assert.ok(palette.includes("title={a11yLabel}"));
+    assert.ok(palette.includes("HOME_VIEW_ARIA_LABEL"));
     assert.ok(palette.includes("aria-pressed={"));
     assert.ok(palette.includes('width={32}'));
     assert.ok(palette.includes('height={32}'));

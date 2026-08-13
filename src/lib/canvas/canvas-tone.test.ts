@@ -167,7 +167,7 @@ describe("Social 8A.2 canvas tone UI + invariants", () => {
 
     assert.ok(
       readSrc("src/components/canvas/canvas-control-palette.tsx").includes(
-        "CONTROL_DOCK_ITEMS",
+        "getLiveControlDockItems",
       ),
     );
     assert.ok(readSrc("src/lib/pons/continuation.ts").length > 0);

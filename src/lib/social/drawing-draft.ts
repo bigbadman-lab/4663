@@ -60,7 +60,7 @@ export function createDrawingDraftId(
 
 function clampSizePct(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
-  return Math.min(40, Math.max(8, value));
+  return Math.min(25, Math.max(4, value));
 }
 
 export function normalizeDrawingDraft(raw: unknown): DrawingDraft | null {

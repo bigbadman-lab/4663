@@ -8,6 +8,7 @@
 import type { CSSProperties } from "react";
 import {
   getLiveControlDockItems,
+  HOME_VIEW_ARIA_LABEL,
   isSummonDockDisabled,
   SUMMON_DOCK_ACTIVE_COLOR,
   type ControlDockActionId,
@@ -180,6 +181,12 @@ export function CanvasControlPalette({
             const disabled = isDisabled(item.id, props);
             const isSummonActive = item.id === "summon" && summonActive;
             const summonLabel = isSummonActive ? "Clear summon" : item.label;
+            const a11yLabel =
+              item.id === "summon"
+                ? summonLabel
+                : item.id === "home"
+                  ? HOME_VIEW_ARIA_LABEL
+                  : item.label;
             const activeStyle: CSSProperties | undefined = isSummonActive
               ? {
                   color: SUMMON_DOCK_ACTIVE_COLOR,
@@ -190,8 +197,8 @@ export function CanvasControlPalette({
               <button
                 key={item.id}
                 type="button"
-                title={item.id === "summon" ? summonLabel : item.label}
-                aria-label={item.id === "summon" ? summonLabel : item.label}
+                title={a11yLabel}
+                aria-label={a11yLabel}
                 aria-pressed={
                   item.id === "summon" ? summonActive : undefined
                 }

@@ -3,6 +3,7 @@
 /**
  * Main canvas surface: viewport clips a fixed world; PlayHTML bounds = world.
  * Control palette is fixed outside the camera-transformed world (IC1).
+ * TEXT/DRAW live on the world layer (IC2 world %); HOME chrome stays home-region.
  */
 
 import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette";
@@ -27,6 +28,7 @@ import {
   WORLD_HEIGHT_PX,
   WORLD_WIDTH_PX,
 } from "@/lib/canvas/world-camera";
+import { dispatchEmptyCanvasClick } from "@/lib/social/canvas-create-actions";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
 
 export type CanvasSurfaceProps = {
@@ -84,7 +86,7 @@ export function CanvasSurface({
     <>
       <div
         ref={viewportRef}
-        className="absolute inset-0 z-10 overflow-hidden"
+        className="absolute inset-0 z-10 overflow-hidden overscroll-none"
         data-4663-canvas-viewport
         data-4663-canvas-surface
         onPointerDown={onViewportPointerDown}
@@ -100,10 +102,21 @@ export function CanvasSurface({
             transform: "translate(0px, 0px)",
           }}
         >
-          {/* Full-world pan hit (desktop empty space outside the home artboard). */}
+          {/*
+            Stack (bottom → top):
+            1. empty/pan hit — world click + local pan (desktop + touch; touch-action: none)
+            2. home-region — hero/Summon/PONS/pills (pe-none shell; children pe-auto)
+            3. EphemeralTextLayer — TEXT/DRAW objects + composers (world %)
+            Home chrome stays clickable; empty home areas pass through to the hit layer.
+            touch-action:none on empty-hit lets the app own one-finger pan; object hosts
+            keep touch-manipulation so PlayHTML touch drag still receives the gesture.
+          */}
           <div
-            className="pointer-events-auto absolute inset-0 z-0 cursor-grab active:cursor-grabbing"
+            className="pointer-events-auto absolute inset-0 z-0 cursor-grab touch-none active:cursor-grabbing"
+            data-4663-canvas-empty-hit
             data-4663-world-pan-hit
+            data-4663-canvas-empty-named="false"
+            onClick={(event) => dispatchEmptyCanvasClick(event.nativeEvent)}
             aria-hidden
           />
 
@@ -118,22 +131,21 @@ export function CanvasSurface({
               height: HOME_REGION_HEIGHT_PX,
             }}
           >
-            <div className="pointer-events-auto absolute inset-0">
-              <EphemeralTextLayer />
-              <MovableLogo />
-              <MovableHero />
-              <MovableLiveEventLayer
-                items={liveItems}
-                isPinned={isPinned}
-                onPin={onPin}
-              />
-              <PinnedPonsLayer items={pinnedItems} onUnpin={onUnpin} />
-              {summonId ? (
-                <SummonLayer summonId={summonId} items={summonItems} />
-              ) : null}
-              <ParticipantPresenceLayer />
-            </div>
+            <MovableLogo />
+            <MovableHero />
+            <MovableLiveEventLayer
+              items={liveItems}
+              isPinned={isPinned}
+              onPin={onPin}
+            />
+            <PinnedPonsLayer items={pinnedItems} onUnpin={onUnpin} />
+            {summonId ? (
+              <SummonLayer summonId={summonId} items={summonItems} />
+            ) : null}
+            <ParticipantPresenceLayer />
           </div>
+
+          <EphemeralTextLayer />
         </div>
       </div>
 

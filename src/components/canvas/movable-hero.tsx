@@ -20,7 +20,7 @@ export function MovableHero() {
       <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
         <div
           id={PLAYHTML_HERO_TITLE_ID}
-          className="absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+          className="pointer-events-auto absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
           style={HERO_TITLE_DEFAULT_STYLE}
           data-4663-hero-title
         >
@@ -33,7 +33,7 @@ export function MovableHero() {
       <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
         <div
           id={PLAYHTML_HERO_SUBTITLE_ID}
-          className="absolute z-[15] max-w-[16rem] cursor-grab touch-manipulation select-none active:cursor-grabbing sm:max-w-none"
+          className="pointer-events-auto absolute z-[15] max-w-[16rem] cursor-grab touch-manipulation select-none active:cursor-grabbing sm:max-w-none"
           style={HERO_SUBTITLE_DEFAULT_STYLE}
           data-4663-hero-subtitle
         >

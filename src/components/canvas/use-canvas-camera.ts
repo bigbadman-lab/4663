@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * Stage IC1 — local camera + desktop empty-space pan (never networked).
+ * Stage IC1 / IC2.1 / IC3 — local camera + empty-space pan (desktop + touch).
+ * HOME = immediate viewport reset to homeCameraForViewport(current size).
+ * Camera is never networked. Pan starts only on empty-hit / world-pan-hit.
  */
 
 import {
@@ -12,14 +14,15 @@ import {
   type RefObject,
 } from "react";
 import {
-  CANVAS_PAN_DRAG_THRESHOLD_PX,
   clampCamera,
   HOME_REGION_HEIGHT_PX,
   HOME_REGION_WIDTH_PX,
   homeCameraForViewport,
   isCanvasPanHitTarget,
   panCamera,
+  panDragThresholdPx,
   type CanvasCamera,
+  type ViewportRect,
   worldTransformStyle,
 } from "@/lib/canvas/world-camera";
 
@@ -30,9 +33,24 @@ export function shouldSuppressEmptyCanvasClick(): boolean {
   return suppressEmptyCanvasClick;
 }
 
-function isDesktopPointer(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+/** While TEXT/DRAW/MARK create UI owns input, do not start empty-space pan. */
+let createUiBlocksPan = false;
+
+export function setCreateUiBlocksPan(blocked: boolean): void {
+  createUiBlocksPan = blocked;
+}
+
+export type CanvasPlacementSnapshot = {
+  viewport: ViewportRect;
+  camera: CanvasCamera;
+};
+
+let getPlacementSnapshotImpl: (() => CanvasPlacementSnapshot | null) | null =
+  null;
+
+/** Live viewport + local camera for screen→world placement (never networked). */
+export function getCanvasPlacementSnapshot(): CanvasPlacementSnapshot | null {
+  return getPlacementSnapshotImpl?.() ?? null;
 }
 
 export type UseCanvasCameraResult = {
@@ -48,6 +66,7 @@ export function useCanvasCamera(): UseCanvasCameraResult {
   const cameraRef = useRef<CanvasCamera>({ x: 0, y: 0 });
   const panRef = useRef<{
     pointerId: number;
+    pointerType: string;
     startX: number;
     startY: number;
     origin: CanvasCamera;
@@ -70,23 +89,62 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     }
   }, []);
 
+  /** Drop in-progress pan so HOME / next drag start cleanly. */
+  const cancelActivePan = useCallback(() => {
+    const pan = panRef.current;
+    panRef.current = null;
+    document.body.removeAttribute("data-4663-panning");
+    suppressEmptyCanvasClick = false;
+    if (!pan?.captureEl) return;
+    try {
+      pan.captureEl.releasePointerCapture(pan.pointerId);
+    } catch {
+      // ignore — capture may already be gone
+    }
+  }, []);
+
   const goHome = useCallback(() => {
+    // 1–2. Current viewport → canonical HOME camera (not a hardcoded offset).
     const viewport = viewportRef.current;
     const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
     const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
+    // 3. Cancel transient pan (pointer id, capture, deltas, grabbing flag).
+    cancelActivePan();
+    // 4–5. Immediate deterministic reset; shared world untouched.
     applyCamera(homeCameraForViewport(vw, vh));
-  }, [applyCamera]);
+  }, [applyCamera, cancelActivePan]);
 
   useEffect(() => {
     goHome();
     const viewport = viewportRef.current;
     if (!viewport || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => {
+      // Clamp only — do not auto-HOME on resize (IC2.1).
       applyCamera(cameraRef.current);
     });
     ro.observe(viewport);
     return () => ro.disconnect();
   }, [applyCamera, goHome]);
+
+  useEffect(() => {
+    getPlacementSnapshotImpl = () => {
+      const viewport = viewportRef.current;
+      if (!viewport) return null;
+      const rect = viewport.getBoundingClientRect();
+      return {
+        viewport: {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        },
+        camera: { ...cameraRef.current },
+      };
+    };
+    return () => {
+      getPlacementSnapshotImpl = null;
+    };
+  }, []);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
@@ -95,7 +153,7 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       const dx = event.clientX - pan.startX;
       const dy = event.clientY - pan.startY;
       if (!pan.active) {
-        if (Math.hypot(dx, dy) < CANVAS_PAN_DRAG_THRESHOLD_PX) return;
+        if (Math.hypot(dx, dy) < panDragThresholdPx(pan.pointerType)) return;
         pan.active = true;
         suppressEmptyCanvasClick = true;
         document.body.setAttribute("data-4663-panning", "true");
@@ -138,12 +196,18 @@ export function useCanvasCamera(): UseCanvasCameraResult {
   const onViewportPointerDown = (
     event: ReactPointerEvent<HTMLDivElement>,
   ) => {
+    // Primary pointer only — no multi-finger camera zoom (IC3).
+    if (!event.isPrimary) return;
     if (event.button !== 0) return;
-    if (!isDesktopPointer()) return;
+    if (createUiBlocksPan) return;
+    // Empty canvas only — objects / DRAW / TEXT / chrome are not pan hit targets.
     if (!isCanvasPanHitTarget(event.target)) return;
+    // One pan at a time.
+    if (panRef.current) return;
 
     panRef.current = {
       pointerId: event.pointerId,
+      pointerType: event.pointerType || "mouse",
       startX: event.clientX,
       startY: event.clientY,
       origin: { ...cameraRef.current },

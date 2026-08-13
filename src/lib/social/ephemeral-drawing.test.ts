@@ -13,6 +13,8 @@ import {
   DRAWING_MAX_POINTS_PER_STROKE,
   DRAWING_MAX_STROKES,
   DRAWING_MAX_TOTAL_POINTS,
+  DRAWING_ZONE_HEIGHT_PCT,
+  DRAWING_ZONE_WIDTH_PCT,
   drawingZoneOriginFromClick,
   fallbackAspectRatioFromSizePct,
   hasMeaningfulStrokes,
@@ -211,9 +213,12 @@ describe("Social 3A ephemeral drawing helpers", () => {
     assert.equal(data.drawings.length, 0);
   });
 
-  it("drawing zone centers on click", () => {
+  it("drawing zone centers on click using world-safe size", () => {
     const zone = drawingZoneOriginFromClick(50, 50);
-    assert.equal(zone.widthPct, 22);
+    assert.ok(Math.abs(zone.widthPct - DRAWING_ZONE_WIDTH_PCT) < 1e-9);
+    assert.ok(Math.abs(zone.heightPct - DRAWING_ZONE_HEIGHT_PCT) < 1e-9);
+    assert.ok(zone.widthPct < 10);
+    assert.ok(zone.heightPct < 10);
     assert.ok(zone.leftPct < 50);
     assert.ok(zone.topPct < 50);
   });

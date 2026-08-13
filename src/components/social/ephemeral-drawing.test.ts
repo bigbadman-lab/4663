@@ -168,9 +168,9 @@ describe("Social 3A ephemeral DRAW UI", () => {
     assert.ok(object.includes("pointer-events-none absolute z-[16]"));
   });
 
-  it("Social 3A.1 captures aspect once on DRAW open; SVG viewBox unchanged", () => {
+  it("Social 3A.1 / IC2 captures aspect from world zone; SVG viewBox unchanged", () => {
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
-    assert.ok(layer.includes("measureDrawingZoneAspectRatio"));
+    assert.ok(layer.includes("drawingZoneWorldAspectRatio"));
     assert.ok(layer.includes("aspectRatio"));
     assert.ok(layer.includes("aspectRatio: ui.aspectRatio"));
 

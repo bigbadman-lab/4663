@@ -4,6 +4,12 @@
  * Live drafts are Broadcast-only (see drawing-draft.ts).
  */
 
+import {
+  DRAWING_ZONE_HEIGHT_WORLD_PCT,
+  DRAWING_ZONE_WIDTH_WORLD_PCT,
+  drawingZoneAspectFromWorldPct,
+  drawingZoneOriginFromWorldPct,
+} from "@/lib/canvas/world-camera";
 import { clampCanvasPct } from "@/lib/social/ephemeral-text";
 import {
   isUuid,
@@ -16,9 +22,12 @@ export const EPHEMERAL_DRAWINGS_PAGE_DATA_NAME =
 /** Fixed brush — one size only (SVG user units in 0–100 viewBox). */
 export const DRAWING_BRUSH_SIZE = 2.75 as const;
 
-/** Compact drawing zone as % of canvas. */
-export const DRAWING_ZONE_WIDTH_PCT = 22 as const;
-export const DRAWING_ZONE_HEIGHT_PCT = 22 as const;
+/**
+ * Compact drawing zone as % of the fixed world (IC2).
+ * Sized so HOME-view visual ≈ pre-IC1 22%×22% of the 1440×900 artboard.
+ */
+export const DRAWING_ZONE_WIDTH_PCT = DRAWING_ZONE_WIDTH_WORLD_PCT;
+export const DRAWING_ZONE_HEIGHT_PCT = DRAWING_ZONE_HEIGHT_WORLD_PCT;
 
 /**
  * Frozen authoring aspect ratio bounds (pixel width / pixel height).
@@ -159,7 +168,8 @@ export function normalizeDrawingStrokes(
 
 function clampSizePct(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
-  return Math.min(40, Math.max(8, value));
+  // Allow IC2 world-safe zone (~6.6%) while rejecting absurd sizes.
+  return Math.min(25, Math.max(4, value));
 }
 
 export function isValidDrawingAspectRatio(
@@ -327,23 +337,22 @@ export function normalizeEphemeralDrawingsPageData(
   return { drawings };
 }
 
-/** Center a drawing zone on a click %, clamped so the box stays on-canvas. */
+/** Center a drawing zone on a world % click; clamp the full zone inside the world. */
 export function drawingZoneOriginFromClick(
   leftPct: number,
   topPct: number,
   widthPct: number = DRAWING_ZONE_WIDTH_PCT,
   heightPct: number = DRAWING_ZONE_HEIGHT_PCT,
 ): { leftPct: number; topPct: number; widthPct: number; heightPct: number } {
-  const halfW = widthPct / 2;
-  const halfH = heightPct / 2;
-  const originLeft = Math.min(100 - widthPct, Math.max(0, leftPct - halfW));
-  const originTop = Math.min(100 - heightPct, Math.max(0, topPct - halfH));
-  return {
-    leftPct: originLeft,
-    topPct: originTop,
-    widthPct,
-    heightPct,
-  };
+  return drawingZoneOriginFromWorldPct(leftPct, topPct, widthPct, heightPct);
+}
+
+/** Deterministic zone aspect from fixed world pixel dimensions (no DOM measure). */
+export function drawingZoneWorldAspectRatio(
+  widthPct: number = DRAWING_ZONE_WIDTH_PCT,
+  heightPct: number = DRAWING_ZONE_HEIGHT_PCT,
+): number {
+  return drawingZoneAspectFromWorldPct(widthPct, heightPct);
 }
 
 export type CreateEphemeralDrawingInput = {

@@ -26,9 +26,11 @@ describe("Social 2A ephemeral text UI", () => {
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
     assert.ok(layer.includes("isParticipating"));
     assert.ok(layer.includes("if (!isParticipating || !self) return"));
-    assert.ok(layer.includes("data-4663-canvas-empty-hit"));
+    assert.ok(layer.includes("registerEmptyCanvasClick"));
     assert.ok(layer.includes("CanvasCreateMenu"));
     assert.ok(layer.includes("[ TEXT ]") || layer.includes("onChooseText"));
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("data-4663-canvas-empty-hit"));
   });
 
   it("create menu exposes TEXT action without opening composer immediately", () => {
