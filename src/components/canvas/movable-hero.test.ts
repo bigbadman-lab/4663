@@ -73,12 +73,14 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
     assert.ok(hero.includes("HERO_TITLE_DEFAULT_STYLE"));
     assert.ok(hero.includes("HERO_SUBTITLE_DEFAULT_STYLE"));
     assert.ok(hero.includes("-translate-x-1/2"));
+    assert.ok(hero.includes("the live canvas for robinhood chain"));
+    assert.equal(hero.includes("live intelligence for robinhood chain"), false);
   });
 
   it("9–10. CanvasChrome drops brand; PresenceStatus remains", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("PresenceStatus"));
-    assert.equal(chrome.includes("live intelligence for robinhood chain"), false);
+    assert.equal(chrome.includes("the live canvas for robinhood chain"), false);
     assert.equal(/>\s*4663\s*</.test(chrome), false);
     assert.equal(chrome.includes("font-medium tracking-tight"), false);
   });

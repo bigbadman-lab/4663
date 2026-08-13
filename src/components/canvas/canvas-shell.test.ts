@@ -39,7 +39,7 @@ describe("Stage 10A canvas ownership", () => {
   it("4. visible PresenceStatus exists inside canvas chrome", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.match(chrome, /PresenceStatus/);
-    assert.equal(chrome.includes("live intelligence for robinhood chain"), false);
+    assert.equal(chrome.includes("the live canvas for robinhood chain"), false);
   });
 
   it("5. canvas surface exists even with zero events", () => {
