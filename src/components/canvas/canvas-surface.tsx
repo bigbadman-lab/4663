@@ -25,7 +25,6 @@ export type CanvasSurfaceProps = {
   summonId?: string | null;
   summonItems?: readonly SummonLayerItem[];
   onSummon?: () => void;
-  onDismissSummon?: () => void;
   onReset?: () => void;
   canText?: boolean;
   canDraw?: boolean;
@@ -49,7 +48,6 @@ export function CanvasSurface({
   summonId = null,
   summonItems = [],
   onSummon,
-  onDismissSummon,
   onReset,
   canText = false,
   canDraw = false,
@@ -83,7 +81,6 @@ export function CanvasSurface({
       <ParticipantPresenceLayer />
       <CanvasControlPalette
         onSummon={onSummon}
-        onDismissSummon={onDismissSummon}
         onReset={onReset}
         canText={canText}
         canDraw={canDraw}

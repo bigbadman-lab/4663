@@ -16,6 +16,7 @@ import {
   EMPTY_ACTIVE_SUMMON_PAGE_DATA,
   normalizeActiveSummonPageData,
   retainActiveSummonForPresentOwner,
+  shouldDismissActiveSummonOnClick,
   type ActiveSummonPageData,
   type ActiveSummonState,
 } from "@/lib/canvas/active-summon";
@@ -40,8 +41,8 @@ export type UseSummonControllerResult = {
   active: ActiveSummonState | null;
   isOwner: boolean;
   canSummon: boolean;
+  /** Toggle: OFF→ON summons; ON→OFF (owner) clears active set without re-fetch. */
   onSummon: () => void;
-  onDismiss: () => void;
 };
 
 export function useSummonController(
@@ -217,14 +218,30 @@ export function useSummonController(
     mutexFree &&
     canDispatchSummon(lastDispatchAtRef.current, Date.now(), SUMMON_COOLDOWN_MS);
 
+  function dismissIfOwner(): void {
+    if (!self) return;
+    const current = normalizeActiveSummonPageData(pageDataRef.current);
+    const next = clearActiveSummonIfOwner(current, self.sessionId);
+    if (next.active !== current.active) {
+      writePageData(next);
+    }
+  }
+
   function onSummon(): void {
     if (!isParticipating || !self) return;
+
+    // ON → OFF: clear owned active set only (no selection / recovery fetch).
+    const current = normalizeActiveSummonPageData(pageDataRef.current);
+    if (shouldDismissActiveSummonOnClick(current, self.sessionId)) {
+      dismissIfOwner();
+      return;
+    }
+
     const now = Date.now();
     if (!canDispatchSummon(lastDispatchAtRef.current, now, SUMMON_COOLDOWN_MS)) {
       return;
     }
 
-    const current = normalizeActiveSummonPageData(pageDataRef.current);
     const present = new Set(participants.map((p) => p.sessionId));
     present.add(self.sessionId);
     if (!canClaimActiveSummon(current, present)) return;
@@ -240,15 +257,6 @@ export function useSummonController(
     writePageData({ active: state });
   }
 
-  function onDismiss(): void {
-    if (!self) return;
-    const current = normalizeActiveSummonPageData(pageDataRef.current);
-    const next = clearActiveSummonIfOwner(current, self.sessionId);
-    if (next.active !== current.active) {
-      writePageData(next);
-    }
-  }
-
   return {
     summonId: active?.summonId ?? null,
     items,
@@ -256,6 +264,5 @@ export function useSummonController(
     isOwner,
     canSummon,
     onSummon,
-    onDismiss,
   };
 }

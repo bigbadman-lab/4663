@@ -100,7 +100,9 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(palette.includes("onSummon"));
     assert.ok(palette.includes("onReset"));
     assert.ok(palette.includes("getCanvasCreateActions"));
-    assert.ok(palette.includes("[ DISMISS ]"));
+    assert.equal(palette.includes("[ DISMISS ]"), false);
+    assert.equal(palette.includes("onDismissSummon"), false);
+    assert.ok(palette.includes("isSummonDockDisabled"));
     assert.ok(palette.includes("canSummon"));
     assert.ok(palette.includes("canMark"));
     assert.ok(palette.includes("canReset"));

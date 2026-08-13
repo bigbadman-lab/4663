@@ -58,7 +58,6 @@ function CanvasPlayTreeInner({
         summonId={summon.summonId}
         summonItems={summon.items}
         onSummon={summon.onSummon}
-        onDismissSummon={summon.onDismiss}
         onReset={() => {
           resetContent();
         }}

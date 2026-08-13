@@ -217,21 +217,26 @@ describe("Social 5 summon session semantics", () => {
     assert.equal(SUMMON_LIFETIME_MS, 20_000);
   });
 
-  it("page-data active state + named gate + dismiss + RESET wiring", () => {
+  it("page-data active state + named gate + Summon toggle + RESET wiring", () => {
     assert.equal(
       normalizeActiveSummonPageData({ active: null }).active,
       null,
     );
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
     assert.ok(palette.includes("canSummon"));
-    assert.ok(palette.includes("onDismissSummon"));
-    assert.ok(palette.includes("[ DISMISS ]"));
+    assert.equal(palette.includes("onDismissSummon"), false);
+    assert.equal(palette.includes("[ DISMISS ]"), false);
+    assert.ok(palette.includes("isSummonDockDisabled"));
     assert.ok(palette.includes("onReset"));
     assert.ok(palette.includes('item.id === "reset"'));
 
     const playTree = readSrc("src/components/canvas/canvas-play-tree.tsx");
     assert.ok(playTree.includes("resetContent"));
     assert.ok(playTree.includes("isSummonOwner"));
+    assert.equal(playTree.includes("onDismissSummon"), false);
+
+    const controller = readSrc("src/components/canvas/use-summon-controller.ts");
+    assert.ok(controller.includes("shouldDismissActiveSummonOnClick"));
 
     const summoned = readSrc("src/components/canvas/summoned-pons-object.tsx");
     assert.equal(summoned.includes("PonsWatchControl"), false);

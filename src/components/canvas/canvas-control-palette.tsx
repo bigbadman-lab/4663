@@ -7,6 +7,7 @@
 
 import {
   CONTROL_DOCK_ITEMS,
+  isSummonDockDisabled,
   type ControlDockActionId,
   type ControlDockItem,
 } from "@/lib/canvas/control-palette";
@@ -15,7 +16,6 @@ import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
 
 export type CanvasControlPaletteProps = {
   onSummon?: () => void;
-  onDismissSummon?: () => void;
   onReset?: () => void;
   onText?: () => void;
   onDraw?: () => void;
@@ -57,7 +57,11 @@ function isDisabled(
     case "mark":
       return !(props.canMark ?? false);
     case "summon":
-      return !(props.canSummon ?? false) || !!props.summonActive;
+      return isSummonDockDisabled({
+        canSummon: props.canSummon ?? false,
+        summonActive: !!props.summonActive,
+        isSummonOwner: !!props.isSummonOwner,
+      });
     case "reset":
       return !(props.canReset ?? false);
     default:
@@ -67,7 +71,6 @@ function isDisabled(
 
 export function CanvasControlPalette({
   onSummon,
-  onDismissSummon,
   onReset,
   onText,
   onDraw,
@@ -86,6 +89,7 @@ export function CanvasControlPalette({
     canMark,
     canSummon,
     summonActive,
+    isSummonOwner,
     canReset,
   };
 
@@ -117,7 +121,7 @@ export function CanvasControlPalette({
     >
       <div
         id={PLAYHTML_CONTROL_PALETTE_ID}
-        className="pointer-events-auto mx-2 flex max-w-[min(100%,26rem)] flex-col items-center gap-1.5 sm:max-w-[min(100%,28rem)]"
+        className="pointer-events-auto mx-2 flex max-w-[min(100%,26rem)] items-center sm:max-w-[min(100%,28rem)]"
         data-4663-control-palette-shell
       >
         <div
@@ -175,19 +179,6 @@ export function CanvasControlPalette({
             );
           })}
         </div>
-        {summonActive && isSummonOwner ? (
-          <button
-            type="button"
-            className="pointer-events-auto font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
-            data-4663-summon-dismiss
-            onClick={(event) => {
-              event.stopPropagation();
-              onDismissSummon?.();
-            }}
-          >
-            [ DISMISS ]
-          </button>
-        ) : null}
       </div>
     </div>
   );

@@ -25,6 +25,19 @@ export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
 
+/**
+ * SUMMON dock enablement (Stage 8A.3 toggle).
+ * Owner may click while active to turn OFF; otherwise gate on canSummon.
+ */
+export function isSummonDockDisabled(input: {
+  canSummon: boolean;
+  summonActive: boolean;
+  isSummonOwner: boolean;
+}): boolean {
+  if (input.summonActive && input.isSummonOwner) return false;
+  return !input.canSummon;
+}
+
 /** @deprecated Prefer CONTROL_DOCK_ITEMS — kept for transitional imports. */
 export const CONTROL_PALETTE_ITEMS = CONTROL_DOCK_ITEMS;
 

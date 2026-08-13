@@ -133,6 +133,15 @@ export function clearActiveSummonIfOwner(
   return { active: null };
 }
 
+/** Owner Summon click should clear (toggle OFF) rather than re-dispatch. */
+export function shouldDismissActiveSummonOnClick(
+  data: ActiveSummonPageData,
+  sessionId: string,
+): boolean {
+  if (!data.active) return false;
+  return data.active.ownerSessionId === normalizeSessionId(sessionId);
+}
+
 export function retainActiveSummonForPresentOwner(
   data: ActiveSummonPageData,
   presentSessionIds: ReadonlySet<string>,
