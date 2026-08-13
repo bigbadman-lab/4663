@@ -3,6 +3,7 @@
 /**
  * Compact 4663-native name entry for ephemeral participation.
  * Not an account/registration flow.
+ * Mobile: viewport-bounded panel + internal scroll (8A.11); desktop unchanged.
  */
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -61,18 +62,23 @@ export function ParticipationEnterForm({
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-center justify-center bg-neutral-900/25 p-4 sm:p-6"
+      className="fixed inset-0 z-30 flex items-center justify-center overflow-y-auto overscroll-none bg-neutral-900/25 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] sm:p-6"
       data-4663-participation-enter-backdrop
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
+      }}
+      onPointerDown={(event) => {
+        // Keep canvas pan / empty-create from seeing through the overlay.
+        event.stopPropagation();
       }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="pointer-events-auto w-full max-w-sm border border-neutral-300 bg-white px-5 py-5 text-neutral-900 shadow-sm sm:max-w-md sm:px-6 sm:py-6"
+        className="pointer-events-auto flex max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-full max-w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-y-auto overscroll-contain border border-neutral-300 bg-white px-4 py-4 text-neutral-900 shadow-sm sm:max-h-none sm:max-w-md sm:overflow-visible sm:px-6 sm:py-6"
         data-4663-participation-enter-form
+        onPointerDown={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2
@@ -84,7 +90,7 @@ export function ParticipationEnterForm({
           <button
             type="button"
             onClick={onClose}
-            className="font-mono text-[11px] tracking-wide text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-end font-mono text-[11px] tracking-wide text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
             aria-label="Close"
             data-4663-participation-enter-close
           >
@@ -105,9 +111,19 @@ export function ParticipationEnterForm({
             maxLength={DISPLAY_NAME_MAX_LENGTH + 8}
             autoComplete="off"
             spellCheck={false}
+            enterKeyHint="done"
             onChange={(event) => {
               setName(event.target.value);
               if (error) setError(null);
+            }}
+            onFocus={() => {
+              // Keep field in view when the software keyboard shrinks the visual viewport.
+              requestAnimationFrame(() => {
+                inputRef.current?.scrollIntoView({
+                  block: "nearest",
+                  inline: "nearest",
+                });
+              });
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -115,7 +131,7 @@ export function ParticipationEnterForm({
                 submit();
               }
             }}
-            className="mt-1.5 w-full border border-neutral-300 bg-white px-3 py-2 font-mono text-[13px] text-neutral-900 outline-none focus-visible:border-neutral-500"
+            className="mt-1.5 w-full border border-neutral-300 bg-white px-3 py-2.5 font-mono text-base text-neutral-900 outline-none focus-visible:border-neutral-500 sm:py-2 sm:text-[13px]"
             data-4663-participation-name-input
           />
         </label>
@@ -134,7 +150,7 @@ export function ParticipationEnterForm({
           <button
             type="button"
             onClick={submit}
-            className="font-mono text-[11px] tracking-wide text-neutral-700 transition-colors hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+            className="inline-flex min-h-11 items-center font-mono text-[11px] tracking-wide text-neutral-700 transition-colors hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
             data-4663-participation-enter-submit
           >
             [ ENTER ]
