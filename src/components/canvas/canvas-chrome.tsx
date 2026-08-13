@@ -14,6 +14,8 @@ import { CanvasIntroNote } from "@/components/canvas/canvas-intro-note";
 import { CanvasIntroTrigger } from "@/components/canvas/canvas-intro-trigger";
 import { CanvasLiveClock } from "@/components/canvas/canvas-live-clock";
 import { CanvasToneControl } from "@/components/canvas/canvas-tone-control";
+import { OfficialContractControl } from "@/components/canvas/official-contract-control";
+import { useOfficialToken } from "@/components/canvas/use-official-token";
 import { ParticipationEnterForm } from "@/components/social/participation-enter-form";
 import { ParticipationEnterTrigger } from "@/components/social/participation-enter-trigger";
 import { ParticipationSessionControl } from "@/components/social/participation-session-control";
@@ -33,6 +35,7 @@ export function CanvasChrome() {
   const closeEnter = useCallback(() => setEnterOpen(false), []);
   const openEnter = useCallback(() => setEnterOpen(true), []);
   const { self, isParticipating, enter, leave } = useParticipation();
+  const officialToken = useOfficialToken();
 
   return (
     <>
@@ -65,6 +68,11 @@ export function CanvasChrome() {
           <CanvasToneControl />
           <CanvasIntroTrigger onOpen={openIntro} />
           <CanvasGuideTrigger onOpen={openGuide} />
+          {officialToken?.active ? (
+            <OfficialContractControl
+              contractAddress={officialToken.contractAddress}
+            />
+          ) : null}
         </div>
 
         <div

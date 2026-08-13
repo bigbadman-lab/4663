@@ -33,6 +33,12 @@ describe("Social 8A.2 canvas tone chrome placement", () => {
     assert.ok(
       block.indexOf("CanvasIntroTrigger") < block.indexOf("CanvasGuideTrigger"),
     );
+    // OFFICIAL CONTRACT mounts after guide when active (LAUNCH1).
+    assert.ok(block.includes("OfficialContractControl"));
+    assert.ok(
+      block.indexOf("CanvasGuideTrigger") <
+        block.indexOf("OfficialContractControl"),
+    );
   });
 
   it("hero uses canvas fg/muted vars for tone readability", () => {
