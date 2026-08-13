@@ -104,6 +104,10 @@ describe("Social 8A.2 canvas tone UI + invariants", () => {
     assert.ok(
       block.indexOf("CanvasToneControl") < block.indexOf("CanvasIntroTrigger"),
     );
+    assert.ok(block.includes("CanvasGuideTrigger"));
+    assert.ok(
+      block.indexOf("CanvasIntroTrigger") < block.indexOf("CanvasGuideTrigger"),
+    );
 
     const control = readSrc("src/components/canvas/canvas-tone-control.tsx");
     assert.ok(control.includes("[ CANVAS ]"));

@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Fixed canvas chrome: intro (top-right), hero-area participation,
+ * Fixed canvas chrome: intro/guide (top-right), hero-area participation,
  * presence + clock footer. Outside PlayHTML — never movable.
  */
 
 import { useCallback, useState } from "react";
+import { CanvasGuideNote } from "@/components/canvas/canvas-guide-note";
+import { CanvasGuideTrigger } from "@/components/canvas/canvas-guide-trigger";
 import { CanvasIntroNote } from "@/components/canvas/canvas-intro-note";
 import { CanvasIntroTrigger } from "@/components/canvas/canvas-intro-trigger";
 import { CanvasLiveClock } from "@/components/canvas/canvas-live-clock";
@@ -17,11 +19,15 @@ import { PresenceStatus } from "@/components/presence-status";
 import { PARTICIPATION_CONTROL_DEFAULT_STYLE } from "@/lib/canvas/hero";
 import { useParticipation } from "@/lib/social/use-participation";
 
+/** At most one information modal open (WHAT IS THIS? / WHAT CAN YOU DO?). */
+type InfoModal = null | "intro" | "guide";
+
 export function CanvasChrome() {
-  const [introOpen, setIntroOpen] = useState(false);
+  const [infoModal, setInfoModal] = useState<InfoModal>(null);
   const [enterOpen, setEnterOpen] = useState(false);
-  const closeIntro = useCallback(() => setIntroOpen(false), []);
-  const openIntro = useCallback(() => setIntroOpen(true), []);
+  const closeInfo = useCallback(() => setInfoModal(null), []);
+  const openIntro = useCallback(() => setInfoModal("intro"), []);
+  const openGuide = useCallback(() => setInfoModal("guide"), []);
   const closeEnter = useCallback(() => setEnterOpen(false), []);
   const openEnter = useCallback(() => setEnterOpen(true), []);
   const { self, isParticipating, enter, leave } = useParticipation();
@@ -54,6 +60,7 @@ export function CanvasChrome() {
         >
           <CanvasToneControl />
           <CanvasIntroTrigger onOpen={openIntro} />
+          <CanvasGuideTrigger onOpen={openGuide} />
         </div>
 
         <div
@@ -71,7 +78,8 @@ export function CanvasChrome() {
         </div>
       </div>
 
-      {introOpen ? <CanvasIntroNote onClose={closeIntro} /> : null}
+      {infoModal === "intro" ? <CanvasIntroNote onClose={closeInfo} /> : null}
+      {infoModal === "guide" ? <CanvasGuideNote onClose={closeInfo} /> : null}
       {enterOpen && !isParticipating ? (
         <ParticipationEnterForm onClose={closeEnter} onEnter={enter} />
       ) : null}

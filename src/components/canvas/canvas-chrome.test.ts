@@ -67,7 +67,7 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("CanvasIntroTrigger"));
     assert.ok(chrome.includes("top-5 right-5") || chrome.includes("sm:top-6 sm:right-6"));
-    assert.ok(chrome.includes("introOpen"));
+    assert.ok(chrome.includes("infoModal"));
     assert.ok(chrome.includes("CanvasIntroNote"));
     assert.ok(chrome.includes("CanvasToneControl"));
     assert.ok(chrome.includes("data-4663-chrome-top-right"));

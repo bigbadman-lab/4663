@@ -39,11 +39,11 @@ function readSrc(rel: string): string {
 }
 
 /** Mocked non-zero PlayHTML hero translations (production dirty room). */
-const MOCK_DIRTY_TRANSFORMS = {
+const MOCK_DIRTY_TRANSFORMS: Record<string, { x: number; y: number }> = {
   [PLAYHTML_HERO_TITLE_ID]: { x: -246.3, y: -200 },
   [PLAYHTML_HERO_SUBTITLE_ID]: { x: -169.8, y: -147.2 },
   [PLAYHTML_LOGO_ID]: { x: 162.7, y: -59.2 },
-} as const;
+};
 
 describe("Stage IC3.9 canonical brand entry", () => {
   it("1–3. canonical H1 / subtitle / logo origins are defined", () => {
