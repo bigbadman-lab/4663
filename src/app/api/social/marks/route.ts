@@ -1,9 +1,11 @@
 /**
  * GET /api/social/marks — active (non-expired) canvas marks.
  * POST /api/social/marks — create one mark per participation session.
+ * Stage 8A.6: creation fail-closed while MARK_ENABLED is false.
  */
 
 import { createPresenceSupabase } from "@/lib/presence/supabase-server";
+import { MARK_ENABLED } from "@/lib/social/canvas-mark";
 import {
   createCanvasMark,
   loadActiveCanvasMarks,
@@ -17,6 +19,13 @@ const NO_STORE_HEADERS = {
 };
 
 export async function GET(): Promise<Response> {
+  if (!MARK_ENABLED) {
+    return Response.json(
+      { ok: true, marks: [] },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
+
   let supabase;
   try {
     supabase = createPresenceSupabase();
@@ -42,6 +51,13 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!MARK_ENABLED) {
+    return Response.json(
+      { ok: false, error: "feature_disabled" },
+      { status: 403, headers: NO_STORE_HEADERS },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

@@ -10,7 +10,9 @@ import { fileURLToPath } from "node:url";
 import {
   CONTROL_DOCK_ITEMS,
   CONTROL_PALETTE_ITEMS,
+  getLiveControlDockItems,
 } from "@/lib/canvas/control-palette";
+import { MARK_ENABLED } from "@/lib/social/canvas-mark";
 import {
   PLAYHTML_CANVAS_BOUNDS_ID,
   PLAYHTML_CONTROL_PALETTE_ID,
@@ -29,19 +31,24 @@ function readSrc(rel: string): string {
 }
 
 describe("Social 8A responsive bottom control dock", () => {
-  it("1–3. exactly TEXT→DRAW→MARK→SUMMON→RESET with exact PNG icons", () => {
+  it("1–3. live dock TEXT→DRAW→SUMMON→RESET; MARK dormant but canonical list intact", () => {
     assert.equal(CONTROL_DOCK_ITEMS.length, 5);
     assert.deepEqual(
       CONTROL_DOCK_ITEMS.map((i) => i.id),
       ["text", "draw", "mark", "summon", "reset"],
     );
+    assert.equal(MARK_ENABLED, false);
     assert.deepEqual(
-      CONTROL_DOCK_ITEMS.map((i) => i.label),
-      ["TEXT", "DRAW", "MARK", "SUMMON", "RESET"],
+      getLiveControlDockItems().map((i) => i.id),
+      ["text", "draw", "summon", "reset"],
     );
     assert.deepEqual(
-      CONTROL_DOCK_ITEMS.map((i) => i.iconSrc),
-      ["/text.png", "/draw.png", "/mark.png", "/summon.png", "/reset.png"],
+      getLiveControlDockItems().map((i) => i.label),
+      ["TEXT", "DRAW", "SUMMON", "RESET"],
+    );
+    assert.deepEqual(
+      getLiveControlDockItems().map((i) => i.iconSrc),
+      ["/text.png", "/draw.png", "/summon.png", "/reset.png"],
     );
     assert.equal(CONTROL_PALETTE_ITEMS, CONTROL_DOCK_ITEMS);
   });
@@ -92,13 +99,15 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.equal(palette.includes("CanMoveElement"), false);
   });
 
-  it("10–14. TEXT/DRAW/MARK/SUMMON/RESET wiring + gates preserved", () => {
+  it("10–14. TEXT/DRAW/SUMMON/RESET wiring + MARK dormant gates", () => {
     const palette = readSrc(
       "src/components/canvas/canvas-control-palette.tsx",
     );
     assert.ok(palette.includes('item.id === "text"'));
     assert.ok(palette.includes('item.id === "draw"'));
     assert.ok(palette.includes('item.id === "mark"'));
+    assert.ok(palette.includes("MARK_ENABLED"));
+    assert.ok(palette.includes("getLiveControlDockItems"));
     assert.ok(palette.includes("onSummon"));
     assert.ok(palette.includes("onReset"));
     assert.ok(palette.includes("getCanvasCreateActions"));
@@ -115,11 +124,13 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(layer.includes("openText"));
     assert.ok(layer.includes("openDraw"));
     assert.ok(layer.includes("openMark"));
+    assert.ok(layer.includes("MARK_ENABLED"));
 
     const playTree = readSrc("src/components/canvas/canvas-play-tree.tsx");
     assert.ok(playTree.includes("canText={canCreate}"));
     assert.ok(playTree.includes("canDraw={canCreate}"));
     assert.ok(playTree.includes("canMark={canMark}"));
+    assert.ok(playTree.includes("MARK_ENABLED"));
     assert.ok(playTree.includes("resetContent"));
   });
 

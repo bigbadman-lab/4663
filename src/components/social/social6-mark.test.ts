@@ -28,6 +28,7 @@ describe("Social 6 MARK UI + durability invariants", () => {
     assert.ok(layer.includes("canMark"));
     assert.ok(layer.includes('mode: "mark"'));
     assert.ok(layer.includes("hasMarkForSession"));
+    assert.ok(layer.includes("MARK_ENABLED"));
     // empty-hit still requires named participation
     assert.ok(layer.includes("if (!isParticipating || !self) return"));
   });
@@ -97,6 +98,12 @@ describe("Social 6 MARK UI + durability invariants", () => {
     const hook = readSrc("src/lib/social/use-canvas-marks.ts");
     assert.ok(hook.includes("getBrowserSupabaseClient"));
     assert.ok(hook.includes("pruneExpiredMarks"));
+    assert.ok(hook.includes("MARK_ENABLED"));
+    assert.ok(hook.includes("if (!MARK_ENABLED)"));
+
+    const route = readSrc("src/app/api/social/marks/route.ts");
+    assert.ok(route.includes("feature_disabled"));
+    assert.ok(route.includes("MARK_ENABLED"));
 
     const migration = readSrc(
       "supabase/migrations/20260813020000_social6_canvas_marks.sql",

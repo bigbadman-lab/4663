@@ -27,7 +27,7 @@ import { LiveDrawingDraftView } from "@/components/social/live-drawing-draft";
 import { LiveTextDraftView } from "@/components/social/live-text-draft";
 import { MarkComposer } from "@/components/social/mark-composer";
 import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
-import { validateMarkBody } from "@/lib/social/canvas-mark";
+import { validateMarkBody, MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { useCanvasMarks } from "@/lib/social/use-canvas-marks";
 import {
   createDrawingDraftId,
@@ -544,7 +544,10 @@ export function EphemeralTextLayer() {
   };
 
   const canMark =
-    isParticipating && !!self && !hasMarkForSession(self.sessionId);
+    MARK_ENABLED &&
+    isParticipating &&
+    !!self &&
+    !hasMarkForSession(self.sessionId);
 
   const isParticipatingRef = useRef(isParticipating);
   const selfRef = useRef(self);
@@ -599,6 +602,7 @@ export function EphemeralTextLayer() {
       canCreate: () =>
         Boolean(isParticipatingRef.current && selfRef.current),
       canMark: () => {
+        if (!MARK_ENABLED) return false;
         const currentSelf = selfRef.current;
         return Boolean(
           isParticipatingRef.current &&
@@ -625,6 +629,7 @@ export function EphemeralTextLayer() {
         );
       },
       openMark: () => {
+        if (!MARK_ENABLED) return;
         const currentSelf = selfRef.current;
         if (!isParticipatingRef.current || !currentSelf) return;
         if (hasMarkForSessionRef.current(currentSelf.sessionId)) return;
@@ -660,9 +665,11 @@ export function EphemeralTextLayer() {
         aria-hidden
       />
 
-      {marks.map((mark) => (
-        <CanvasMarkObject key={mark.id} mark={mark} />
-      ))}
+      {MARK_ENABLED
+        ? marks.map((mark) => (
+            <CanvasMarkObject key={mark.id} mark={mark} />
+          ))
+        : null}
 
       {texts.map((text) => (
         <EphemeralTextObjectView
@@ -738,7 +745,7 @@ export function EphemeralTextLayer() {
               });
             }}
             onChooseMark={() => {
-              if (!canMark) return;
+              if (!MARK_ENABLED || !canMark) return;
               setCreateUi({
                 mode: "mark",
                 leftPct: createUi.leftPct,
@@ -763,7 +770,7 @@ export function EphemeralTextLayer() {
         </div>
       ) : null}
 
-      {createUi?.mode === "mark" && self ? (
+      {MARK_ENABLED && createUi?.mode === "mark" && self ? (
         <div className="pointer-events-auto">
           <MarkComposer
             leftPct={createUi.leftPct}

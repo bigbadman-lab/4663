@@ -7,12 +7,13 @@
 
 import type { CSSProperties } from "react";
 import {
-  CONTROL_DOCK_ITEMS,
+  getLiveControlDockItems,
   isSummonDockDisabled,
   SUMMON_DOCK_ACTIVE_COLOR,
   type ControlDockActionId,
   type ControlDockItem,
 } from "@/lib/canvas/control-palette";
+import { MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { PLAYHTML_CONTROL_PALETTE_ID } from "@/lib/canvas/hero";
 import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
 
@@ -87,6 +88,7 @@ function isDisabled(
     case "draw":
       return !(props.canDraw ?? false);
     case "mark":
+      if (!MARK_ENABLED) return true;
       return !(props.canMark ?? false);
     case "summon":
       return isSummonDockDisabled({
@@ -146,6 +148,7 @@ export function CanvasControlPalette({
       bridge?.openDraw();
       return;
     }
+    if (!MARK_ENABLED) return;
     onMark?.();
     bridge?.openMark();
   };
@@ -169,7 +172,7 @@ export function CanvasControlPalette({
           className="flex w-full items-stretch justify-between gap-1 rounded-2xl border border-neutral-300/90 bg-white/90 px-1.5 py-1.5 shadow-sm backdrop-blur-[2px] sm:gap-1.5 sm:px-2 sm:py-2"
           data-4663-control-dock-tray
         >
-          {CONTROL_DOCK_ITEMS.map((item) => {
+          {getLiveControlDockItems().map((item) => {
             const disabled = isDisabled(item.id, props);
             const isSummonActive = item.id === "summon" && summonActive;
             const summonLabel = isSummonActive ? "Clear summon" : item.label;

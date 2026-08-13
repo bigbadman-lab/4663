@@ -3,6 +3,7 @@
  */
 
 import { PONS_BUYER_COUNT_COLOR } from "@/lib/canvas/pons-visual";
+import { MARK_ENABLED } from "@/lib/social/canvas-mark";
 
 export type ControlDockActionId =
   | "text"
@@ -18,7 +19,7 @@ export type ControlDockItem = {
   iconSrc: `/${string}.png`;
 };
 
-/** Canonical dock order — do not reorder. */
+/** Canonical full dock order — includes dormant actions for restoration. */
 export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "text", label: "TEXT", iconSrc: "/text.png" },
   { id: "draw", label: "DRAW", iconSrc: "/draw.png" },
@@ -26,6 +27,15 @@ export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "summon", label: "SUMMON", iconSrc: "/summon.png" },
   { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
+
+/**
+ * Live dock items shown in production UI.
+ * MARK omitted while MARK_ENABLED is false (Stage 8A.6).
+ */
+export function getLiveControlDockItems(): readonly ControlDockItem[] {
+  if (MARK_ENABLED) return CONTROL_DOCK_ITEMS;
+  return CONTROL_DOCK_ITEMS.filter((item) => item.id !== "mark");
+}
 
 /**
  * Active SUMMON dock accent — same brand green as PONS buyer-count hierarchy.

@@ -21,6 +21,13 @@ export const MARKS_API_PATH = "/api/social/marks" as const;
 export const CANVAS_MARKS_TABLE = "canvas_marks" as const;
 export const CANVAS_MARKS_REALTIME_CHANNEL = "4663-canvas-marks" as const;
 
+/**
+ * Stage 8A.6 — launch dormancy switch.
+ * Flip to true to restore MARK UI, rendering, client fetch/realtime, and POST.
+ * Schema / migrations / server helpers remain regardless.
+ */
+export const MARK_ENABLED = false as const;
+
 export type CanvasMark = {
   id: string;
   chainId: typeof CHAIN_ID;

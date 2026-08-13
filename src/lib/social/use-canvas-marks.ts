@@ -3,6 +3,7 @@
 /**
  * Social 6 — durable MARK client state (fetch + realtime INSERT + local expiry).
  * Not session-ephemeral: do not register with LEAVE/RESET/Presence cleanup.
+ * Stage 8A.6: dormant when MARK_ENABLED is false (no fetch / realtime / render feed).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 import {
   canvasMarkFromRow,
   isMarkActive,
+  MARK_ENABLED,
   pruneExpiredMarks,
   sessionHasMark,
   upsertCanvasMark,
@@ -38,6 +40,10 @@ export function useCanvasMarks(): UseCanvasMarksResult {
   marksRef.current = marks;
 
   useEffect(() => {
+    if (!MARK_ENABLED) {
+      setMarks([]);
+      return;
+    }
     const ac = new AbortController();
     void fetchActiveCanvasMarks(fetch, ac.signal)
       .then((next) => {
@@ -52,6 +58,7 @@ export function useCanvasMarks(): UseCanvasMarksResult {
   }, []);
 
   useEffect(() => {
+    if (!MARK_ENABLED) return;
     let unsub: (() => void) | null = null;
     try {
       const supabase = getBrowserSupabaseClient();
@@ -75,6 +82,7 @@ export function useCanvasMarks(): UseCanvasMarksResult {
   }, []);
 
   useEffect(() => {
+    if (!MARK_ENABLED) return;
     const id = window.setInterval(() => {
       setMarks((prev) => {
         if (prev.length === 0) return prev;
@@ -87,11 +95,16 @@ export function useCanvasMarks(): UseCanvasMarksResult {
 
   const hasMarkForSession = useCallback(
     (sessionId: string | null | undefined) =>
-      sessionHasMark(marksRef.current, sessionId, Date.now()),
+      MARK_ENABLED
+        ? sessionHasMark(marksRef.current, sessionId, Date.now())
+        : false,
     [],
   );
 
   const createMark = useCallback(async (input: PostCanvasMarkInput) => {
+    if (!MARK_ENABLED) {
+      return { ok: false as const, error: "Mark is unavailable." };
+    }
     if (sessionHasMark(marksRef.current, input.ownerSessionId, Date.now())) {
       return { ok: false as const, error: "Already marked this session." };
     }
@@ -103,6 +116,9 @@ export function useCanvasMarks(): UseCanvasMarksResult {
       if (result.error === "invalid_body_text") {
         return { ok: false as const, error: "Text is required." };
       }
+      if (result.error === "feature_disabled") {
+        return { ok: false as const, error: "Mark is unavailable." };
+      }
       return { ok: false as const, error: "Could not publish mark." };
     }
     setMarks((prev) => upsertCanvasMark(prev, result.mark));
@@ -112,7 +128,7 @@ export function useCanvasMarks(): UseCanvasMarksResult {
   // Return state marks directly — expiry tick already prunes.
   // Do NOT reallocate a new array every render (breaks effect deps).
   return {
-    marks,
+    marks: MARK_ENABLED ? marks : [],
     hasMarkForSession,
     createMark,
   };
