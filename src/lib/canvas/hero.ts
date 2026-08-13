@@ -23,7 +23,7 @@ export function playhtmlEventElementId(eventId: string): string {
 
 export const BRAND_HERO_TITLE = "A CANVAS FOR\nTHE INTERNET." as const;
 export const BRAND_HERO_SUBTITLE =
-  "Create, communicate and interact — with web3 capabilities built in." as const;
+  "Create, communicate and interact — with web3 capabilities." as const;
 
 /**
  * @deprecated IC3.10 — brand is viewport-fixed; kept for tests that assert
