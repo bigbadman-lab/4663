@@ -269,7 +269,7 @@ describe("IC3.5 SUMMON UX recovery", () => {
         isSummonOwner: false,
         summonCoolingDown: true,
       }),
-      "Summon cooling down",
+      SUMMON_DOCK_A11Y.coolingDown,
     );
   });
 

@@ -31,7 +31,7 @@ function readSrc(rel: string): string {
 }
 
 describe("Social 8A responsive bottom control dock", () => {
-  it("1–3. live dock TEXT→DRAW→HOME→SUMMON→RESET; MARK dormant but canonical list intact", () => {
+  it("1–3. live dock TEXT→DRAW→HOME→CRYPTO→RESET; MARK dormant but canonical list intact", () => {
     assert.equal(CONTROL_DOCK_ITEMS.length, 6);
     assert.deepEqual(
       CONTROL_DOCK_ITEMS.map((i) => i.id),
@@ -44,7 +44,7 @@ describe("Social 8A responsive bottom control dock", () => {
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.label),
-      ["TEXT", "DRAW", "HOME", "SUMMON", "RESET"],
+      ["TEXT", "DRAW", "HOME", "CRYPTO", "RESET"],
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.iconSrc),
@@ -60,12 +60,12 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(palette.includes("aria-label={a11yLabel}"));
     assert.ok(palette.includes("title={a11yLabel}"));
     assert.ok(palette.includes("HOME_VIEW_ARIA_LABEL"));
-    assert.ok(palette.includes("aria-pressed={"));
+    assert.ok(palette.includes("getSummonDockA11yLabel"));
     assert.ok(palette.includes('width={32}'));
     assert.ok(palette.includes('height={32}'));
     assert.ok(palette.includes("draggable={false}"));
     assert.ok(palette.includes("object-contain"));
-    assert.ok(palette.includes("SUMMON_DOCK_ACTIVE_COLOR"));
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
     for (const src of [
       "/text.png",
       "/draw.png",
@@ -101,7 +101,7 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.equal(palette.includes("CanMoveElement"), false);
   });
 
-  it("10–14. TEXT/DRAW/SUMMON/RESET wiring + MARK dormant gates", () => {
+  it("10–14. TEXT/DRAW/CRYPTO/RESET wiring + MARK dormant gates", () => {
     const palette = readSrc(
       "src/components/canvas/canvas-control-palette.tsx",
     );
@@ -110,15 +110,18 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(palette.includes('item.id === "mark"'));
     assert.ok(palette.includes("MARK_ENABLED"));
     assert.ok(palette.includes("getLiveControlDockItems"));
-    assert.ok(palette.includes("onSummon"));
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
     assert.ok(palette.includes("onReset"));
     assert.ok(palette.includes("getCanvasCreateActions"));
     assert.equal(palette.includes("[ DISMISS ]"), false);
     assert.equal(palette.includes("onDismissSummon"), false);
-    assert.ok(palette.includes("isSummonDockDisabled"));
-    assert.ok(palette.includes("canSummon"));
+    assert.equal(palette.includes("isSummonDockDisabled"), false);
     assert.ok(palette.includes("canMark"));
     assert.ok(palette.includes("canReset"));
+    // CRYPTO dock is never disabled for summon participation gates.
+    assert.ok(
+      /case "summon":[\s\S]*?return false;/.test(palette),
+    );
 
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
     assert.ok(layer.includes("registerCanvasCreateActions"));
@@ -138,10 +141,12 @@ describe("Social 8A responsive bottom control dock", () => {
 
   it("15–16. WATCH/PIN/LEAVE not on dock", () => {
     const defs = readSrc("src/lib/canvas/control-palette.ts");
-    assert.equal(defs.includes("watch"), false);
-    assert.equal(defs.includes("pin"), false);
-    assert.equal(defs.includes("leave"), false);
-    assert.equal(defs.toLowerCase().includes("watch"), false);
+    assert.equal(defs.includes('id: "watch"'), false);
+    assert.equal(defs.includes('id: "pin"'), false);
+    assert.equal(defs.includes('id: "leave"'), false);
+    assert.equal(defs.includes('label: "WATCH"'), false);
+    assert.equal(defs.includes('label: "PIN"'), false);
+    assert.equal(defs.includes('label: "LEAVE"'), false);
   });
 
   it("17–18. bottom-left presence + bottom-right time remain", () => {

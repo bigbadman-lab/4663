@@ -1,5 +1,6 @@
 /**
- * Social 8A — bottom control dock definitions (TEXT / DRAW / MARK / SUMMON / RESET).
+ * Social 8A — bottom control dock definitions (TEXT / DRAW / MARK / CRYPTO / RESET).
+ * Dock id remains `summon` for wiring stability; label/action are CRYPTO → watchlist.
  */
 
 import { PONS_BUYER_COUNT_COLOR } from "@/lib/canvas/pons-visual";
@@ -26,7 +27,7 @@ export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "draw", label: "DRAW", iconSrc: "/draw.png" },
   { id: "mark", label: "MARK", iconSrc: "/mark.png" },
   { id: "home", label: "HOME", iconSrc: "/home.png" },
-  { id: "summon", label: "SUMMON", iconSrc: "/summon.png" },
+  { id: "summon", label: "CRYPTO", iconSrc: "/summon.png" },
   { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
 
@@ -64,27 +65,21 @@ export function isSummonDockDisabled(input: {
   return !input.canSummon;
 }
 
-/** Accessible / title copy for SUMMON dock states (IC3.5). */
+/** Accessible / title copy for CRYPTO dock (opens continuation watchlist). */
 export const SUMMON_DOCK_A11Y = {
-  idle: "SUMMON",
-  clear: "Clear summon",
-  inFlight: "Summoning…",
-  coolingDown: "Summon cooling down",
-  activeOther: "Summon controlled by another participant",
+  idle: "CRYPTO — tokens we're monitoring",
+  clear: "CRYPTO — tokens we're monitoring",
+  inFlight: "CRYPTO — tokens we're monitoring",
+  coolingDown: "CRYPTO — tokens we're monitoring",
+  activeOther: "CRYPTO — tokens we're monitoring",
 } as const;
 
-export function getSummonDockA11yLabel(input: {
+export function getSummonDockA11yLabel(_input: {
   summonActive: boolean;
   isSummonOwner: boolean;
   summonInFlight?: boolean;
   summonCoolingDown?: boolean;
 }): string {
-  if (input.summonInFlight) return SUMMON_DOCK_A11Y.inFlight;
-  if (input.summonActive && input.isSummonOwner) return SUMMON_DOCK_A11Y.clear;
-  if (input.summonActive && !input.isSummonOwner) {
-    return SUMMON_DOCK_A11Y.activeOther;
-  }
-  if (input.summonCoolingDown) return SUMMON_DOCK_A11Y.coolingDown;
   return SUMMON_DOCK_A11Y.idle;
 }
 

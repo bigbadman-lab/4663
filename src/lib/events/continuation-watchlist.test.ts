@@ -181,8 +181,17 @@ describe("public PONS monitoring presentation", () => {
     const monitoring = readSrc(
       "src/components/canvas/pons-monitoring-object.tsx",
     );
-    assert.ok(monitoring.includes("setOpen(true)"));
+    assert.ok(monitoring.includes("openPanel()"));
+    assert.ok(monitoring.includes("usePonsMonitoringPanelOpen"));
     assert.ok(monitoring.includes("data-4663-pons-monitoring-open"));
+
+    const palette = readSrc(
+      "src/components/canvas/canvas-control-palette.tsx",
+    );
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
+    assert.ok(
+      readSrc("src/lib/canvas/control-palette.ts").includes('label: "CRYPTO"'),
+    );
   });
 
   it("10. API route + poll; detector / Candidate B modules untouched by presentation", () => {

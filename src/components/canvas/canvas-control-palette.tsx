@@ -1,18 +1,15 @@
 "use client";
 
 /**
- * Social 8A — responsive bottom control dock (TEXT / DRAW / MARK / SUMMON / RESET).
+ * Social 8A — responsive bottom control dock (TEXT / DRAW / MARK / CRYPTO / RESET).
  * Fixed viewport-bottom tray; not PlayHTML-movable. Pointer-events only on the dock shell.
- * IC3.5 — transient local control notices + richer SUMMON a11y titles.
+ * CRYPTO opens the PONS continuation watchlist (same panel as the monitoring object).
  */
 
-import type { CSSProperties } from "react";
 import {
   getLiveControlDockItems,
   getSummonDockA11yLabel,
   HOME_VIEW_ARIA_LABEL,
-  isSummonDockDisabled,
-  SUMMON_DOCK_ACTIVE_COLOR,
   type ControlDockActionId,
   type ControlDockItem,
 } from "@/lib/canvas/control-palette";
@@ -23,6 +20,7 @@ import {
 import { MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { PLAYHTML_CONTROL_PALETTE_ID } from "@/lib/canvas/hero";
 import { useHeroPreferences } from "@/lib/canvas/use-hero-preferences";
+import { openPonsMonitoringPanel } from "@/components/canvas/pons-monitoring-panel-state";
 import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
 
 export type CanvasControlPaletteProps = {
@@ -44,37 +42,7 @@ export type CanvasControlPaletteProps = {
   controlNotice?: ControlNoticeKind | null;
 };
 
-function DockIcon({
-  item,
-  tint,
-}: {
-  item: ControlDockItem;
-  /** When set, recolour monochrome PNG via CSS mask (active Summon). */
-  tint?: string;
-}) {
-  if (tint) {
-    return (
-      <span
-        aria-hidden
-        className="pointer-events-none inline-block h-7 w-7 shrink-0 sm:h-8 sm:w-8"
-        style={{
-          backgroundColor: tint,
-          WebkitMaskImage: `url(${item.iconSrc})`,
-          maskImage: `url(${item.iconSrc})`,
-          WebkitMaskSize: "contain",
-          maskSize: "contain",
-          WebkitMaskRepeat: "no-repeat",
-          maskRepeat: "no-repeat",
-          WebkitMaskPosition: "center",
-          maskPosition: "center",
-        }}
-        data-4663-dock-icon={item.id}
-        data-4663-palette-icon-slot={item.id}
-        data-4663-dock-icon-active="true"
-      />
-    );
-  }
-
+function DockIcon({ item }: { item: ControlDockItem }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- tiny static public icons
     <img
@@ -103,12 +71,8 @@ function isDisabled(
       if (!MARK_ENABLED) return true;
       return !(props.canMark ?? false);
     case "summon":
-      return isSummonDockDisabled({
-        canSummon: props.canSummon ?? false,
-        summonActive: !!props.summonActive,
-        isSummonOwner: !!props.isSummonOwner,
-        summonInFlight: !!props.summonInFlight,
-      });
+      // CRYPTO opens the local watchlist — never gated on summon participation.
+      return false;
     case "reset":
       return !(props.canReset ?? false);
     case "home":
@@ -124,11 +88,8 @@ const DOCK_BUTTON_BASE =
 const DOCK_BUTTON_IDLE =
   "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-neutral-400 active:bg-neutral-100";
 
-const DOCK_BUTTON_SUMMON_ACTIVE =
-  "cursor-pointer hover:bg-[color-mix(in_srgb,var(--4663-summon-active)_12%,transparent)] focus-visible:outline-[color-mix(in_srgb,var(--4663-summon-active)_55%,transparent)] active:bg-[color-mix(in_srgb,var(--4663-summon-active)_18%,transparent)]";
-
 export function CanvasControlPalette({
-  onSummon,
+  onSummon: _onSummon,
   onReset,
   onHome,
   onText,
@@ -145,6 +106,7 @@ export function CanvasControlPalette({
   canReset = false,
   controlNotice = null,
 }: CanvasControlPaletteProps) {
+  void _onSummon;
   const props: CanvasControlPaletteProps = {
     canText,
     canDraw,
@@ -222,7 +184,6 @@ export function CanvasControlPalette({
         >
           {getLiveControlDockItems().map((item) => {
             const disabled = isDisabled(item.id, props);
-            const isSummonActive = item.id === "summon" && summonActive;
             const a11yLabel =
               item.id === "summon"
                 ? getSummonDockA11yLabel({
@@ -234,28 +195,16 @@ export function CanvasControlPalette({
                 : item.id === "home"
                   ? HOME_VIEW_ARIA_LABEL
                   : item.label;
-            const activeStyle: CSSProperties | undefined = isSummonActive
-              ? {
-                  color: SUMMON_DOCK_ACTIVE_COLOR,
-                  ["--4663-summon-active" as string]: SUMMON_DOCK_ACTIVE_COLOR,
-                }
-              : undefined;
             return (
               <button
                 key={item.id}
                 type="button"
                 title={a11yLabel}
                 aria-label={a11yLabel}
-                aria-pressed={
-                  item.id === "summon" ? summonActive : undefined
-                }
                 aria-disabled={disabled ? true : undefined}
                 data-4663-palette-control={item.id}
                 data-4663-dock-control={item.id}
                 data-4663-palette-disabled={disabled ? "true" : "false"}
-                data-4663-palette-summon-active={
-                  isSummonActive ? "true" : undefined
-                }
                 disabled={disabled}
                 onClick={() => {
                   if (disabled) return;
@@ -272,7 +221,7 @@ export function CanvasControlPalette({
                     return;
                   }
                   if (item.id === "summon") {
-                    onSummon?.();
+                    openPonsMonitoringPanel();
                     return;
                   }
                   if (item.id === "home") {
@@ -283,15 +232,9 @@ export function CanvasControlPalette({
                     onReset?.();
                   }
                 }}
-                className={`${DOCK_BUTTON_BASE} ${
-                  isSummonActive ? DOCK_BUTTON_SUMMON_ACTIVE : DOCK_BUTTON_IDLE
-                }`}
-                style={activeStyle}
+                className={`${DOCK_BUTTON_BASE} ${DOCK_BUTTON_IDLE}`}
               >
-                <DockIcon
-                  item={item}
-                  tint={isSummonActive ? SUMMON_DOCK_ACTIVE_COLOR : undefined}
-                />
+                <DockIcon item={item} />
                 <span
                   className="max-w-full truncate text-[9px] leading-none tracking-wide sm:text-[10px]"
                   data-4663-dock-label={item.id}

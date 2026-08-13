@@ -230,7 +230,8 @@ describe("Social 5 summon session semantics", () => {
     assert.ok(palette.includes("canSummon"));
     assert.equal(palette.includes("onDismissSummon"), false);
     assert.equal(palette.includes("[ DISMISS ]"), false);
-    assert.ok(palette.includes("isSummonDockDisabled"));
+    assert.equal(palette.includes("isSummonDockDisabled"), false);
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
     assert.ok(palette.includes("onReset"));
     assert.ok(palette.includes('item.id === "reset"'));
 
@@ -253,6 +254,7 @@ describe("Social 5 summon session semantics", () => {
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_DESKTOP, 6);
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_NARROW, 4);
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
     assert.ok(palette.includes("onSummon"));
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("SummonLayer"));

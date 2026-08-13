@@ -6,8 +6,8 @@
  */
 
 import Image from "next/image";
-import { useState } from "react";
 import { PonsMonitoringPanel } from "@/components/canvas/pons-monitoring-panel";
+import { usePonsMonitoringPanelOpen } from "@/components/canvas/pons-monitoring-panel-state";
 import { useContinuationWatchlist } from "@/components/canvas/use-continuation-watchlist";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
@@ -34,7 +34,7 @@ export function ponsMonitoringHostClassName(movableChrome: boolean): string {
 
 export function PonsMonitoringContent() {
   const { tokens } = useContinuationWatchlist();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, openPanel } = usePonsMonitoringPanelOpen();
   const openRef = useInteractiveControlProtection<HTMLButtonElement>();
   const count = tokens.length;
   const statusLabel = count === 0 ? "SCANNING" : `${count} ACTIVE`;
@@ -78,7 +78,7 @@ export function PonsMonitoringContent() {
           aria-label="Open tokens we're monitoring"
           onClick={(event) => {
             event.stopPropagation();
-            setOpen(true);
+            openPanel();
           }}
           onPointerDown={stopPlayhtmlMoveStart}
           onMouseDown={stopPlayhtmlMoveStart}

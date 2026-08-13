@@ -70,7 +70,8 @@ describe("Stage 8A.3 Summon toggle", () => {
     assert.equal(playTree.includes("onDismissSummon"), false);
     assert.equal(controller.includes("onDismiss:"), false);
     assert.ok(palette.includes("onSummon"));
-    assert.ok(palette.includes("isSummonDockDisabled"));
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
+    assert.equal(palette.includes("isSummonDockDisabled"), false);
   });
 
   it("2–5. OFF→ON selects; ON→OFF clears owned set; third ON can select again", () => {
@@ -147,8 +148,8 @@ describe("Stage 8A.3 Summon toggle", () => {
     assert.ok(surface.includes("SummonLayer"));
     assert.ok(surface.includes("PinnedPonsLayer"));
     assert.ok(surface.includes("EphemeralTextLayer"));
-    // Live items stay independent of summonId gate.
-    assert.ok(surface.includes("items={liveItems}"));
+    // Live items stay independent of summonId gate (public live layer emptied).
+    assert.ok(surface.includes("items={[]}"));
     assert.ok(surface.includes("{summonId ? ("));
 
     const active = createActiveSummonState({
@@ -220,24 +221,25 @@ describe("Stage 8A.3 Summon toggle", () => {
   });
 });
 
-describe("Stage 8A.3.1 Summon active visual polish", () => {
-  it("1–3. inactive default vs active accent driven by summonActive", () => {
+describe("Stage 8A.3.1 CRYPTO dock opens watchlist", () => {
+  it("1–3. CRYPTO label; dock stays idle (no summon active accent)", () => {
     assert.equal(SUMMON_DOCK_ACTIVE_COLOR, PONS_BUYER_COUNT_COLOR);
     assert.equal(SUMMON_DOCK_ACTIVE_COLOR, "#8FAE00");
 
+    const defs = readSrc("src/lib/canvas/control-palette.ts");
+    assert.ok(defs.includes('label: "CRYPTO"'));
+
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
-    assert.ok(palette.includes("SUMMON_DOCK_ACTIVE_COLOR"));
-    assert.ok(palette.includes("isSummonActive"));
     assert.ok(palette.includes("DOCK_BUTTON_IDLE"));
-    assert.ok(palette.includes("DOCK_BUTTON_SUMMON_ACTIVE"));
-    assert.ok(palette.includes('data-4663-dock-icon-active="true"'));
-    assert.ok(palette.includes("maskImage"));
-    // Active styling gated on summonActive prop (no local active state).
-    assert.ok(palette.includes("item.id === \"summon\" && summonActive"));
+    assert.equal(palette.includes("DOCK_BUTTON_SUMMON_ACTIVE"), false);
+    assert.equal(palette.includes("SUMMON_DOCK_ACTIVE_COLOR"), false);
+    assert.equal(palette.includes("isSummonActive"), false);
+    assert.equal(palette.includes('data-4663-dock-icon-active="true"'), false);
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
     assert.equal(palette.includes("useState"), false);
   });
 
-  it("4–6. active Summon stays clickable, clears via onSummon, no Dismiss", () => {
+  it("4–6. CRYPTO always enabled; opens watchlist; summon dismiss logic stays in controller", () => {
     assert.equal(
       isSummonDockDisabled({
         canSummon: false,
@@ -248,11 +250,13 @@ describe("Stage 8A.3.1 Summon active visual polish", () => {
     );
 
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
-    assert.ok(palette.includes("cursor-pointer"));
-    assert.ok(palette.includes('aria-pressed={'));
+    assert.ok(palette.includes("openPonsMonitoringPanel"));
     assert.ok(palette.includes("getSummonDockA11yLabel"));
+    assert.equal(palette.includes("aria-pressed"), false);
     assert.ok(
-      readSrc("src/lib/canvas/control-palette.ts").includes('"Clear summon"'),
+      readSrc("src/lib/canvas/control-palette.ts").includes(
+        "CRYPTO — tokens we're monitoring",
+      ),
     );
     assert.equal(palette.includes("[ DISMISS ]"), false);
     assert.equal(palette.includes("onDismissSummon"), false);
