@@ -49,16 +49,43 @@ export const HOME_VIEW_ARIA_LABEL = "Restore home view" as const;
 export const SUMMON_DOCK_ACTIVE_COLOR = PONS_BUYER_COUNT_COLOR;
 
 /**
- * SUMMON dock enablement (Stage 8A.3 toggle).
+ * SUMMON dock enablement (Stage 8A.3 toggle / IC3.5 in-flight).
  * Owner may click while active to turn OFF; otherwise gate on canSummon.
+ * In-flight history fetch always disables (no duplicate requests).
  */
 export function isSummonDockDisabled(input: {
   canSummon: boolean;
   summonActive: boolean;
   isSummonOwner: boolean;
+  summonInFlight?: boolean;
 }): boolean {
+  if (input.summonInFlight) return true;
   if (input.summonActive && input.isSummonOwner) return false;
   return !input.canSummon;
+}
+
+/** Accessible / title copy for SUMMON dock states (IC3.5). */
+export const SUMMON_DOCK_A11Y = {
+  idle: "SUMMON",
+  clear: "Clear summon",
+  inFlight: "Summoning…",
+  coolingDown: "Summon cooling down",
+  activeOther: "Summon controlled by another participant",
+} as const;
+
+export function getSummonDockA11yLabel(input: {
+  summonActive: boolean;
+  isSummonOwner: boolean;
+  summonInFlight?: boolean;
+  summonCoolingDown?: boolean;
+}): string {
+  if (input.summonInFlight) return SUMMON_DOCK_A11Y.inFlight;
+  if (input.summonActive && input.isSummonOwner) return SUMMON_DOCK_A11Y.clear;
+  if (input.summonActive && !input.isSummonOwner) {
+    return SUMMON_DOCK_A11Y.activeOther;
+  }
+  if (input.summonCoolingDown) return SUMMON_DOCK_A11Y.coolingDown;
+  return SUMMON_DOCK_A11Y.idle;
 }
 
 /** @deprecated Prefer CONTROL_DOCK_ITEMS — kept for transitional imports. */

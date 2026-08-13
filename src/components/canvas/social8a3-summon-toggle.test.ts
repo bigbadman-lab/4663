@@ -169,8 +169,8 @@ describe("Stage 8A.3 Summon toggle", () => {
     const summonLib = readSrc("src/lib/canvas/summon.ts");
     const activeLib = readSrc("src/lib/canvas/active-summon.ts");
 
-    assert.equal(controller.includes("setTimeout"), false);
-    assert.equal(controller.includes("clearTimeout"), false);
+    // Cooldown unlock may use setTimeout; active lifetime must not.
+    assert.ok(controller.includes("SUMMON_COOLDOWN_MS"));
     assert.equal(controller.includes("SUMMON_LIFETIME_MS"), false);
     assert.equal(controller.includes("90000"), false);
     assert.equal(controller.includes("90_000"), false);
@@ -250,7 +250,10 @@ describe("Stage 8A.3.1 Summon active visual polish", () => {
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
     assert.ok(palette.includes("cursor-pointer"));
     assert.ok(palette.includes('aria-pressed={'));
-    assert.ok(palette.includes('"Clear summon"'));
+    assert.ok(palette.includes("getSummonDockA11yLabel"));
+    assert.ok(
+      readSrc("src/lib/canvas/control-palette.ts").includes('"Clear summon"'),
+    );
     assert.equal(palette.includes("[ DISMISS ]"), false);
     assert.equal(palette.includes("onDismissSummon"), false);
 

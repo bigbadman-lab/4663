@@ -211,7 +211,8 @@ describe("Social 5 summon session semantics", () => {
   it("fixed timer no longer drives active lifetime in controller", () => {
     const controller = readSrc("src/components/canvas/use-summon-controller.ts");
     assert.equal(controller.includes("SUMMON_LIFETIME_MS"), false);
-    assert.equal(controller.includes("setTimeout"), false);
+    // Cooldown UI may schedule a local unlock timer; lifetime must not.
+    assert.ok(controller.includes("SUMMON_COOLDOWN_MS"));
     assert.ok(controller.includes("ACTIVE_SUMMON_PAGE_DATA_NAME"));
     assert.ok(controller.includes("registerSessionEndedHandler"));
     assert.ok(controller.includes("retainActiveSummonForPresentOwner"));

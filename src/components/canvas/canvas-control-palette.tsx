@@ -3,17 +3,23 @@
 /**
  * Social 8A — responsive bottom control dock (TEXT / DRAW / MARK / SUMMON / RESET).
  * Fixed viewport-bottom tray; not PlayHTML-movable. Pointer-events only on the dock shell.
+ * IC3.5 — transient local control notices + richer SUMMON a11y titles.
  */
 
 import type { CSSProperties } from "react";
 import {
   getLiveControlDockItems,
+  getSummonDockA11yLabel,
   HOME_VIEW_ARIA_LABEL,
   isSummonDockDisabled,
   SUMMON_DOCK_ACTIVE_COLOR,
   type ControlDockActionId,
   type ControlDockItem,
 } from "@/lib/canvas/control-palette";
+import {
+  controlNoticeMessage,
+  type ControlNoticeKind,
+} from "@/lib/canvas/control-notice";
 import { MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { PLAYHTML_CONTROL_PALETTE_ID } from "@/lib/canvas/hero";
 import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
@@ -31,7 +37,10 @@ export type CanvasControlPaletteProps = {
   canSummon?: boolean;
   summonActive?: boolean;
   isSummonOwner?: boolean;
+  summonInFlight?: boolean;
+  summonCoolingDown?: boolean;
   canReset?: boolean;
+  controlNotice?: ControlNoticeKind | null;
 };
 
 function DockIcon({
@@ -97,6 +106,7 @@ function isDisabled(
         canSummon: props.canSummon ?? false,
         summonActive: !!props.summonActive,
         isSummonOwner: !!props.isSummonOwner,
+        summonInFlight: !!props.summonInFlight,
       });
     case "reset":
       return !(props.canReset ?? false);
@@ -129,7 +139,10 @@ export function CanvasControlPalette({
   canSummon = false,
   summonActive = false,
   isSummonOwner = false,
+  summonInFlight = false,
+  summonCoolingDown = false,
   canReset = false,
+  controlNotice = null,
 }: CanvasControlPaletteProps) {
   const props: CanvasControlPaletteProps = {
     canText,
@@ -138,6 +151,8 @@ export function CanvasControlPalette({
     canSummon,
     summonActive,
     isSummonOwner,
+    summonInFlight,
+    summonCoolingDown,
     canReset,
   };
 
@@ -158,6 +173,10 @@ export function CanvasControlPalette({
     bridge?.openMark();
   };
 
+  const noticeText = controlNotice
+    ? controlNoticeMessage(controlNotice)
+    : null;
+
   return (
     <div
       className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center"
@@ -170,9 +189,20 @@ export function CanvasControlPalette({
     >
       <div
         id={PLAYHTML_CONTROL_PALETTE_ID}
-        className="pointer-events-auto mx-2 flex max-w-[min(100%,26rem)] items-center sm:max-w-[min(100%,28rem)]"
+        className="pointer-events-auto mx-2 flex max-w-[min(100%,26rem)] flex-col items-center sm:max-w-[min(100%,28rem)]"
         data-4663-control-palette-shell
       >
+        {noticeText ? (
+          <p
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none mb-1.5 max-w-full truncate px-2 text-center font-mono text-[10px] tracking-wide text-neutral-600 sm:text-[11px]"
+            data-4663-control-notice
+            data-4663-control-notice-kind={controlNotice ?? undefined}
+          >
+            {noticeText}
+          </p>
+        ) : null}
         <div
           className="flex w-full items-stretch justify-between gap-1 rounded-2xl border border-neutral-300/90 bg-white/90 px-1.5 py-1.5 shadow-sm backdrop-blur-[2px] sm:gap-1.5 sm:px-2 sm:py-2"
           data-4663-control-dock-tray
@@ -180,10 +210,14 @@ export function CanvasControlPalette({
           {getLiveControlDockItems().map((item) => {
             const disabled = isDisabled(item.id, props);
             const isSummonActive = item.id === "summon" && summonActive;
-            const summonLabel = isSummonActive ? "Clear summon" : item.label;
             const a11yLabel =
               item.id === "summon"
-                ? summonLabel
+                ? getSummonDockA11yLabel({
+                    summonActive,
+                    isSummonOwner,
+                    summonInFlight,
+                    summonCoolingDown,
+                  })
                 : item.id === "home"
                   ? HOME_VIEW_ARIA_LABEL
                   : item.label;

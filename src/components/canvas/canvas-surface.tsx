@@ -6,6 +6,7 @@
  * TEXT/DRAW live on the world layer (IC2 world %); HOME chrome stays home-region.
  */
 
+import { useEffect } from "react";
 import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette";
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
 import { MovableHero } from "@/components/canvas/movable-hero";
@@ -18,6 +19,8 @@ import { SummonLayer, type SummonLayerItem } from "@/components/canvas/summon-la
 import { useCanvasCamera } from "@/components/canvas/use-canvas-camera";
 import { EphemeralTextLayer } from "@/components/social/ephemeral-text-layer";
 import { ParticipantPresenceLayer } from "@/components/social/participant-presence-layer";
+import type { ControlNoticeKind } from "@/lib/canvas/control-notice";
+import { registerLocalHomeView } from "@/lib/canvas/local-home-view";
 import {
   CANVAS_HOME_REGION_ID,
   HOME_REGION_HEIGHT_PX,
@@ -45,7 +48,10 @@ export type CanvasSurfaceProps = {
   canSummon?: boolean;
   summonActive?: boolean;
   isSummonOwner?: boolean;
+  summonInFlight?: boolean;
+  summonCoolingDown?: boolean;
   canReset?: boolean;
+  controlNotice?: ControlNoticeKind | null;
   isPinned?: (eventId: string) => boolean;
   onPin?: (
     eventId: string,
@@ -69,7 +75,10 @@ export function CanvasSurface({
   canSummon = false,
   summonActive = false,
   isSummonOwner = false,
+  summonInFlight = false,
+  summonCoolingDown = false,
   canReset = false,
+  controlNotice = null,
   isPinned,
   onPin,
   onUnpin,
@@ -81,6 +90,9 @@ export function CanvasSurface({
     goHome();
     onHomeProp?.();
   };
+
+  // IC3.5 — SUMMON success restores local HOME via this registration only.
+  useEffect(() => registerLocalHomeView(goHome), [goHome]);
 
   return (
     <>
@@ -161,7 +173,10 @@ export function CanvasSurface({
         canSummon={canSummon}
         summonActive={summonActive}
         isSummonOwner={isSummonOwner}
+        summonInFlight={summonInFlight}
+        summonCoolingDown={summonCoolingDown}
         canReset={canReset}
+        controlNotice={controlNotice}
       />
     </>
   );

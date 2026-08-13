@@ -8,6 +8,7 @@ import { PlayProvider } from "@playhtml/react";
 import { usePathname } from "next/navigation";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
 import { CanvasSurface } from "@/components/canvas/canvas-surface";
+import { useControlNotice } from "@/components/canvas/use-control-notice";
 import { useSummonController } from "@/components/canvas/use-summon-controller";
 import type { PinnedLayerItem } from "@/components/canvas/pinned-pons-layer";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
@@ -40,7 +41,10 @@ function CanvasPlayTreeInner({
   onUnpin,
 }: CanvasPlayTreeProps) {
   const { isParticipating, resetContent, self } = useParticipation();
-  const summon = useSummonController(events, nowMs);
+  const { notice, showNotice } = useControlNotice();
+  const summon = useSummonController(events, nowMs, {
+    onControlNotice: showNotice,
+  });
   const { hasMarkForSession } = useCanvasMarks();
 
   const canCreate = isParticipating && !!self;
@@ -63,7 +67,8 @@ function CanvasPlayTreeInner({
         summonItems={summon.items}
         onSummon={summon.onSummon}
         onReset={() => {
-          resetContent();
+          const result = resetContent();
+          if (result.ok) showNotice("reset-cleared");
         }}
         canText={canCreate}
         canDraw={canCreate}
@@ -71,7 +76,10 @@ function CanvasPlayTreeInner({
         canSummon={summon.canSummon}
         summonActive={summon.active !== null}
         isSummonOwner={summon.isOwner}
+        summonInFlight={summon.summonInFlight}
+        summonCoolingDown={summon.summonCoolingDown}
         canReset={isParticipating}
+        controlNotice={notice}
         isPinned={isPinned}
         onPin={onPin}
         onUnpin={onUnpin}

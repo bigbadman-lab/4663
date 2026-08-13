@@ -3,6 +3,7 @@
 /**
  * Social 5 — SUMMON controller via PlayHTML page data (late-join + mutex).
  * Lifetime is owner-session-bound (no fixed timer).
+ * IC3.5 — local feedback hooks + local HOME after successful write.
  */
 
 import { usePageData } from "@playhtml/react";
@@ -20,6 +21,8 @@ import {
   type ActiveSummonPageData,
   type ActiveSummonState,
 } from "@/lib/canvas/active-summon";
+import type { ControlNoticeKind } from "@/lib/canvas/control-notice";
+import { requestLocalHomeView } from "@/lib/canvas/local-home-view";
 import {
   assignSummonSlots,
   canDispatchSummon,
@@ -41,20 +44,32 @@ export type UseSummonControllerResult = {
   active: ActiveSummonState | null;
   isOwner: boolean;
   canSummon: boolean;
+  summonInFlight: boolean;
+  summonCoolingDown: boolean;
   /** Toggle: OFF→ON summons; ON→OFF (owner) clears active set without re-fetch. */
   onSummon: () => void;
+};
+
+export type UseSummonControllerOptions = {
+  /** Local-only dock notice (empty history / fetch error). */
+  onControlNotice?: (kind: ControlNoticeKind) => void;
 };
 
 export function useSummonController(
   events: readonly PublicEvent[],
   nowMs: number,
+  options: UseSummonControllerOptions = {},
 ): UseSummonControllerResult {
+  const { onControlNotice } = options;
   const { self, isParticipating, participants, status } = useParticipation();
   const [pageData, setPageData] = usePageData<ActiveSummonPageData>(
     ACTIVE_SUMMON_PAGE_DATA_NAME,
     EMPTY_ACTIVE_SUMMON_PAGE_DATA,
   );
   const [resolved, setResolved] = useState<PublicEvent[]>([]);
+  const [summonInFlight, setSummonInFlight] = useState(false);
+  /** Forces a re-render when local cooldown elapses so the dock re-enables. */
+  const [cooldownUntilMs, setCooldownUntilMs] = useState<number | null>(null);
 
   const pageDataRef = useRef(pageData);
   const setPageDataRef = useRef(setPageData);
@@ -66,6 +81,8 @@ export function useSummonController(
 
   const lastDispatchAtRef = useRef<number | null>(null);
   const summonInFlightRef = useRef(false);
+  const onControlNoticeRef = useRef(onControlNotice);
+  onControlNoticeRef.current = onControlNotice;
 
   const normalized = useMemo(
     () => normalizeActiveSummonPageData(pageData),
@@ -78,6 +95,19 @@ export function useSummonController(
   const writePageData = (next: ActiveSummonPageData) => {
     setPageDataRef.current(normalizeActiveSummonPageData(next));
   };
+
+  useEffect(() => {
+    if (cooldownUntilMs === null) return;
+    const remaining = cooldownUntilMs - Date.now();
+    if (remaining <= 0) {
+      setCooldownUntilMs(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCooldownUntilMs(null);
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [cooldownUntilMs]);
 
   // Resolve active event ids (with optional recovery fetch).
   useEffect(() => {
@@ -213,11 +243,17 @@ export function useSummonController(
   const mutexFree = canClaimActiveSummon(normalized, presentIds);
   const isOwner =
     !!self && !!active && active.ownerSessionId === self.sessionId;
+  const nowWall = Date.now();
+  const summonCoolingDown =
+    !active &&
+    cooldownUntilMs !== null &&
+    nowWall < cooldownUntilMs;
   const canSummon =
     isParticipating &&
     !!self &&
     mutexFree &&
-    canDispatchSummon(lastDispatchAtRef.current, Date.now(), SUMMON_COOLDOWN_MS);
+    !summonInFlight &&
+    canDispatchSummon(lastDispatchAtRef.current, nowWall, SUMMON_COOLDOWN_MS);
 
   function dismissIfOwner(): void {
     if (!self) return;
@@ -231,7 +267,7 @@ export function useSummonController(
   function onSummon(): void {
     if (!isParticipating || !self) return;
 
-    // ON → OFF: clear owned active set only (no selection / recovery fetch).
+    // ON → OFF: clear owned active set only (no selection / recovery fetch / HOME).
     const current = normalizeActiveSummonPageData(pageDataRef.current);
     if (shouldDismissActiveSummonOnClick(current, self.sessionId)) {
       dismissIfOwner();
@@ -250,6 +286,7 @@ export function useSummonController(
 
     const ownerSessionId = self.sessionId;
     summonInFlightRef.current = true;
+    setSummonInFlight(true);
     void (async () => {
       try {
         const history = await fetchSummonHistoryEvents();
@@ -263,14 +300,22 @@ export function useSummonController(
           ownerSessionId,
           eventIds,
         });
-        if (!state) return;
+        if (!state) {
+          // Empty / integrity-zero history — local feedback only; no cooldown / HOME.
+          onControlNoticeRef.current?.("summon-empty");
+          return;
+        }
 
-        lastDispatchAtRef.current = now;
+        // Preferred order: write shared state → mark cooldown → local HOME.
         writePageData({ active: state });
+        lastDispatchAtRef.current = now;
+        setCooldownUntilMs(now + SUMMON_COOLDOWN_MS);
+        requestLocalHomeView();
       } catch {
-        // leave inactive on fetch failure
+        onControlNoticeRef.current?.("summon-error");
       } finally {
         summonInFlightRef.current = false;
+        setSummonInFlight(false);
       }
     })();
   }
@@ -281,6 +326,8 @@ export function useSummonController(
     active,
     isOwner,
     canSummon,
+    summonInFlight,
+    summonCoolingDown,
     onSummon,
   };
 }
