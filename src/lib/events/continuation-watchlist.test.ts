@@ -160,7 +160,11 @@ describe("public PONS monitoring presentation", () => {
     assert.ok(monitoring.includes("min-h-11"));
     assert.ok(monitoring.includes("touch-manipulation"));
     assert.ok(monitoring.includes('type="button"'));
+    assert.ok(monitoring.includes("[ OPEN ]"));
+    assert.ok(monitoring.includes("data-4663-pons-monitoring-card"));
     assert.ok(monitoring.includes("PonsMonitoringPanel"));
+    assert.ok(monitoring.includes("stopPlayhtmlMoveStart"));
+    assert.ok(monitoring.includes("useInteractiveControlProtection"));
 
     const root = readSrc("src/components/canvas/canvas-root.tsx");
     assert.ok(root.includes("PonsMonitoringObject"));

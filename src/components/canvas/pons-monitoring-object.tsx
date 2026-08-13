@@ -41,19 +41,13 @@ export function PonsMonitoringContent() {
 
   return (
     <>
-      <button
-        ref={openRef}
-        type="button"
-        className="pointer-events-auto flex min-h-11 min-w-[11rem] max-w-[13rem] flex-col items-stretch gap-2 border border-neutral-300 bg-white px-2.5 py-2 text-left touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
-        data-4663-pons-monitoring-open
-        aria-label="Open tokens we're monitoring"
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen(true);
-        }}
-        onPointerDown={stopPlayhtmlMoveStart}
-        onMouseDown={stopPlayhtmlMoveStart}
-        onTouchStart={stopPlayhtmlMoveStart}
+      {/*
+        Card body is the PlayHTML drag surface (host receives move-start).
+        Only the OPEN control is IC3.6-protected so taps open without blocking drag.
+      */}
+      <article
+        className="flex min-w-[11rem] max-w-[13rem] flex-col items-stretch gap-2 border border-neutral-300 bg-white px-2.5 py-2"
+        data-4663-pons-monitoring-card
       >
         <Image
           src="/pons.png"
@@ -64,19 +58,35 @@ export function PonsMonitoringContent() {
           draggable={false}
           priority
         />
-        <span className="font-mono text-[10px] leading-snug tracking-wide text-neutral-800 sm:text-[11px]">
+        <span className="pointer-events-none font-mono text-[10px] leading-snug tracking-wide text-neutral-800 sm:text-[11px]">
           ROBINHOOD CHAIN
           <br />
           TOKENS WE&apos;RE MONITORING
         </span>
         <span
-          className="font-mono text-[10px] tracking-wide text-neutral-500"
+          className="pointer-events-none font-mono text-[10px] tracking-wide text-neutral-500"
           data-4663-pons-monitoring-status
           data-4663-pons-monitoring-count={count}
         >
           {statusLabel}
         </span>
-      </button>
+        <button
+          ref={openRef}
+          type="button"
+          className="inline-flex min-h-11 w-full items-center justify-center font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+          data-4663-pons-monitoring-open
+          aria-label="Open tokens we're monitoring"
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen(true);
+          }}
+          onPointerDown={stopPlayhtmlMoveStart}
+          onMouseDown={stopPlayhtmlMoveStart}
+          onTouchStart={stopPlayhtmlMoveStart}
+        >
+          [ OPEN ]
+        </button>
+      </article>
 
       {open ? (
         <PonsMonitoringPanel tokens={tokens} onClose={() => setOpen(false)} />
