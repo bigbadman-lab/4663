@@ -31,24 +31,24 @@ function readSrc(rel: string): string {
 }
 
 describe("Social 8A responsive bottom control dock", () => {
-  it("1–3. live dock TEXT→DRAW→SUMMON→RESET; MARK dormant but canonical list intact", () => {
-    assert.equal(CONTROL_DOCK_ITEMS.length, 5);
+  it("1–3. live dock TEXT→DRAW→SUMMON→HOME→RESET; MARK dormant but canonical list intact", () => {
+    assert.equal(CONTROL_DOCK_ITEMS.length, 6);
     assert.deepEqual(
       CONTROL_DOCK_ITEMS.map((i) => i.id),
-      ["text", "draw", "mark", "summon", "reset"],
+      ["text", "draw", "mark", "summon", "home", "reset"],
     );
     assert.equal(MARK_ENABLED, false);
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.id),
-      ["text", "draw", "summon", "reset"],
+      ["text", "draw", "summon", "home", "reset"],
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.label),
-      ["TEXT", "DRAW", "SUMMON", "RESET"],
+      ["TEXT", "DRAW", "SUMMON", "HOME", "RESET"],
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.iconSrc),
-      ["/text.png", "/draw.png", "/summon.png", "/reset.png"],
+      ["/text.png", "/draw.png", "/summon.png", "/home.png", "/reset.png"],
     );
     assert.equal(CONTROL_PALETTE_ITEMS, CONTROL_DOCK_ITEMS);
   });
@@ -70,6 +70,7 @@ describe("Social 8A responsive bottom control dock", () => {
       "/draw.png",
       "/mark.png",
       "/summon.png",
+      "/home.png",
       "/reset.png",
     ]) {
       assert.ok(readSrc("src/lib/canvas/control-palette.ts").includes(src));
@@ -153,7 +154,7 @@ describe("Social 8A responsive bottom control dock", () => {
   });
 
   it("19–22. single mount, no event stream coupling, hero ids, patch/singleton markers", () => {
-    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-canvas");
+    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-world");
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.equal(
       (surface.match(/<CanvasControlPalette\b/g) ?? []).length,

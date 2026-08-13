@@ -55,7 +55,7 @@ describe("Stage 10B.7 movable live PONS objects", () => {
     assert.equal(movable.includes("<PonsBuyingActivityObject"), false);
     assert.ok(movable.includes("PonsBuyingActivityContent"));
     assert.ok(movable.includes("isolateAddressPointer"));
-    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-canvas");
+    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-world");
 
     const object = readSrc(
       "src/components/canvas/pons-buying-activity-object.tsx",

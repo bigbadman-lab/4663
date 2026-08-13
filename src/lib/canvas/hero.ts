@@ -1,9 +1,14 @@
 /**
  * Stable PlayHTML identities and default hero origins for Stage 10B.5.
  * Positions are CSS origins; PlayHTML persists translate(x,y) offsets from these.
+ * IC1: PlayHTML bounds are the fixed world (`PLAYHTML_WORLD_BOUNDS_ID`).
  */
 
-export const PLAYHTML_CANVAS_BOUNDS_ID = "4663-canvas" as const;
+export {
+  PLAYHTML_CANVAS_BOUNDS_ID,
+  PLAYHTML_WORLD_BOUNDS_ID,
+} from "@/lib/canvas/world-camera";
+
 export const PLAYHTML_HERO_TITLE_ID = "4663-hero-title" as const;
 export const PLAYHTML_HERO_SUBTITLE_ID = "4663-hero-subtitle" as const;
 export const PLAYHTML_LOGO_ID = "4663-logo" as const;

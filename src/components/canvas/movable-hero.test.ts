@@ -58,8 +58,9 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
     );
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
-    assert.ok(surface.includes(`id={PLAYHTML_CANVAS_BOUNDS_ID}`));
-    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-canvas");
+    assert.ok(surface.includes("id={PLAYHTML_WORLD_BOUNDS_ID}"));
+    assert.ok(surface.includes("data-4663-canvas-viewport"));
+    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-world");
   });
 
   it("7–8. default H1 centered; subtitle beneath", () => {

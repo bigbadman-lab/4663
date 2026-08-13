@@ -36,14 +36,14 @@ describe("Stage 10B.6 PlayHTML movable logo", () => {
     assert.ok(logo.includes("/4663pfp.png"));
   });
 
-  it("logo is bound to 4663-canvas", () => {
+  it("logo is bound to 4663-world", () => {
     const logo = readSrc("src/components/canvas/movable-logo.tsx");
     assert.ok(logo.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"));
-    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-canvas");
+    assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-world");
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("MovableLogo"));
-    assert.ok(surface.includes(`id={PLAYHTML_CANVAS_BOUNDS_ID}`));
+    assert.ok(surface.includes("id={PLAYHTML_WORLD_BOUNDS_ID}"));
   });
 
   it("default top-left positioning at ~24px", () => {

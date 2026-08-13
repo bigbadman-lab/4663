@@ -27,15 +27,15 @@ describe("Stage 8A.6 MARK dormant for launch", () => {
     assert.equal(MARK_ENABLED, false);
     assert.deepEqual(
       CONTROL_DOCK_ITEMS.map((i) => i.id),
-      ["text", "draw", "mark", "summon", "reset"],
+      ["text", "draw", "mark", "summon", "home", "reset"],
     );
     const live = getLiveControlDockItems();
     assert.deepEqual(
       live.map((i) => i.id),
-      ["text", "draw", "summon", "reset"],
+      ["text", "draw", "summon", "home", "reset"],
     );
     assert.equal(live.some((i) => i.id === "mark"), false);
-    assert.equal(live.length, 4);
+    assert.equal(live.length, 5);
 
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
     assert.ok(palette.includes("getLiveControlDockItems()"));

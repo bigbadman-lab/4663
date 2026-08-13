@@ -10,6 +10,7 @@ export type ControlDockActionId =
   | "draw"
   | "mark"
   | "summon"
+  | "home"
   | "reset";
 
 export type ControlDockItem = {
@@ -25,6 +26,7 @@ export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "draw", label: "DRAW", iconSrc: "/draw.png" },
   { id: "mark", label: "MARK", iconSrc: "/mark.png" },
   { id: "summon", label: "SUMMON", iconSrc: "/summon.png" },
+  { id: "home", label: "HOME", iconSrc: "/home.png" },
   { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
 

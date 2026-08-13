@@ -20,6 +20,7 @@ import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
 export type CanvasControlPaletteProps = {
   onSummon?: () => void;
   onReset?: () => void;
+  onHome?: () => void;
   onText?: () => void;
   onDraw?: () => void;
   onMark?: () => void;
@@ -98,6 +99,8 @@ function isDisabled(
       });
     case "reset":
       return !(props.canReset ?? false);
+    case "home":
+      return false;
     default:
       return true;
   }
@@ -115,6 +118,7 @@ const DOCK_BUTTON_SUMMON_ACTIVE =
 export function CanvasControlPalette({
   onSummon,
   onReset,
+  onHome,
   onText,
   onDraw,
   onMark,
@@ -215,6 +219,10 @@ export function CanvasControlPalette({
                   }
                   if (item.id === "summon") {
                     onSummon?.();
+                    return;
+                  }
+                  if (item.id === "home") {
+                    onHome?.();
                     return;
                   }
                   if (item.id === "reset") {

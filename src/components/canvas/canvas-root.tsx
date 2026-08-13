@@ -16,7 +16,6 @@ import {
   HERO_SUBTITLE_DEFAULT_STYLE,
   HERO_TITLE_DEFAULT_STYLE,
   LOGO_DEFAULT_STYLE,
-  PLAYHTML_CANVAS_BOUNDS_ID,
   PLAYHTML_HERO_SUBTITLE_ID,
   PLAYHTML_HERO_TITLE_ID,
   PLAYHTML_LOGO_ID,
@@ -99,9 +98,10 @@ function CanvasShellFallback({
     >
       <CanvasChrome />
       <div
-        id={PLAYHTML_CANVAS_BOUNDS_ID}
-        className="absolute inset-0 z-10"
+        className="absolute inset-0 z-10 overflow-hidden"
+        data-4663-canvas-viewport
         data-4663-canvas-surface
+        data-4663-canvas-fallback-surface
       >
         <div
           id={PLAYHTML_LOGO_ID}

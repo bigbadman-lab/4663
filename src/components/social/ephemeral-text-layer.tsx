@@ -60,7 +60,8 @@ import {
   type DrawingStroke,
   type EphemeralDrawingsPageData,
 } from "@/lib/social/ephemeral-drawing";
-import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
+import { CANVAS_HOME_REGION_ID } from "@/lib/canvas/world-camera";
+import { shouldSuppressEmptyCanvasClick } from "@/components/canvas/use-canvas-camera";
 import {
   createEphemeralTextObject,
   EMPTY_EPHEMERAL_TEXTS_PAGE_DATA,
@@ -377,6 +378,7 @@ export function EphemeralTextLayer() {
   };
 
   const onEmptyCanvasClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (shouldSuppressEmptyCanvasClick()) return;
     if (!isParticipating || !self) return;
     if (createUi) {
       abandonCreate();
@@ -575,7 +577,7 @@ export function EphemeralTextLayer() {
 
     const openDrawAt = (leftPct: number, topPct: number) => {
       const zone = drawingZoneOriginFromClick(leftPct, topPct);
-      const canvas = document.getElementById(PLAYHTML_CANVAS_BOUNDS_ID);
+      const canvas = document.getElementById(CANVAS_HOME_REGION_ID);
       const canvasRect = canvas?.getBoundingClientRect();
       const measured =
         canvasRect != null
@@ -658,7 +660,7 @@ export function EphemeralTextLayer() {
       data-4663-ephemeral-text-layer
     >
       <div
-        className="pointer-events-auto absolute inset-0 z-0"
+        className="pointer-events-auto absolute inset-0 z-0 cursor-grab active:cursor-grabbing"
         data-4663-canvas-empty-hit
         data-4663-canvas-empty-named={isParticipating ? "true" : "false"}
         onClick={onEmptyCanvasClick}
@@ -719,7 +721,7 @@ export function EphemeralTextLayer() {
                 createUi.leftPct,
                 createUi.topPct,
               );
-              const canvas = document.getElementById(PLAYHTML_CANVAS_BOUNDS_ID);
+              const canvas = document.getElementById(CANVAS_HOME_REGION_ID);
               const canvasRect = canvas?.getBoundingClientRect();
               const measured =
                 canvasRect != null
