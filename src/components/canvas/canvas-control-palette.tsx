@@ -83,7 +83,7 @@ function isDisabled(
 }
 
 const DOCK_BUTTON_BASE =
-  "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 font-mono transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:gap-1 sm:px-1.5";
+  "flex min-h-12 min-w-[3.75rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-1.5 font-mono transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:min-w-[4.25rem] sm:gap-1 sm:px-1";
 
 const DOCK_BUTTON_IDLE =
   "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-neutral-400 active:bg-neutral-100";
@@ -153,7 +153,7 @@ export function CanvasControlPalette({
     >
       <div
         id={PLAYHTML_CONTROL_PALETTE_ID}
-        className="pointer-events-auto mx-2 flex max-w-[min(100%,26rem)] flex-col items-center sm:max-w-[min(100%,28rem)]"
+        className="pointer-events-auto mx-2 flex max-w-[min(100%,28rem)] flex-col items-center sm:max-w-[min(100%,32rem)]"
         data-4663-control-palette-shell
       >
         {noticeText ? (
@@ -236,7 +236,7 @@ export function CanvasControlPalette({
               >
                 <DockIcon item={item} />
                 <span
-                  className="max-w-full truncate text-[9px] leading-none tracking-wide sm:text-[10px]"
+                  className="whitespace-nowrap text-center text-[9px] leading-none tracking-wide sm:text-[10px]"
                   data-4663-dock-label={item.id}
                 >
                   {item.label}
