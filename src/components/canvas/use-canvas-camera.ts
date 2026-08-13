@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Stage IC1–IC3.2 — local camera + empty-space pan (desktop + touch).
- * HOME = homeCameraForViewport (x/y + local fit scale). Never networked.
+ * Stage IC1–IC3.2.1 — local camera + empty-space pan (desktop + touch).
+ * Boot may use fitted scale; HOME and first real pan recover to scale = 1.
+ * Never networked.
  */
 
 import {
@@ -17,7 +18,10 @@ import {
   HOME_REGION_HEIGHT_PX,
   HOME_REGION_WIDTH_PX,
   homeCameraForViewport,
+  initialHomeCameraForViewport,
   isCanvasPanHitTarget,
+  normalizeCameraScale,
+  normalizeCameraToScaleOnePreservingCenter,
   panCamera,
   panDragThresholdPx,
   WORLD_CAMERA_SCALE_ATTR,
@@ -106,7 +110,7 @@ export function useCanvasCamera(): UseCanvasCameraResult {
   }, []);
 
   const goHome = useCallback(() => {
-    // 1–2. Current viewport → canonical HOME camera (not a hardcoded offset).
+    // 1–2. Current viewport → normal HOME camera (always scale = 1).
     const viewport = viewportRef.current;
     const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
     const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
@@ -117,16 +121,20 @@ export function useCanvasCamera(): UseCanvasCameraResult {
   }, [applyCamera, cancelActivePan]);
 
   useEffect(() => {
-    goHome();
+    // Initial boot/refresh only — may use fitted scale on narrow mobile.
     const viewport = viewportRef.current;
+    const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
+    const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
+    applyCamera(initialHomeCameraForViewport(vw, vh));
+
     if (!viewport || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => {
-      // Clamp only — do not auto-HOME on resize (IC2.1).
+      // Clamp only — do not reapply fitted scale or auto-HOME on resize (IC2.1 / IC3.2.1).
       applyCamera(cameraRef.current);
     });
     ro.observe(viewport);
     return () => ro.disconnect();
-  }, [applyCamera, goHome]);
+  }, [applyCamera]);
 
   useEffect(() => {
     getPlacementSnapshotImpl = () => {
@@ -159,6 +167,18 @@ export function useCanvasCamera(): UseCanvasCameraResult {
         pan.active = true;
         suppressEmptyCanvasClick = true;
         document.body.setAttribute("data-4663-panning", "true");
+
+        // First real pan: leave fitted landing scale; keep viewport-center world point.
+        if (normalizeCameraScale(pan.origin.scale) < 1) {
+          const viewport = viewportRef.current;
+          const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
+          const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
+          pan.origin = normalizeCameraToScaleOnePreservingCenter(
+            pan.origin,
+            vw,
+            vh,
+          );
+        }
       }
       const viewport = viewportRef.current;
       const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;

@@ -115,9 +115,11 @@ describe("Stage IC3 mobile pan + touch gesture ownership", () => {
   it("13. orientation / viewport recalc uses current dimensions", () => {
     const portrait = homeCameraForViewport(390, 844);
     const landscape = homeCameraForViewport(844, 390);
+    assert.equal(portrait.scale, 1);
+    assert.equal(landscape.scale, 1);
     assert.notDeepEqual(portrait, landscape);
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
-    assert.ok(cam.includes("do not auto-HOME on resize"));
+    assert.ok(cam.includes("Clamp only") || cam.includes("do not reapply fitted scale") || cam.includes("do not auto-HOME on resize"));
     assert.ok(cam.includes("applyCamera(cameraRef.current)"));
   });
 

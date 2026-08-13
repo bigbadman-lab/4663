@@ -50,7 +50,10 @@ describe("Stage IC2.1 HOME viewport reset", () => {
     assert.ok(resized.y >= 0 && resized.y <= WORLD_HEIGHT_PX - 600);
 
     // Resize observer clamps only — does not auto-HOME.
-    assert.ok(cam.includes("do not auto-HOME on resize"));
+    assert.ok(
+      cam.includes("do not auto-HOME on resize") ||
+        cam.includes("do not reapply fitted scale"),
+    );
     assert.ok(cam.includes("applyCamera(cameraRef.current)"));
   });
 

@@ -73,8 +73,8 @@ export type CanvasCamera = {
   /** World-space Y of the viewport's top-left corner (pre-scale). */
   y: number;
   /**
-   * Local HOME fit scale only (IC3.2). Never networked.
-   * `1` = identity; `< 1` = world appears smaller so HOME composition fits.
+   * Local camera scale (IC3.2 / IC3.2.1). Never networked.
+   * `1` = normal navigation; `< 1` = initial mobile landing fit only.
    */
   scale: number;
 };
@@ -307,26 +307,53 @@ export function isWorldPointInCameraView(
 }
 
 /**
- * Local HOME camera for the current viewport (IC3.1 framing + IC3.2 fit scale).
- * Shared world / object positions are unchanged — only the local crop/scale adapts.
+ * Largest local fit scale ≤ 1 for the HOME composition (IC3.2).
+ * Used only for the initial landing frame — not for HOME / navigation.
  */
-export function homeCameraForViewport(
+export function homeFitScaleForViewport(
   viewportWidth: number,
   viewportHeight: number,
+): number {
+  const vw = Math.max(1, viewportWidth);
+  const vh = Math.max(1, viewportHeight);
+  if (vw >= HOME_FRAME_DESKTOP_MIN_WIDTH_PX) return 1;
+
+  const content = homeFitContentBounds();
+  const topChrome = Math.min(HOME_FRAME_TOP_CHROME_PX, vh * 0.1);
+  const bottomChrome = Math.min(HOME_FRAME_BOTTOM_CHROME_PX, vh * 0.3);
+  const sidePad = Math.min(16, vw * 0.04);
+  const usableW = Math.max(1, vw - sidePad * 2);
+  const usableH = Math.max(1, vh - topChrome - bottomChrome);
+  const fitScale = Math.min(
+    1,
+    usableW / content.width,
+    usableH / content.height,
+  );
+  return Math.max(HOME_FIT_MIN_SCALE, fitScale);
+}
+
+/**
+ * Frame HOME content (or full artboard on desktop) at a given local scale.
+ */
+export function frameHomeCameraForViewport(
+  viewportWidth: number,
+  viewportHeight: number,
+  scale: number,
 ): CanvasCamera {
   const vw = Math.max(1, viewportWidth);
   const vh = Math.max(1, viewportHeight);
+  const s = normalizeCameraScale(scale);
 
   const homeCenterX = HOME_REGION_LEFT_PX + HOME_REGION_WIDTH_PX / 2;
   const homeCenterY = HOME_REGION_TOP_PX + HOME_REGION_HEIGHT_PX / 2;
 
-  // Desktop: keep the familiar full-artboard-centred crop at scale 1.
+  // Desktop: keep the familiar full-artboard-centred crop.
   if (vw >= HOME_FRAME_DESKTOP_MIN_WIDTH_PX) {
     return clampCamera(
       {
-        x: homeCenterX - vw / 2,
-        y: homeCenterY - vh / 2,
-        scale: 1,
+        x: homeCenterX - vw / (2 * s),
+        y: homeCenterY - vh / (2 * s),
+        scale: s,
       },
       vw,
       vh,
@@ -340,23 +367,70 @@ export function homeCameraForViewport(
   const usableW = Math.max(1, vw - sidePad * 2);
   const usableH = Math.max(1, vh - topChrome - bottomChrome);
 
-  // Largest scale ≤ 1 that fits the HOME composition into the usable viewport.
-  const fitScale = Math.min(
-    1,
-    usableW / content.width,
-    usableH / content.height,
-  );
-  const scale = Math.max(HOME_FIT_MIN_SCALE, fitScale);
-
   // Center content in the usable band (chrome-aware), in world units.
-  const usableWorldW = usableW / scale;
-  const usableWorldH = usableH / scale;
+  const usableWorldW = usableW / s;
+  const usableWorldH = usableH / s;
   const camX =
-    content.left - (usableWorldW - content.width) / 2 - sidePad / scale;
+    content.left - (usableWorldW - content.width) / 2 - sidePad / s;
   const camY =
-    content.top - (usableWorldH - content.height) / 2 - topChrome / scale;
+    content.top - (usableWorldH - content.height) / 2 - topChrome / s;
 
-  return clampCamera({ x: camX, y: camY, scale }, vw, vh);
+  return clampCamera({ x: camX, y: camY, scale: s }, vw, vh);
+}
+
+/**
+ * Initial boot/refresh landing camera (IC3.2.1).
+ * Narrow mobile may use fit scale < 1 so logo+hero+subtitle read on first paint.
+ */
+export function initialHomeCameraForViewport(
+  viewportWidth: number,
+  viewportHeight: number,
+): CanvasCamera {
+  return frameHomeCameraForViewport(
+    viewportWidth,
+    viewportHeight,
+    homeFitScaleForViewport(viewportWidth, viewportHeight),
+  );
+}
+
+/**
+ * Runtime HOME control camera (IC3.2.1).
+ * Always scale = 1 — normal-view recovery, never fitted zoom-out.
+ */
+export function homeCameraForViewport(
+  viewportWidth: number,
+  viewportHeight: number,
+): CanvasCamera {
+  return frameHomeCameraForViewport(viewportWidth, viewportHeight, 1);
+}
+
+/**
+ * When leaving fitted landing scale via first real pan: set scale to 1 while
+ * keeping the current viewport-center world point stable (IC3.2.1).
+ */
+export function normalizeCameraToScaleOnePreservingCenter(
+  camera: CanvasCamera,
+  viewportWidth: number,
+  viewportHeight: number,
+): CanvasCamera {
+  const vw = Math.max(1, viewportWidth);
+  const vh = Math.max(1, viewportHeight);
+  const scale = normalizeCameraScale(camera.scale);
+  if (scale === 1) {
+    return clampCamera({ ...camera, scale: 1 }, vw, vh);
+  }
+  const { width: visW, height: visH } = visibleWorldSize(vw, vh, scale);
+  const centerX = camera.x + visW / 2;
+  const centerY = camera.y + visH / 2;
+  return clampCamera(
+    {
+      x: centerX - vw / 2,
+      y: centerY - vh / 2,
+      scale: 1,
+    },
+    vw,
+    vh,
+  );
 }
 
 export function clampCamera(

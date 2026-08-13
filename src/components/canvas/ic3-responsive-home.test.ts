@@ -19,6 +19,7 @@ import {
   HOME_REGION_TOP_PX,
   HOME_REGION_WIDTH_PX,
   homeCameraForViewport,
+  initialHomeCameraForViewport,
   isWorldPointInCameraView,
   visibleWorldSize,
   WORLD_HEIGHT_PX,
@@ -66,16 +67,17 @@ describe("Stage IC3.1 responsive HOME framing", () => {
     assert.ok(HOME_FRAME_DESKTOP_MIN_WIDTH_PX === 1024);
   });
 
-  it("2–5. mobile portrait fits logo+hero+subtitle via local scale", () => {
+  it("2–5. mobile portrait initial fit shows logo+hero+subtitle via local scale", () => {
     for (const [vw, vh] of [
       [320, 568],
       [375, 812],
       [390, 844],
       [430, 932],
     ] as const) {
-      const cam = homeCameraForViewport(vw, vh);
+      const cam = initialHomeCameraForViewport(vw, vh);
       assertInWorldBounds(cam, vw, vh);
       assert.ok(cam.scale <= 1);
+      assert.ok(cam.scale < 1);
       assert.equal(
         isWorldPointInCameraView(HOME_HERO_TITLE_WORLD, cam, vw, vh),
         true,
@@ -91,6 +93,7 @@ describe("Stage IC3.1 responsive HOME framing", () => {
         true,
         `logo in view at ${vw}x${vh}`,
       );
+      assert.equal(homeCameraForViewport(vw, vh).scale, 1);
     }
   });
 
@@ -100,7 +103,7 @@ describe("Stage IC3.1 responsive HOME framing", () => {
       [820, 1180],
       [844, 390],
     ] as const) {
-      const cam = homeCameraForViewport(vw, vh);
+      const cam = initialHomeCameraForViewport(vw, vh);
       assert.equal(
         isWorldPointInCameraView(HOME_LOGO_WORLD, cam, vw, vh),
         true,
@@ -124,19 +127,24 @@ describe("Stage IC3.1 responsive HOME framing", () => {
       [844, 390],
     ] as const) {
       assertInWorldBounds(homeCameraForViewport(vw, vh), vw, vh);
+      assertInWorldBounds(initialHomeCameraForViewport(vw, vh), vw, vh);
+      assert.equal(homeCameraForViewport(vw, vh).scale, 1);
     }
   });
 
-  it("10–11. HOME after resize / boot share homeCameraForViewport", () => {
+  it("10–11. HOME after resize uses normal helper; boot uses initial", () => {
     const a = homeCameraForViewport(390, 844);
     const b = homeCameraForViewport(390, 844);
     assert.deepEqual(a, b);
+    assert.equal(a.scale, 1);
 
     const afterRotate = homeCameraForViewport(844, 390);
     assert.notDeepEqual(a, afterRotate);
+    assert.equal(afterRotate.scale, 1);
 
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("homeCameraForViewport(vw, vh)"));
+    assert.ok(cam.includes("initialHomeCameraForViewport(vw, vh)"));
     assert.ok(cam.includes("viewport?.clientWidth"));
     assert.ok(cam.includes("cancelActivePan"));
   });

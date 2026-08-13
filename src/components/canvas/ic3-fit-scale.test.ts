@@ -18,6 +18,7 @@ import {
   HOME_REGION_TOP_PX,
   homeCameraForViewport,
   homeFitContentBounds,
+  initialHomeCameraForViewport,
   isWorldPointInCameraView,
   normalizeCameraScale,
   panCamera,
@@ -46,16 +47,17 @@ describe("Stage IC3.2 HOME fit scale", () => {
     assert.equal(cam.y, HOME_REGION_TOP_PX);
     assert.equal(HOME_FRAME_DESKTOP_MIN_WIDTH_PX, 1024);
     assert.equal(homeCameraForViewport(1280, 800).scale, 1);
+    assert.equal(initialHomeCameraForViewport(1440, 900).scale, 1);
   });
 
-  it("2–5. mobile portrait uses scale < 1 and fits logo+hero+subtitle", () => {
+  it("2–5. mobile portrait initial fit uses scale < 1 for logo+hero+subtitle", () => {
     for (const [vw, vh] of [
       [320, 568],
       [375, 812],
       [390, 844],
       [430, 932],
     ] as const) {
-      const cam = homeCameraForViewport(vw, vh);
+      const cam = initialHomeCameraForViewport(vw, vh);
       assert.ok(cam.scale < 1, `${vw}: expected scale < 1, got ${cam.scale}`);
       assert.ok(cam.scale <= 1);
       assert.ok(cam.scale >= HOME_FIT_MIN_SCALE - 1e-9);
@@ -79,26 +81,30 @@ describe("Stage IC3.2 HOME fit scale", () => {
       assert.ok(cam.y >= 0);
       assert.ok(cam.x + vis.width <= WORLD_WIDTH_PX + 1e-6);
       assert.ok(cam.y + vis.height <= WORLD_HEIGHT_PX + 1e-6);
+      // Runtime HOME is always scale 1 (IC3.2.1).
+      assert.equal(homeCameraForViewport(vw, vh).scale, 1);
     }
   });
 
   it("6–8. tablet/wide stays scale 1 when composition fits; never exceeds 1", () => {
     const tablet = homeCameraForViewport(1024, 768);
     assert.equal(tablet.scale, 1);
-    const land = homeCameraForViewport(844, 390);
+    const land = initialHomeCameraForViewport(844, 390);
     // May be < 1 if height is tight; never > 1.
     assert.ok(land.scale <= 1);
     assert.ok(normalizeCameraScale(2) === 2 || true);
     assert.equal(clampCamera({ x: 0, y: 0, scale: 2 }, 400, 800).scale, 2);
-    // homeCameraForViewport never returns > 1
-    assert.ok(homeCameraForViewport(200, 400).scale <= 1);
+    // initial fit never returns > 1
+    assert.ok(initialHomeCameraForViewport(200, 400).scale <= 1);
   });
 
-  it("9–10. HOME x/y+scale bounded; boot and HOME share helper", () => {
-    const a = homeCameraForViewport(390, 844);
-    const b = homeCameraForViewport(390, 844);
+  it("9–10. HOME x/y+scale bounded; boot uses initial, HOME uses normal", () => {
+    const a = initialHomeCameraForViewport(390, 844);
+    const b = initialHomeCameraForViewport(390, 844);
     assert.deepEqual(a, b);
+    assert.equal(homeCameraForViewport(390, 844).scale, 1);
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
+    assert.ok(cam.includes("initialHomeCameraForViewport(vw, vh)"));
     assert.ok(cam.includes("homeCameraForViewport(vw, vh)"));
     assert.ok(cam.includes("WORLD_CAMERA_SCALE_ATTR"));
   });

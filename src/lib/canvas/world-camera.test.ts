@@ -15,6 +15,7 @@ import {
   HOME_REGION_TOP_PX,
   HOME_REGION_WIDTH_PX,
   homeCameraForViewport,
+  initialHomeCameraForViewport,
   isCanvasPanHitTarget,
   panCamera,
   PLAYHTML_CANVAS_BOUNDS_ID,
@@ -42,14 +43,16 @@ describe("Stage IC1 world + camera helpers", () => {
     assert.equal(cam.y, HOME_REGION_TOP_PX);
   });
 
-  it("IC3.1/IC3.2 desktop band preserves centre framing; mobile uses fit scale", () => {
+  it("IC3.1/IC3.2 desktop band preserves centre framing; mobile initial uses fit scale", () => {
     const desktop = homeCameraForViewport(1280, 800);
     assert.equal(desktop.scale, 1);
     assert.equal(
       desktop.x,
       HOME_REGION_LEFT_PX + HOME_REGION_WIDTH_PX / 2 - 640,
     );
-    const mobile = homeCameraForViewport(390, 844);
+    const mobileHome = homeCameraForViewport(390, 844);
+    assert.equal(mobileHome.scale, 1);
+    const mobile = initialHomeCameraForViewport(390, 844);
     assert.ok(mobile.scale < 1);
     assert.ok(mobile.scale > 0);
   });
