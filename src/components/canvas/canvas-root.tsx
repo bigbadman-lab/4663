@@ -10,6 +10,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
 import { PonsMonitoringObject } from "@/components/canvas/pons-monitoring-object";
+import { PonsMonitorTerminal } from "@/components/canvas/pons-monitor-terminal";
 import type { PinnedLayerItem } from "@/components/canvas/pinned-pons-layer";
 import {
   assignSlots,
@@ -74,7 +75,7 @@ function useWallClockMs(tickMs: number): number {
   return nowMs;
 }
 
-/** Pre-PlayHTML shell: brand via CanvasChrome; single monitoring object (not per-token live). */
+/** Pre-PlayHTML shell: brand via CanvasChrome; monitoring + live terminal. */
 function CanvasShellFallback() {
   return (
     <div
@@ -91,6 +92,7 @@ function CanvasShellFallback() {
       >
         <div className="absolute inset-0" data-4663-home-region-fallback>
           <PonsMonitoringObject />
+          <PonsMonitorTerminal />
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette";
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
 import { MovablePonsMonitoringObject } from "@/components/canvas/movable-pons-monitoring-object";
+import { MovablePonsMonitorTerminal } from "@/components/canvas/movable-pons-monitor-terminal";
 import {
   PinnedPonsLayer,
   type PinnedLayerItem,
@@ -148,11 +149,13 @@ export function CanvasSurface({
             }}
           >
             {/*
-              Public PONS presentation is a single monitoring object (continuation
-              watchlist). Per-token live buying-activity objects are no longer mounted.
-              MovableLiveEventLayer remains importable for tests/legacy but receives [].
+              Public PONS presentation:
+              - monitoring object → curated continuation watchlist
+              - monitor terminal → live launch watch telemetry (additive)
+              Per-token live buying-activity objects remain unmounted.
             */}
             <MovablePonsMonitoringObject />
+            <MovablePonsMonitorTerminal />
             <MovableLiveEventLayer
               items={[]}
               isPinned={isPinned}

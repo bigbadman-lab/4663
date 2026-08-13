@@ -140,12 +140,17 @@ describe("continuation watchlist read-model", () => {
 });
 
 describe("public PONS monitoring presentation", () => {
-  it("8. one monitoring object; per-token live layer receives empty items", () => {
+  it("8. one watchlist monitoring object; live terminal is separate; live layer empty", () => {
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("MovablePonsMonitoringObject"));
+    assert.ok(surface.includes("MovablePonsMonitorTerminal"));
     assert.ok(surface.includes("items={[]}"));
     assert.equal(
       (surface.match(/<MovablePonsMonitoringObject/g) ?? []).length,
+      1,
+    );
+    assert.equal(
+      (surface.match(/<MovablePonsMonitorTerminal/g) ?? []).length,
       1,
     );
 
