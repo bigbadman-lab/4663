@@ -29,7 +29,7 @@ import {
   suppressLiveDuplicates,
 } from "@/lib/canvas/summon";
 import { isEventVisibleByAge } from "@/lib/canvas/visible-events";
-import { fetchRecentPublicEvents } from "@/lib/events/fetch-recent";
+import { fetchSummonHistoryEvents } from "@/lib/events/fetch-summon-history";
 import type { PublicEvent } from "@/lib/events/types";
 import { registerSessionContentResetHandler } from "@/lib/social/session-content-reset";
 import { registerSessionEndedHandler } from "@/lib/social/session-cleanup";
@@ -65,6 +65,7 @@ export function useSummonController(
   eventsRef.current = events;
 
   const lastDispatchAtRef = useRef<number | null>(null);
+  const summonInFlightRef = useRef(false);
 
   const normalized = useMemo(
     () => normalizeActiveSummonPageData(pageData),
@@ -104,7 +105,7 @@ export function useSummonController(
       );
       if (missing) {
         try {
-          const recovered = await fetchRecentPublicEvents();
+          const recovered = await fetchSummonHistoryEvents();
           next = resolveSummonEvents(current.eventIds, local, recovered);
         } catch {
           // keep partial
@@ -245,16 +246,33 @@ export function useSummonController(
     const present = new Set(participants.map((p) => p.sessionId));
     present.add(self.sessionId);
     if (!canClaimActiveSummon(current, present)) return;
+    if (summonInFlightRef.current) return;
 
-    const eventIds = selectSummonEventIds(eventsRef.current, now);
-    const state = createActiveSummonState({
-      ownerSessionId: self.sessionId,
-      eventIds,
-    });
-    if (!state) return;
+    const ownerSessionId = self.sessionId;
+    summonInFlightRef.current = true;
+    void (async () => {
+      try {
+        const history = await fetchSummonHistoryEvents();
+        // Owner may have left / toggled off while the history request was in flight.
+        const latest = normalizeActiveSummonPageData(pageDataRef.current);
+        if (shouldDismissActiveSummonOnClick(latest, ownerSessionId)) return;
+        if (!canClaimActiveSummon(latest, present)) return;
 
-    lastDispatchAtRef.current = now;
-    writePageData({ active: state });
+        const eventIds = selectSummonEventIds(history, Date.now());
+        const state = createActiveSummonState({
+          ownerSessionId,
+          eventIds,
+        });
+        if (!state) return;
+
+        lastDispatchAtRef.current = now;
+        writePageData({ active: state });
+      } catch {
+        // leave inactive on fetch failure
+      } finally {
+        summonInFlightRef.current = false;
+      }
+    })();
   }
 
   return {

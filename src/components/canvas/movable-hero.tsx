@@ -38,7 +38,7 @@ export function MovableHero() {
           data-4663-hero-subtitle
         >
           <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] sm:text-xs">
-            live intelligence for robinhood chain
+            the live canvas for robinhood chain
           </p>
         </div>
       </CanMoveElement>

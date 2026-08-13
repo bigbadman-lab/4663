@@ -135,7 +135,7 @@ function CanvasShellFallback({
           style={HERO_SUBTITLE_DEFAULT_STYLE}
         >
           <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] sm:text-xs">
-            live intelligence for robinhood chain
+            the live canvas for robinhood chain
           </p>
         </div>
         <LiveEventLayer items={liveItems} />

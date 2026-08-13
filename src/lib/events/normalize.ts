@@ -4,8 +4,10 @@
  */
 
 import {
+  PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION,
   PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY,
   type PublicEvent,
+  type SummonHistoryEvent,
 } from "@/lib/events/types";
 
 const UUID_RE =
@@ -105,19 +107,16 @@ function normalizeTriggerTxHash(value: unknown): string | null | undefined {
   return normalized;
 }
 
-/**
- * Normalize a DB events row into the public contract, or null if unsafe/malformed.
- */
-export function normalizePublicEvent(row: unknown): PublicEvent | null {
-  if (row === null || row === undefined) return null;
-  if (typeof row !== "object" || Array.isArray(row)) return null;
-
-  const r = row as EventsRow;
-
+function normalizeEventFields(
+  r: EventsRow,
+  expectedType:
+    | typeof PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY
+    | typeof PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION,
+): PublicEvent | null {
   if (typeof r.id !== "string" || !UUID_RE.test(r.id.trim())) return null;
   const id = r.id.trim().toLowerCase();
 
-  if (r.event_type !== PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY) return null;
+  if (r.event_type !== expectedType) return null;
 
   if (typeof r.token_address !== "string") return null;
   const tokenAddress = r.token_address.trim().toLowerCase();
@@ -137,13 +136,40 @@ export function normalizePublicEvent(row: unknown): PublicEvent | null {
 
   return {
     id,
-    type: PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY,
+    type: expectedType,
     tokenAddress,
     newBuyers,
     occurredAt,
     triggerBlockNumber,
     triggerTxHash,
   };
+}
+
+/**
+ * Normalize a DB events row into the live public contract (buying activity only).
+ */
+export function normalizePublicEvent(row: unknown): PublicEvent | null {
+  if (row === null || row === undefined) return null;
+  if (typeof row !== "object" || Array.isArray(row)) return null;
+  return normalizeEventFields(
+    row as EventsRow,
+    PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY,
+  );
+}
+
+/**
+ * Normalize a DB events row into a Summon history DTO (continuation only).
+ */
+export function normalizeSummonHistoryEvent(
+  row: unknown,
+): SummonHistoryEvent | null {
+  if (row === null || row === undefined) return null;
+  if (typeof row !== "object" || Array.isArray(row)) return null;
+  const dto = normalizeEventFields(
+    row as EventsRow,
+    PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION,
+  );
+  return dto as SummonHistoryEvent | null;
 }
 
 /**
@@ -179,6 +205,49 @@ export function validatePublicEventDto(value: unknown): PublicEvent | null {
   return {
     id,
     type: PUBLIC_EVENT_TYPE_PONS_BUYING_ACTIVITY,
+    tokenAddress,
+    newBuyers,
+    occurredAt,
+    triggerBlockNumber,
+    triggerTxHash,
+  };
+}
+
+/**
+ * Validate a Summon history API DTO (continuation only). Fail closed.
+ */
+export function validateSummonHistoryEventDto(
+  value: unknown,
+): SummonHistoryEvent | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+
+  const r = value as Record<string, unknown>;
+
+  if (typeof r.id !== "string" || !UUID_RE.test(r.id.trim())) return null;
+  const id = r.id.trim().toLowerCase();
+
+  if (r.type !== PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION) return null;
+
+  if (typeof r.tokenAddress !== "string") return null;
+  const tokenAddress = r.tokenAddress.trim().toLowerCase();
+  if (!ADDRESS_RE.test(tokenAddress)) return null;
+
+  const newBuyers = asPositiveInt(r.newBuyers);
+  if (newBuyers === null) return null;
+
+  const occurredAt = toIsoOccurredAt(r.occurredAt);
+  if (occurredAt === null) return null;
+
+  const triggerBlockNumber = asNonNegInt(r.triggerBlockNumber);
+  if (triggerBlockNumber === null) return null;
+
+  const triggerTxHash = normalizeTriggerTxHash(r.triggerTxHash);
+  if (triggerTxHash === undefined) return null;
+
+  return {
+    id,
+    type: PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION,
     tokenAddress,
     newBuyers,
     occurredAt,

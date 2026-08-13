@@ -36,6 +36,7 @@ import {
   LIVE_OBJECT_MAX_VISIBLE_NARROW,
 } from "@/lib/canvas/visible-events";
 import type { PublicEvent } from "@/lib/events/types";
+import { PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION } from "@/lib/events/types";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -54,9 +55,9 @@ function event(
   overrides: Partial<PublicEvent> & Pick<PublicEvent, "id" | "occurredAt">,
 ): PublicEvent {
   return {
-    type: "pons_buying_activity",
+    type: PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION,
     tokenAddress: "0xabcdef0123456789abcdef0123456789abcdef01",
-    newBuyers: 7,
+    newBuyers: 2,
     triggerBlockNumber: 34400000,
     triggerTxHash: null,
     ...overrides,
@@ -72,7 +73,7 @@ function idAt(n: number): string {
 }
 
 describe("Stage 10B.9 summon selection + payload", () => {
-  it("1–3. selects newest max 8 historical; excludes live; empty => null payload", () => {
+  it("1–3. selects newest max 4 historical continuation; excludes live; empty => null payload", () => {
     const events = [
       event({ id: idAt(0), occurredAt: isoAgo(1_000) }), // live
       event({ id: idAt(1), occurredAt: isoAgo(2_000) }), // live
@@ -85,6 +86,7 @@ describe("Stage 10B.9 summon selection + payload", () => {
     ];
     const ids = selectSummonEventIds(events, NOW);
     assert.equal(ids.length, SUMMON_MAX_EVENTS);
+    assert.equal(SUMMON_MAX_EVENTS, 4);
     assert.equal(ids.includes(idAt(0)), false);
     assert.equal(ids.includes(idAt(1)), false);
     assert.equal(createActiveSummonState({ ownerSessionId: OWNER, eventIds: [] }), null);
@@ -124,7 +126,8 @@ describe("Stage 10B.9 summon selection + payload", () => {
 
 describe("Stage 10B.9 summon slots + ids + resolve", () => {
   it("7–9. deterministic SUMMON_SLOTS; summoned ids distinct from live", () => {
-    assert.equal(SUMMON_SLOTS.length, 8);
+    assert.equal(SUMMON_SLOTS.length, 4);
+    assert.equal(SUMMON_SLOTS.length, SUMMON_MAX_EVENTS);
     assert.notDeepEqual(
       SUMMON_SLOTS.map((s) => `${s.leftPct},${s.topPct}`),
       CANVAS_SLOTS.map((s) => `${s.leftPct},${s.topPct}`),

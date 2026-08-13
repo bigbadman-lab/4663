@@ -45,7 +45,7 @@ function event(
   overrides: Partial<PublicEvent> & Pick<PublicEvent, "id" | "occurredAt">,
 ): PublicEvent {
   return {
-    type: "pons_buying_activity",
+    type: "pons_buyer_continuation",
     tokenAddress: "0xabcdef0123456789abcdef0123456789abcdef01",
     newBuyers: 3,
     triggerBlockNumber: 34400000,

@@ -1,9 +1,11 @@
 /**
- * Stage 10B.9 / Social 5 — SUMMON pure helpers.
+ * Stage 10B.9 / Social 5 / Stage 8A.7 — SUMMON pure helpers.
  * Selection, slots, resolve, duplicate suppression.
  * Active batch lifetime is session-bound (see active-summon.ts page data).
  * SUMMON_LIFETIME_MS is retained only as a deprecated constant for tests
  * that assert it no longer drives active lifetime.
+ *
+ * Stage 8A.7: selects verified pons_buyer_continuation history only (max 4).
  */
 
 import type { CanvasSlot } from "@/lib/canvas/slots";
@@ -12,24 +14,24 @@ import {
   isEventVisibleByAge,
   LIVE_OBJECT_MAX_AGE_MS,
 } from "@/lib/canvas/visible-events";
-import type { PublicEvent } from "@/lib/events/types";
+import {
+  PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION,
+  type PublicEvent,
+} from "@/lib/events/types";
 
 /** @deprecated Social 5 — active SUMMON is session-bound; do not use for lifetime. */
 export const SUMMON_LIFETIME_MS = 20_000 as const;
 
-export const SUMMON_MAX_EVENTS = 8 as const;
+/** Canonical Summon batch size — do not scatter literals. */
+export const SUMMON_MAX_EVENTS = 4 as const;
 export const SUMMON_COOLDOWN_MS = 4_000 as const;
 
-/** Eight sparse mid-canvas origins — independent of live CANVAS_SLOTS. */
+/** Four sparse mid-canvas origins — independent of live CANVAS_SLOTS. */
 export const SUMMON_SLOTS: readonly CanvasSlot[] = [
-  { id: "summon-0", leftPct: 12, topPct: 24 },
-  { id: "summon-1", leftPct: 36, topPct: 20 },
-  { id: "summon-2", leftPct: 62, topPct: 24 },
-  { id: "summon-3", leftPct: 84, topPct: 30 },
-  { id: "summon-4", leftPct: 18, topPct: 48 },
-  { id: "summon-5", leftPct: 44, topPct: 54 },
-  { id: "summon-6", leftPct: 68, topPct: 50 },
-  { id: "summon-7", leftPct: 88, topPct: 58 },
+  { id: "summon-0", leftPct: 18, topPct: 26 },
+  { id: "summon-1", leftPct: 68, topPct: 24 },
+  { id: "summon-2", leftPct: 28, topPct: 52 },
+  { id: "summon-3", leftPct: 74, topPct: 56 },
 ] as const;
 
 export function playhtmlSummonedElementId(
@@ -54,9 +56,17 @@ export function canDispatchSummon(
   return nowMs - lastDispatchAt >= cooldownMs;
 }
 
+/** Summon may only select public historical continuation events. */
+export function isSummonEligibleEventType(
+  event: Pick<PublicEvent, "type">,
+): boolean {
+  return event.type === PUBLIC_EVENT_TYPE_PONS_BUYER_CONTINUATION;
+}
+
 /**
- * Newest-first historical ids, excluding currently-live (<10m) events.
+ * Newest-first historical continuation ids, excluding currently-live (<10m).
  * Returns up to SUMMON_MAX_EVENTS (may be fewer if history is thin).
+ * Never selects pons_buying_activity or other types.
  */
 export function selectSummonEventIds(
   events: readonly PublicEvent[],
@@ -67,15 +77,26 @@ export function selectSummonEventIds(
   const cap = Math.max(0, Math.trunc(maxCount));
   if (cap === 0) return [];
 
+  const eligible = events.filter(isSummonEligibleEventType);
+
   const liveIds = new Set(
-    events
+    eligible
       .filter((event) => isEventVisibleByAge(event, nowMs, liveMaxAgeMs))
       .map((event) => event.id),
   );
 
-  const historical = events.filter((event) => !liveIds.has(event.id));
+  const historical = eligible.filter((event) => !liveIds.has(event.id));
   historical.sort(comparePublicEventsNewestFirst);
-  return historical.slice(0, cap).map((event) => event.id);
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const event of historical) {
+    if (seen.has(event.id)) continue;
+    seen.add(event.id);
+    out.push(event.id);
+    if (out.length >= cap) break;
+  }
+  return out;
 }
 
 /**
@@ -102,7 +123,7 @@ export function resolveSummonEvents(
   const out: PublicEvent[] = [];
   for (const id of eventIds) {
     const event = map.get(id) ?? map.get(id.toLowerCase());
-    if (event) out.push(event);
+    if (event && isSummonEligibleEventType(event)) out.push(event);
   }
   return out;
 }

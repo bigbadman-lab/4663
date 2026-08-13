@@ -17,7 +17,7 @@ export const ACTIVE_SUMMON_PAGE_DATA_NAME = "4663-active-summon" as const;
 export type ActiveSummonState = {
   summonId: string;
   ownerSessionId: string;
-  /** Ordered event ids (≤8). Slot i → SUMMON_SLOTS[i] (deterministic). */
+  /** Ordered event ids (≤SUMMON_MAX_EVENTS). Slot i → SUMMON_SLOTS[i]. */
   eventIds: string[];
   startedAt: string;
 };
