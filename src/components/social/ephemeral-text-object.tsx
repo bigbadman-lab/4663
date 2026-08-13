@@ -4,14 +4,17 @@
  * Published ephemeral TEXT — PlayHTML-movable for owner.
  * CanMoveElement requires a direct DOM host child.
  * Body is plain text with optional inline EVM address copy controls (8A.10).
+ * IC3.6 — nested interactive controls use shared capture protection.
  */
 
 import { CanMoveElement } from "@playhtml/react";
 import { useState } from "react";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
+import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
 import { splitTextWithEvmAddresses } from "@/lib/canvas/format-address";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
+import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import { colourFromSessionId } from "@/lib/social/colour";
 import {
   playhtmlTextElementId,
@@ -23,10 +26,6 @@ export type EphemeralTextObjectViewProps = {
   isOwner: boolean;
   onDelete: (textId: string) => void;
 };
-
-function stopMoveStart(event: { stopPropagation(): void }): void {
-  event.stopPropagation();
-}
 
 function EphemeralTextBody({
   body,
@@ -66,7 +65,6 @@ function EphemeralTextBody({
             <PonsAddressCopyControl
               variant="inline"
               tokenAddress={segment.value}
-              stopMoveStart={stopMoveStart}
               onCopy={() => {
                 void onCopyAddress(segment.value);
               }}
@@ -80,6 +78,34 @@ function EphemeralTextBody({
         );
       })}
     </p>
+  );
+}
+
+function EphemeralTextDeleteButton({
+  textId,
+  onDelete,
+}: {
+  textId: string;
+  onDelete: (textId: string) => void;
+}) {
+  const ref = useInteractiveControlProtection<HTMLButtonElement>();
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className="mt-0.5 touch-manipulation font-mono text-[10px] tracking-wide text-neutral-400 opacity-0 transition-opacity hover:text-neutral-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 group-hover:opacity-100"
+      data-4663-ephemeral-text-delete
+      aria-label="Delete text"
+      onPointerDown={stopPlayhtmlMoveStart}
+      onMouseDown={stopPlayhtmlMoveStart}
+      onTouchStart={stopPlayhtmlMoveStart}
+      onClick={(event) => {
+        event.stopPropagation();
+        onDelete(textId);
+      }}
+    >
+      [ × ]
+    </button>
   );
 }
 
@@ -105,19 +131,10 @@ export function EphemeralTextObjectView({
         <div className="group -translate-x-1/2 -translate-y-1/2">
           <EphemeralTextBody body={text.body} colour={colour} />
           {isOwner ? (
-            <button
-              type="button"
-              className="mt-0.5 font-mono text-[10px] tracking-wide text-neutral-400 opacity-0 transition-opacity hover:text-neutral-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 group-hover:opacity-100"
-              data-4663-ephemeral-text-delete
-              aria-label="Delete text"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete(text.textId);
-              }}
-            >
-              [ × ]
-            </button>
+            <EphemeralTextDeleteButton
+              textId={text.textId}
+              onDelete={onDelete}
+            />
           ) : null}
         </div>
       </div>

@@ -3,9 +3,12 @@
 /**
  * Short address + copy affordance for PONS activity cards.
  * Also reused inline inside published user TEXT (Stage 8A.10).
+ * IC3.6 — native capture protection so mobile taps beat PlayHTML move-start.
  */
 
+import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { formatShortAddress } from "@/lib/canvas/format-address";
+import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 
 function CopyGlyph() {
   return (
@@ -44,6 +47,10 @@ function CopyGlyph() {
 export type PonsAddressCopyControlProps = {
   tokenAddress: string;
   onCopy: () => void;
+  /**
+   * @deprecated IC3.6 — protection is always applied via native capture.
+   * Kept optional for call-site compatibility.
+   */
   stopMoveStart?: (event: { stopPropagation(): void }) => void;
   /**
    * `block` — PONS card row (default).
@@ -65,16 +72,24 @@ export function PonsAddressCopyControl({
   variant = "block",
 }: PonsAddressCopyControlProps) {
   const isInline = variant === "inline";
+  const ref = useInteractiveControlProtection<HTMLButtonElement>();
+
+  function isolateMoveStart(event: { stopPropagation(): void }): void {
+    stopPlayhtmlMoveStart(event);
+    stopMoveStart?.(event);
+  }
+
   return (
     <button
+      ref={ref}
       type="button"
       onClick={(event) => {
         event.stopPropagation();
         onCopy();
       }}
-      onPointerDown={stopMoveStart}
-      onMouseDown={stopMoveStart}
-      onTouchStart={stopMoveStart}
+      onPointerDown={isolateMoveStart}
+      onMouseDown={isolateMoveStart}
+      onTouchStart={isolateMoveStart}
       className={isInline ? INLINE_CLASS : BLOCK_CLASS}
       aria-label={`Copy token address ${tokenAddress}`}
       data-4663-event-address

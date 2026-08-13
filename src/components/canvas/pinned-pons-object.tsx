@@ -4,15 +4,18 @@
  * Social 7 — movable PINNED PONS representation (durable until event+24h).
  * Social 7.1 — owner-only [ UNPIN ].
  * CanMoveElement requires a direct DOM host child.
+ * IC3.6 — nested interactive controls use shared capture protection.
  */
 
 import { CanMoveElement } from "@playhtml/react";
 import { useState } from "react";
 import { PonsActivityCopy } from "@/components/canvas/pons-activity-copy";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
+import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { PonsWatchControl } from "@/components/social/pons-watch-control";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
+import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import type { CanvasSlot } from "@/lib/canvas/slots";
 import {
   isPinOwner,
@@ -29,8 +32,57 @@ export type PinnedPonsObjectProps = {
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
-function stopMoveStart(event: { stopPropagation(): void }): void {
-  event.stopPropagation();
+function PinnedUnpinButton({
+  pinId,
+  onUnpin,
+}: {
+  pinId: string;
+  onUnpin: (
+    pinId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+}) {
+  const ref = useInteractiveControlProtection<HTMLButtonElement>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="mt-1">
+      <button
+        ref={ref}
+        type="button"
+        disabled={busy}
+        className="touch-manipulation font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 disabled:opacity-50"
+        data-4663-pons-unpin
+        aria-label="Unpin event"
+        onPointerDown={stopPlayhtmlMoveStart}
+        onMouseDown={stopPlayhtmlMoveStart}
+        onTouchStart={stopPlayhtmlMoveStart}
+        onClick={(clickEvent) => {
+          clickEvent.stopPropagation();
+          if (busy) return;
+          setBusy(true);
+          setError(null);
+          void onUnpin(pinId).then((result) => {
+            if (!result.ok) {
+              setError(result.error);
+              setBusy(false);
+            }
+          });
+        }}
+      >
+        [ UNPIN ]
+      </button>
+      {error ? (
+        <p
+          className="mt-0.5 font-mono text-[10px] text-rose-600"
+          role="alert"
+          data-4663-pons-unpin-error
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function PinnedPonsObject({
@@ -40,8 +92,6 @@ export function PinnedPonsObject({
 }: PinnedPonsObjectProps) {
   const { self } = useParticipation();
   const [copied, setCopied] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const event = pin.event;
   const canUnpin = !!self && isPinOwner(pin, self.sessionId) && !!onUnpin;
 
@@ -75,43 +125,10 @@ export function PinnedPonsObject({
             onCopy={() => {
               void onCopy();
             }}
-            stopMoveStart={stopMoveStart}
           />
-          <PonsWatchControl eventId={event.id} stopMoveStart={stopMoveStart} />
-          {canUnpin ? (
-            <div className="mt-1">
-              <button
-                type="button"
-                disabled={busy}
-                className="font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 disabled:opacity-50"
-                data-4663-pons-unpin
-                aria-label="Unpin event"
-                onPointerDown={stopMoveStart}
-                onClick={(clickEvent) => {
-                  clickEvent.stopPropagation();
-                  if (busy || !onUnpin) return;
-                  setBusy(true);
-                  setError(null);
-                  void onUnpin(pin.id).then((result) => {
-                    if (!result.ok) {
-                      setError(result.error);
-                      setBusy(false);
-                    }
-                  });
-                }}
-              >
-                [ UNPIN ]
-              </button>
-              {error ? (
-                <p
-                  className="mt-0.5 font-mono text-[10px] text-rose-600"
-                  role="alert"
-                  data-4663-pons-unpin-error
-                >
-                  {error}
-                </p>
-              ) : null}
-            </div>
+          <PonsWatchControl eventId={event.id} />
+          {canUnpin && onUnpin ? (
+            <PinnedUnpinButton pinId={pin.id} onUnpin={onUnpin} />
           ) : null}
           {copied ? (
             <p className="mt-1 text-[10px] tracking-wide text-neutral-400">

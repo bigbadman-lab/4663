@@ -3,15 +3,22 @@
 /**
  * Minimal PIN control for normal live PONS objects.
  * Named: pin once. Anonymous: no control (may still see PINNED objects).
+ * IC3.6 — native capture protection so mobile taps beat PlayHTML move-start.
  */
 
 import { useState } from "react";
+import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
+import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import { useParticipation } from "@/lib/social/use-participation";
 
 export type PonsPinControlProps = {
   eventId: string;
   isPinned: boolean;
   onPin: (eventId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * @deprecated IC3.6 — protection is always applied via native capture.
+   * Kept optional for call-site compatibility.
+   */
   stopMoveStart?: (event: { stopPropagation(): void }) => void;
 };
 
@@ -24,6 +31,7 @@ export function PonsPinControl({
   const { isParticipating } = useParticipation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const ref = useInteractiveControlProtection<HTMLButtonElement>();
 
   if (!isParticipating) {
     return null;
@@ -41,19 +49,24 @@ export function PonsPinControl({
     );
   }
 
+  function isolateMoveStart(event: { stopPropagation(): void }): void {
+    stopPlayhtmlMoveStart(event);
+    stopMoveStart?.(event);
+  }
+
   return (
     <div className="mt-1">
       <button
+        ref={ref}
         type="button"
         disabled={busy}
-        className="font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 disabled:opacity-50"
+        className="touch-manipulation font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 disabled:opacity-50"
         data-4663-pons-pin
         data-4663-pons-pin-state="available"
         aria-label="Pin event"
-        onPointerDown={(event) => {
-          stopMoveStart?.(event);
-          event.stopPropagation();
-        }}
+        onPointerDown={isolateMoveStart}
+        onMouseDown={isolateMoveStart}
+        onTouchStart={isolateMoveStart}
         onClick={(event) => {
           event.stopPropagation();
           if (busy) return;

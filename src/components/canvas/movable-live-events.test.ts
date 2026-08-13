@@ -97,9 +97,9 @@ describe("Stage 10B.7 movable live PONS objects", () => {
     const source = readSrc(
       "src/components/canvas/pons-buying-activity-object.tsx",
     );
-    assert.ok(source.includes("stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}"));
     assert.ok(source.includes("PonsAddressCopyControl"));
     assert.ok(source.includes("copyTextQuiet"));
+    assert.ok(source.includes("isolateAddressPointer"));
 
     const movable = readSrc(
       "src/components/canvas/movable-pons-buying-activity-object.tsx",
@@ -109,9 +109,10 @@ describe("Stage 10B.7 movable live PONS objects", () => {
     const control = readSrc(
       "src/components/canvas/pons-address-copy-control.tsx",
     );
-    assert.ok(control.includes("onPointerDown={stopMoveStart}"));
-    assert.ok(control.includes("onMouseDown={stopMoveStart}"));
-    assert.ok(control.includes("onTouchStart={stopMoveStart}"));
+    assert.ok(control.includes("useInteractiveControlProtection"));
+    assert.ok(control.includes("onPointerDown={isolateMoveStart}"));
+    assert.ok(control.includes("onMouseDown={isolateMoveStart}"));
+    assert.ok(control.includes("onTouchStart={isolateMoveStart}"));
     assert.ok(control.includes("stopPropagation"));
     assert.ok(control.includes("data-4663-event-address"));
 

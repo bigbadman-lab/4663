@@ -23,8 +23,9 @@ export type PonsBuyingActivityObjectProps = {
   event: PublicEvent;
   slot: CanvasSlot;
   /**
-   * When true, isolate the address control from parent move-start handlers
-   * (PlayHTML CanMoveElement on an ancestor).
+   * When true, isolate nested interactive controls from parent move-start
+   * (PlayHTML CanMoveElement on an ancestor). IC3.6 controls self-protect;
+   * this flag remains for call-site/tests compatibility.
    */
   isolateAddressPointer?: boolean;
   movableChrome?: boolean;
@@ -36,14 +37,10 @@ export type PonsBuyingActivityObjectProps = {
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
-function stopMoveStart(event: { stopPropagation(): void }): void {
-  event.stopPropagation();
-}
-
 /** Inner card content only — no positioned host. */
 export function PonsBuyingActivityContent({
   event,
-  isolateAddressPointer = false,
+  isolateAddressPointer: _isolateAddressPointer = false,
   pinEnabled = false,
   isPinned = false,
   onPin,
@@ -73,18 +70,13 @@ export function PonsBuyingActivityContent({
         onCopy={() => {
           void onCopy();
         }}
-        stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
       />
-      <PonsWatchControl
-        eventId={event.id}
-        stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
-      />
+      <PonsWatchControl eventId={event.id} />
       {pinEnabled && onPin ? (
         <PonsPinControl
           eventId={event.id}
           isPinned={isPinned}
           onPin={onPin}
-          stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
         />
       ) : null}
       {copied ? (

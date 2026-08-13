@@ -101,17 +101,19 @@ describe("Stage 8A.10 user TEXT EVM address copy", () => {
 
   it("8–10. address click stops move/pan; TEXT stays movable; touch-safe", () => {
     const object = readSrc("src/components/social/ephemeral-text-object.tsx");
-    assert.ok(object.includes("stopMoveStart"));
+    assert.ok(object.includes("PonsAddressCopyControl"));
     assert.ok(object.includes("CanMoveElement"));
     assert.ok(object.includes("touch-manipulation"));
     assert.ok(object.includes("pointer-events-auto"));
     assert.ok(object.includes("stopPropagation"));
+    assert.ok(object.includes("useInteractiveControlProtection"));
 
     const control = readSrc(
       "src/components/canvas/pons-address-copy-control.tsx",
     );
-    assert.ok(control.includes("onPointerDown={stopMoveStart}"));
-    assert.ok(control.includes("onTouchStart={stopMoveStart}"));
+    assert.ok(control.includes("useInteractiveControlProtection"));
+    assert.ok(control.includes("onPointerDown={isolateMoveStart}"));
+    assert.ok(control.includes("onTouchStart={isolateMoveStart}"));
     assert.ok(control.includes("event.stopPropagation()"));
   });
 

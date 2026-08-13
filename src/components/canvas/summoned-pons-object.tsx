@@ -21,10 +21,6 @@ export type SummonedPonsObjectProps = {
   summonId: string;
 };
 
-function stopMoveStart(event: { stopPropagation(): void }): void {
-  event.stopPropagation();
-}
-
 export function SummonedPonsObject({
   event,
   slot,
@@ -61,7 +57,6 @@ export function SummonedPonsObject({
           onCopy={() => {
             void onCopy();
           }}
-          stopMoveStart={movable ? stopMoveStart : undefined}
         />
         {copied ? (
           <p className="mt-1 text-[10px] tracking-wide text-neutral-400">

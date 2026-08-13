@@ -2,9 +2,15 @@
 
 /**
  * Local TEXT composer (Social 2A publish + Social 2B live draft callbacks).
+ * IC3.7 — mobile ≥16px input + world-scale counter so focus does not zoom.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
+import {
+  MOBILE_SAFE_COMPOSER_INPUT_CLASS,
+  worldScaleCounterScale,
+} from "@/lib/canvas/mobile-form-control";
 import { EPHEMERAL_TEXT_MAX_LENGTH } from "@/lib/social/ephemeral-text";
 
 type EphemeralTextComposerProps = {
@@ -29,8 +35,13 @@ export function EphemeralTextComposer({
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const counterScale = useMemo(() => {
+    const scale = getCanvasPlacementSnapshot()?.camera.scale ?? 1;
+    return worldScaleCounterScale(scale);
+  }, []);
+
   useEffect(() => {
-    textareaRef.current?.focus();
+    textareaRef.current?.focus({ preventScroll: true });
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -51,9 +62,15 @@ export function EphemeralTextComposer({
 
   return (
     <div
-      className="absolute z-[19] w-[min(16rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2"
-      style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+      className="absolute z-[19] w-[min(16rem,calc(100vw-2rem))]"
+      style={{
+        left: `${leftPct}%`,
+        top: `${topPct}%`,
+        transform: `translate(-50%, -50%) scale(${counterScale})`,
+        transformOrigin: "center center",
+      }}
       data-4663-ephemeral-text-composer
+      data-4663-composer-counter-scale={String(counterScale)}
       onPointerDown={(event) => event.stopPropagation()}
     >
       <textarea
@@ -63,7 +80,7 @@ export function EphemeralTextComposer({
         rows={3}
         spellCheck={false}
         placeholder="write on the canvas…"
-        className="w-full resize-none border border-neutral-300 bg-white/95 px-2 py-1.5 font-mono text-[12px] leading-snug text-neutral-900 outline-none focus-visible:border-neutral-500"
+        className={`w-full resize-none border border-neutral-300 bg-white/95 px-2 py-1.5 font-mono ${MOBILE_SAFE_COMPOSER_INPUT_CLASS} leading-snug text-neutral-900 outline-none focus-visible:border-neutral-500`}
         style={{ caretColor: colour }}
         data-4663-ephemeral-text-input
         onChange={(event) => {
