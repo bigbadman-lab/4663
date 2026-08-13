@@ -16,12 +16,15 @@ export type PresenceSummaryResponse = {
   liveUsers: number;
   byCountry: Record<string, number>;
   byCity: PresenceCityAggregate[];
+  /** Distinct public location groups (byCity length, else byCountry keys). */
+  totalLocations: number;
 };
 
 export const EMPTY_PRESENCE_SUMMARY: PresenceSummaryResponse = {
   liveUsers: 0,
   byCountry: {},
   byCity: [],
+  totalLocations: 0,
 };
 
 const ISO2_RE = /^[A-Z]{2}$/;
@@ -109,7 +112,10 @@ export function normalizePresenceSummary(
     return a.city.localeCompare(b.city);
   });
 
-  return { liveUsers, byCountry, byCity };
+  const totalLocations =
+    byCity.length > 0 ? byCity.length : Object.keys(byCountry).length;
+
+  return { liveUsers, byCountry, byCity, totalLocations };
 }
 
 export type LoadPresenceSummaryResult =

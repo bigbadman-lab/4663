@@ -1,10 +1,11 @@
 /**
- * Stage 8C — public presence summary normalization + load.
+ * Stage 8C / 8A.5 — public presence summary normalization + load.
  */
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  EMPTY_PRESENCE_SUMMARY,
   loadPresenceSummary,
   normalizePresenceSummary,
 } from "@/lib/presence/summary";
@@ -18,7 +19,7 @@ describe("normalizePresenceSummary", () => {
         by_country: {},
         by_city: [],
       }),
-      { liveUsers: 0, byCountry: {}, byCity: [] },
+      { liveUsers: 0, byCountry: {}, byCity: [], totalLocations: 0 },
     );
   });
 
@@ -37,6 +38,7 @@ describe("normalizePresenceSummary", () => {
       { city: "Austin", countryCode: "US", count: 3 },
       { city: "London", countryCode: "GB", count: 2 },
     ]);
+    assert.equal(out.totalLocations, 2);
   });
 
   it("3. city count 1 retained", () => {
@@ -48,6 +50,7 @@ describe("normalizePresenceSummary", () => {
     assert.deepEqual(out.byCity, [
       { city: "London", countryCode: "GB", count: 1 },
     ]);
+    assert.equal(out.totalLocations, 1);
   });
 
   it("4. city count 2+ retained", () => {
@@ -68,6 +71,7 @@ describe("normalizePresenceSummary", () => {
       by_city: [],
     });
     assert.deepEqual(out.byCountry, { IS: 1 });
+    assert.equal(out.totalLocations, 1);
   });
 
   it("6. malformed city rows discarded", () => {
@@ -103,6 +107,7 @@ describe("normalizePresenceSummary", () => {
     assert.equal(out.liveUsers, 0);
     assert.deepEqual(out.byCountry, { US: 2, DE: 1 });
     assert.deepEqual(out.byCity, []);
+    assert.equal(out.totalLocations, 2);
   });
 
   it("8. final cities sorted deterministically", () => {
@@ -125,13 +130,12 @@ describe("normalizePresenceSummary", () => {
         "US:Boston:2",
       ],
     );
+    assert.equal(out.totalLocations, 4);
   });
 
   it("9. missing view row → empty summary", () => {
     assert.deepEqual(normalizePresenceSummary(null), {
-      liveUsers: 0,
-      byCountry: {},
-      byCity: [],
+      ...EMPTY_PRESENCE_SUMMARY,
     });
   });
 
@@ -161,6 +165,7 @@ describe("normalizePresenceSummary", () => {
       "byCity",
       "byCountry",
       "liveUsers",
+      "totalLocations",
     ]);
   });
 });
@@ -182,7 +187,7 @@ describe("loadPresenceSummary", () => {
     const result = await loadPresenceSummary(supabase);
     assert.deepEqual(result, {
       ok: true,
-      summary: { liveUsers: 0, byCountry: {}, byCity: [] },
+      summary: { ...EMPTY_PRESENCE_SUMMARY },
     });
   });
 

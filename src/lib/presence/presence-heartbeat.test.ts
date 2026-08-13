@@ -64,10 +64,11 @@ describe("Stage 8A geo normalization", () => {
     assert.deepEqual(geo, { countryCode: null, city: null });
   });
 
-  it("5. valid Vercel country/city → normalized", () => {
+  it("5. valid Vercel country/city → coarsened public label", () => {
     const headers = new Headers({
       "x-vercel-ip-country": " gb ",
       "x-vercel-ip-city": "London",
+      "x-vercel-ip-country-region": "ENG",
     });
     assert.deepEqual(deriveCoarseGeoFromHeaders(headers), {
       countryCode: "GB",
@@ -96,6 +97,7 @@ describe("Stage 8A geo normalization", () => {
     const headers = new Headers({
       "x-vercel-ip-country": "US",
       "x-vercel-ip-city": "Austin",
+      "x-vercel-ip-country-region": "TX",
       "x-forwarded-for": "1.2.3.4",
       "x-vercel-ip-latitude": "30.0",
       "x-vercel-ip-longitude": "-97.0",

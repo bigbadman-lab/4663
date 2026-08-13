@@ -33,9 +33,13 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     assert.equal(chrome.includes("justify-end"), false);
 
     const presence = readSrc("src/components/presence-status.tsx");
-    assert.ok(presence.includes("items-start"));
-    assert.ok(presence.includes("text-left"));
+    assert.ok(presence.includes("whitespace-nowrap"));
+    assert.ok(presence.includes("truncate"));
+    assert.ok(presence.includes("formatPresenceLine"));
+    assert.ok(presence.includes("PRESENCE_PLACE_LIMIT_NARROW"));
     assert.ok(presence.includes("startPresenceSummaryPolling"));
+    assert.equal(presence.includes("break-words"), false);
+    assert.equal(presence.includes("flex-col"), false);
   });
 
   it("clock exists bottom-right with client-only 1s updates", () => {

@@ -1,12 +1,16 @@
 /**
- * Stage 8D — presence copy formatting + summary poller.
+ * Stage 8D / 8A.5 — presence copy formatting + summary poller.
  */
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildPresenceLocationGroups,
   formatPresenceCount,
+  formatPresenceLine,
   formatPresencePlaces,
+  PRESENCE_PLACE_LIMIT_DESKTOP,
+  PRESENCE_PLACE_LIMIT_NARROW,
   PRESENCE_SUMMARY_POLL_MS,
 } from "@/lib/presence/format-presence";
 import { startPresenceSummaryPolling } from "@/lib/presence/use-presence-summary";
@@ -18,21 +22,22 @@ const base = (
   liveUsers: 0,
   byCountry: {},
   byCity: [],
+  totalLocations: 0,
   ...partial,
 });
 
 describe("formatPresenceCount", () => {
-  it("1. 0 → 0 people here", () => {
-    assert.equal(formatPresenceCount(0), "0 people here");
+  it("1. 0 → 0 ONLINE", () => {
+    assert.equal(formatPresenceCount(0), "0 ONLINE");
   });
 
-  it("2. 1 → 1 person here", () => {
-    assert.equal(formatPresenceCount(1), "1 person here");
+  it("2. 1 → 1 ONLINE", () => {
+    assert.equal(formatPresenceCount(1), "1 ONLINE");
   });
 
-  it("3. n >= 2 → {n} people here", () => {
-    assert.equal(formatPresenceCount(2), "2 people here");
-    assert.equal(formatPresenceCount(12), "12 people here");
+  it("3. n >= 2 → {n} ONLINE", () => {
+    assert.equal(formatPresenceCount(2), "2 ONLINE");
+    assert.equal(formatPresenceCount(100), "100 ONLINE");
   });
 
   it("loading → …", () => {
@@ -40,52 +45,108 @@ describe("formatPresenceCount", () => {
   });
 });
 
-describe("formatPresencePlaces", () => {
-  it("4. cities preferred over countries", () => {
+describe("formatPresencePlaces / aggregation", () => {
+  it("sorts by count desc then label; collapses duplicates via aggregates", () => {
+    const groups = buildPresenceLocationGroups(
+      base({
+        byCity: [
+          { city: "London", countryCode: "GB", count: 28 },
+          { city: "Dorset", countryCode: "GB", count: 9 },
+          { city: "New York", countryCode: "US", count: 16 },
+          { city: "Berlin", countryCode: "DE", count: 7 },
+        ],
+        totalLocations: 4,
+      }),
+    );
+    assert.deepEqual(
+      groups.map((g) => `${g.label}:${g.count}`),
+      ["London:28", "New York:16", "Dorset:9", "Berlin:7"],
+    );
+  });
+
+  it("desktop bounds locations and adds +N MORE", () => {
+    assert.equal(
+      formatPresencePlaces(
+        base({
+          byCity: [
+            { city: "London", countryCode: "GB", count: 28 },
+            { city: "New York", countryCode: "US", count: 16 },
+            { city: "Dorset", countryCode: "GB", count: 9 },
+            { city: "Berlin", countryCode: "DE", count: 7 },
+            { city: "Paris", countryCode: "FR", count: 5 },
+            { city: "Tokyo", countryCode: "JP", count: 4 },
+          ],
+        }),
+        { maxPlaces: PRESENCE_PLACE_LIMIT_DESKTOP },
+      ),
+      "LONDON 28 · NEW YORK 16 · DORSET 9 · BERLIN 7 · +2 MORE",
+    );
+  });
+
+  it("narrow layout shows fewer groups", () => {
+    assert.equal(
+      formatPresencePlaces(
+        base({
+          byCity: [
+            { city: "London", countryCode: "GB", count: 28 },
+            { city: "New York", countryCode: "US", count: 16 },
+            { city: "Dorset", countryCode: "GB", count: 9 },
+          ],
+        }),
+        { maxPlaces: PRESENCE_PLACE_LIMIT_NARROW },
+      ),
+      "LONDON 28 · NEW YORK 16 · +1 MORE",
+    );
+  });
+
+  it("maxPlaces 0 degrades to location count", () => {
     assert.equal(
       formatPresencePlaces(
         base({
           byCity: [
             { city: "London", countryCode: "GB", count: 1 },
-            { city: "Austin", countryCode: "US", count: 1 },
+            { city: "Texas", countryCode: "US", count: 2 },
           ],
-          byCountry: { GB: 1, US: 1, DE: 5 },
         }),
+        { maxPlaces: 0 },
       ),
-      "from London · Austin",
+      "2 LOCATIONS",
     );
   });
 
-  it("5. maximum 3 locations", () => {
-    assert.equal(
-      formatPresencePlaces(
-        base({
-          byCity: [
-            { city: "A", countryCode: "US", count: 3 },
-            { city: "B", countryCode: "US", count: 2 },
-            { city: "C", countryCode: "US", count: 1 },
-            { city: "D", countryCode: "US", count: 1 },
-          ],
-        }),
-      ),
-      "from A · B · C",
-    );
-  });
-
-  it("6. countries used when cities absent", () => {
+  it("countries used when cities absent", () => {
     assert.equal(
       formatPresencePlaces(
         base({
           byCountry: { US: 3, GB: 2, DE: 1, FR: 1 },
         }),
       ),
-      "from US · GB · DE",
+      "US 3 · GB 2 · DE 1 · FR 1",
     );
   });
 
-  it("7. no geo → no second line", () => {
+  it("no geo → empty places", () => {
     assert.equal(formatPresencePlaces(base({})), "");
     assert.equal(formatPresencePlaces(null), "");
+  });
+
+  it("single-line combines count + places; online count leads", () => {
+    assert.equal(
+      formatPresenceLine(
+        base({
+          liveUsers: 100,
+          byCity: [
+            { city: "London", countryCode: "GB", count: 28 },
+            { city: "New York", countryCode: "US", count: 16 },
+          ],
+          totalLocations: 2,
+        }),
+        { maxPlaces: 4 },
+      ),
+      "100 ONLINE · LONDON 28 · NEW YORK 16",
+    );
+    assert.equal(formatPresenceLine(null), "…");
+    assert.equal(formatPresenceLine(base({ liveUsers: 3 })), "3 ONLINE");
   });
 });
 
@@ -104,6 +165,7 @@ describe("startPresenceSummaryPolling", () => {
             liveUsers: 2,
             byCountry: { GB: 2 },
             byCity: [],
+            totalLocations: 1,
           };
         }
         throw new Error("network");
@@ -149,7 +211,12 @@ describe("startPresenceSummaryPolling", () => {
             resolve();
           });
         });
-        return { liveUsers: 1, byCountry: {}, byCity: [] };
+        return {
+          liveUsers: 1,
+          byCountry: {},
+          byCity: [],
+          totalLocations: 0,
+        };
       },
       setIntervalFn: (fn) => {
         const id = nextId++;
@@ -178,7 +245,12 @@ describe("startPresenceSummaryPolling", () => {
     const timers = new Map<number, () => void>();
     let nextId = 1;
     const poller = startPresenceSummaryPolling({
-      fetchSummary: async () => ({ liveUsers: 0, byCountry: {}, byCity: [] }),
+      fetchSummary: async () => ({
+        liveUsers: 0,
+        byCountry: {},
+        byCity: [],
+        totalLocations: 0,
+      }),
       setIntervalFn: (fn, ms) => {
         assert.equal(ms, PRESENCE_SUMMARY_POLL_MS);
         const id = nextId++;
