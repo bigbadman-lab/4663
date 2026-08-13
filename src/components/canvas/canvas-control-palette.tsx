@@ -5,9 +5,11 @@
  * Fixed viewport-bottom tray; not PlayHTML-movable. Pointer-events only on the dock shell.
  */
 
+import type { CSSProperties } from "react";
 import {
   CONTROL_DOCK_ITEMS,
   isSummonDockDisabled,
+  SUMMON_DOCK_ACTIVE_COLOR,
   type ControlDockActionId,
   type ControlDockItem,
 } from "@/lib/canvas/control-palette";
@@ -29,7 +31,37 @@ export type CanvasControlPaletteProps = {
   canReset?: boolean;
 };
 
-function DockIcon({ item }: { item: ControlDockItem }) {
+function DockIcon({
+  item,
+  tint,
+}: {
+  item: ControlDockItem;
+  /** When set, recolour monochrome PNG via CSS mask (active Summon). */
+  tint?: string;
+}) {
+  if (tint) {
+    return (
+      <span
+        aria-hidden
+        className="pointer-events-none inline-block h-7 w-7 shrink-0 sm:h-8 sm:w-8"
+        style={{
+          backgroundColor: tint,
+          WebkitMaskImage: `url(${item.iconSrc})`,
+          maskImage: `url(${item.iconSrc})`,
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+        }}
+        data-4663-dock-icon={item.id}
+        data-4663-palette-icon-slot={item.id}
+        data-4663-dock-icon-active="true"
+      />
+    );
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element -- tiny static public icons
     <img
@@ -68,6 +100,15 @@ function isDisabled(
       return true;
   }
 }
+
+const DOCK_BUTTON_BASE =
+  "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 font-mono transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:gap-1 sm:px-1.5";
+
+const DOCK_BUTTON_IDLE =
+  "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-neutral-400 active:bg-neutral-100";
+
+const DOCK_BUTTON_SUMMON_ACTIVE =
+  "cursor-pointer hover:bg-[color-mix(in_srgb,var(--4663-summon-active)_12%,transparent)] focus-visible:outline-[color-mix(in_srgb,var(--4663-summon-active)_55%,transparent)] active:bg-[color-mix(in_srgb,var(--4663-summon-active)_18%,transparent)]";
 
 export function CanvasControlPalette({
   onSummon,
@@ -130,18 +171,29 @@ export function CanvasControlPalette({
         >
           {CONTROL_DOCK_ITEMS.map((item) => {
             const disabled = isDisabled(item.id, props);
+            const isSummonActive = item.id === "summon" && summonActive;
+            const summonLabel = isSummonActive ? "Clear summon" : item.label;
+            const activeStyle: CSSProperties | undefined = isSummonActive
+              ? {
+                  color: SUMMON_DOCK_ACTIVE_COLOR,
+                  ["--4663-summon-active" as string]: SUMMON_DOCK_ACTIVE_COLOR,
+                }
+              : undefined;
             return (
               <button
                 key={item.id}
                 type="button"
-                title={item.label}
-                aria-label={item.label}
+                title={item.id === "summon" ? summonLabel : item.label}
+                aria-label={item.id === "summon" ? summonLabel : item.label}
+                aria-pressed={
+                  item.id === "summon" ? summonActive : undefined
+                }
                 aria-disabled={disabled ? true : undefined}
                 data-4663-palette-control={item.id}
                 data-4663-dock-control={item.id}
                 data-4663-palette-disabled={disabled ? "true" : "false"}
                 data-4663-palette-summon-active={
-                  item.id === "summon" && summonActive ? "true" : undefined
+                  isSummonActive ? "true" : undefined
                 }
                 disabled={disabled}
                 onClick={() => {
@@ -166,9 +218,15 @@ export function CanvasControlPalette({
                     onReset?.();
                   }
                 }}
-                className="flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 font-mono text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400 active:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:gap-1 sm:px-1.5"
+                className={`${DOCK_BUTTON_BASE} ${
+                  isSummonActive ? DOCK_BUTTON_SUMMON_ACTIVE : DOCK_BUTTON_IDLE
+                }`}
+                style={activeStyle}
               >
-                <DockIcon item={item} />
+                <DockIcon
+                  item={item}
+                  tint={isSummonActive ? SUMMON_DOCK_ACTIVE_COLOR : undefined}
+                />
                 <span
                   className="max-w-full truncate text-[9px] leading-none tracking-wide sm:text-[10px]"
                   data-4663-dock-label={item.id}

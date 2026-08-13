@@ -50,12 +50,14 @@ describe("Social 8A responsive bottom control dock", () => {
     const palette = readSrc(
       "src/components/canvas/canvas-control-palette.tsx",
     );
-    assert.ok(palette.includes("aria-label={item.label}"));
-    assert.ok(palette.includes("title={item.label}"));
+    assert.ok(palette.includes("aria-label={item.id === \"summon\" ? summonLabel : item.label}"));
+    assert.ok(palette.includes("title={item.id === \"summon\" ? summonLabel : item.label}"));
+    assert.ok(palette.includes("aria-pressed={"));
     assert.ok(palette.includes('width={32}'));
     assert.ok(palette.includes('height={32}'));
     assert.ok(palette.includes("draggable={false}"));
     assert.ok(palette.includes("object-contain"));
+    assert.ok(palette.includes("SUMMON_DOCK_ACTIVE_COLOR"));
     for (const src of [
       "/text.png",
       "/draw.png",

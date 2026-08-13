@@ -2,6 +2,8 @@
  * Social 8A — bottom control dock definitions (TEXT / DRAW / MARK / SUMMON / RESET).
  */
 
+import { PONS_BUYER_COUNT_COLOR } from "@/lib/canvas/pons-visual";
+
 export type ControlDockActionId =
   | "text"
   | "draw"
@@ -24,6 +26,12 @@ export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "summon", label: "SUMMON", iconSrc: "/summon.png" },
   { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
+
+/**
+ * Active SUMMON dock accent — same brand green as PONS buyer-count hierarchy.
+ * Presentation only (Stage 8A.3.1).
+ */
+export const SUMMON_DOCK_ACTIVE_COLOR = PONS_BUYER_COUNT_COLOR;
 
 /**
  * SUMMON dock enablement (Stage 8A.3 toggle).

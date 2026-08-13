@@ -12,7 +12,11 @@ import {
   createActiveSummonState,
   shouldDismissActiveSummonOnClick,
 } from "@/lib/canvas/active-summon";
-import { isSummonDockDisabled } from "@/lib/canvas/control-palette";
+import {
+  isSummonDockDisabled,
+  SUMMON_DOCK_ACTIVE_COLOR,
+} from "@/lib/canvas/control-palette";
+import { PONS_BUYER_COUNT_COLOR } from "@/lib/canvas/pons-visual";
 import {
   selectSummonEventIds,
   SUMMON_LIFETIME_MS,
@@ -212,6 +216,52 @@ describe("Stage 8A.3 Summon toggle", () => {
         isSummonOwner: false,
       }),
       true,
+    );
+  });
+});
+
+describe("Stage 8A.3.1 Summon active visual polish", () => {
+  it("1–3. inactive default vs active accent driven by summonActive", () => {
+    assert.equal(SUMMON_DOCK_ACTIVE_COLOR, PONS_BUYER_COUNT_COLOR);
+    assert.equal(SUMMON_DOCK_ACTIVE_COLOR, "#8FAE00");
+
+    const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
+    assert.ok(palette.includes("SUMMON_DOCK_ACTIVE_COLOR"));
+    assert.ok(palette.includes("isSummonActive"));
+    assert.ok(palette.includes("DOCK_BUTTON_IDLE"));
+    assert.ok(palette.includes("DOCK_BUTTON_SUMMON_ACTIVE"));
+    assert.ok(palette.includes('data-4663-dock-icon-active="true"'));
+    assert.ok(palette.includes("maskImage"));
+    // Active styling gated on summonActive prop (no local active state).
+    assert.ok(palette.includes("item.id === \"summon\" && summonActive"));
+    assert.equal(palette.includes("useState"), false);
+  });
+
+  it("4–6. active Summon stays clickable, clears via onSummon, no Dismiss", () => {
+    assert.equal(
+      isSummonDockDisabled({
+        canSummon: false,
+        summonActive: true,
+        isSummonOwner: true,
+      }),
+      false,
+    );
+
+    const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
+    assert.ok(palette.includes("cursor-pointer"));
+    assert.ok(palette.includes('aria-pressed={'));
+    assert.ok(palette.includes('"Clear summon"'));
+    assert.equal(palette.includes("[ DISMISS ]"), false);
+    assert.equal(palette.includes("onDismissSummon"), false);
+
+    const controller = readSrc(
+      "src/components/canvas/use-summon-controller.ts",
+    );
+    assert.ok(controller.includes("shouldDismissActiveSummonOnClick"));
+    assert.ok(
+      /shouldDismissActiveSummonOnClick[\s\S]*?dismissIfOwner\(\);\s*return;/.test(
+        controller.slice(controller.indexOf("function onSummon")),
+      ),
     );
   });
 });
