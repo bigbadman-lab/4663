@@ -353,4 +353,93 @@ describe("Social 1B/1D participation controller", () => {
     controller.stop();
     assert.equal(ended.length, 0);
   });
+
+  it("WATCH tracks event ids; reconnect re-tracks same set without duplicate", () => {
+    const colour = colourFromSessionId(SESSION_A);
+    const EVENT_X = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const storage = memoryStorage({
+      [PARTICIPATION_SESSION_STORAGE_KEY]: JSON.stringify({
+        sessionId: SESSION_A,
+        displayName: "Alex",
+        colour,
+        joinedAt: "2026-08-12T12:00:00.000Z",
+      }),
+    });
+    const presence = mockPresence();
+    let participants: ParticipationPresencePayload[] = [];
+    const controller = new ParticipationController({
+      storage,
+      presence,
+      onSelf: () => {},
+      onParticipants: (p) => {
+        participants = p;
+      },
+      onStatus: () => {},
+    });
+    controller.start();
+    presence.emitStatus("SUBSCRIBED");
+    assert.deepEqual(presence.tracked.at(-1)?.watchedEventIds, []);
+
+    assert.equal(controller.watch(EVENT_X).ok, true);
+    assert.deepEqual(controller.getWatchedEventIds(), [EVENT_X]);
+    assert.deepEqual(presence.tracked.at(-1)?.watchedEventIds, [EVENT_X]);
+
+    // Same session cannot inflate count locally.
+    assert.equal(controller.watch(EVENT_X).ok, true);
+    assert.equal(controller.watchCount(EVENT_X), 0); // no sync yet with self in list
+
+    presence.emitSync({
+      [SESSION_A]: [
+        {
+          sessionId: SESSION_A,
+          name: "Alex",
+          colour,
+          joinedAt: "2026-08-12T12:00:00.000Z",
+          watchedEventIds: [EVENT_X],
+        },
+      ],
+      [SESSION_B]: [
+        {
+          sessionId: SESSION_B,
+          name: "Bob",
+          colour: colourFromSessionId(SESSION_B),
+          joinedAt: "2026-08-12T12:01:00.000Z",
+          watchedEventIds: [EVENT_X],
+        },
+      ],
+    });
+    assert.equal(controller.watchCount(EVENT_X), 2);
+
+    assert.equal(controller.unwatch(EVENT_X).ok, true);
+    assert.deepEqual(controller.getWatchedEventIds(), []);
+
+    controller.watch(EVENT_X);
+    const tracksBefore = presence.tracked.length;
+    presence.emitStatus("CLOSED");
+    presence.emitStatus("SUBSCRIBED");
+    assert.ok(presence.tracked.length > tracksBefore);
+    assert.deepEqual(presence.tracked.at(-1)?.watchedEventIds, [EVENT_X]);
+    assert.equal(presence.tracked.at(-1)?.sessionId, SESSION_A);
+
+    controller.pruneWatchedEvents([]);
+    assert.deepEqual(controller.getWatchedEventIds(), []);
+
+    controller.leave();
+    assert.deepEqual(controller.getWatchedEventIds(), []);
+    assert.equal(participants.some((p) => p.sessionId === SESSION_A), false);
+  });
+
+  it("anonymous cannot WATCH", () => {
+    const presence = mockPresence();
+    const controller = new ParticipationController({
+      storage: memoryStorage(),
+      presence,
+      onSelf: () => {},
+      onParticipants: () => {},
+      onStatus: () => {},
+      randomUUID: () => "11111111-1111-4111-8111-111111111111",
+    });
+    controller.start();
+    assert.equal(controller.watch("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee").ok, false);
+  });
 });

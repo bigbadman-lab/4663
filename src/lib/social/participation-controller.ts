@@ -4,6 +4,8 @@
  *
  * Anonymous clients subscribe as observers (no track) so remote pills remain
  * visible. Named clients track; LEAVE untracks but keeps the observer channel.
+ *
+ * Social 4: WATCH lives in Presence metadata (watchedEventIds), owned here.
  */
 
 import {
@@ -26,6 +28,13 @@ import type {
   ParticipationSession,
   ParticipationStatus,
 } from "@/lib/social/types";
+import {
+  addWatchedEventId,
+  isWatchingEvent,
+  pruneWatchedEventIds,
+  removeWatchedEventId,
+  watchCountForEvent,
+} from "@/lib/social/watch";
 
 export type ParticipationControllerDeps = {
   storage: StorageLike;
@@ -46,6 +55,8 @@ export class ParticipationController {
   > | null = null;
   private self: ParticipationSession | null = null;
   private participants: ParticipationPresencePayload[] = [];
+  /** Local WATCH set for the active named session (Presence source of truth after track). */
+  private watchedEventIds: string[] = [];
   private stopped = true;
   private trackGeneration = 0;
   private readonly observerKey: string;
@@ -61,6 +72,18 @@ export class ParticipationController {
     return this.self;
   }
 
+  getWatchedEventIds(): readonly string[] {
+    return this.watchedEventIds;
+  }
+
+  isWatching(eventId: string): boolean {
+    return isWatchingEvent(this.watchedEventIds, eventId);
+  }
+
+  watchCount(eventId: string): number {
+    return watchCountForEvent(this.participants, eventId);
+  }
+
   /**
    * Mount: restore sessionStorage identity if valid and connect Presence.
    * Anonymous and named both subscribe; only named tracks.
@@ -72,6 +95,7 @@ export class ParticipationController {
     const restored = readParticipationSession(this.deps.storage);
     if (!restored) {
       this.self = null;
+      this.watchedEventIds = [];
       this.deps.onSelf(null);
       this.setParticipants([]);
       this.deps.onStatus("anonymous");
@@ -80,6 +104,7 @@ export class ParticipationController {
     }
 
     this.self = restored;
+    this.watchedEventIds = [];
     this.deps.onSelf(restored);
     this.connectPresence(restored);
   }
@@ -100,6 +125,7 @@ export class ParticipationController {
     if (!created.ok) return created;
 
     this.self = created.session;
+    this.watchedEventIds = [];
     this.deps.onSelf(created.session);
     this.connectPresence(created.session);
     return { ok: true };
@@ -121,6 +147,7 @@ export class ParticipationController {
 
     clearParticipationSession(this.deps.storage);
     this.self = null;
+    this.watchedEventIds = [];
     this.deps.onSelf(null);
     this.deps.onStatus("anonymous");
     this.setParticipants(
@@ -128,6 +155,58 @@ export class ParticipationController {
     );
 
     this.onSessionEnded({ reason: "leave", sessionId: leftId });
+  }
+
+  watch(eventId: string): { ok: true } | { ok: false; error: string } {
+    if (!this.self) {
+      return { ok: false, error: "Enter to watch." };
+    }
+    if (isWatchingEvent(this.watchedEventIds, eventId)) {
+      return { ok: true };
+    }
+    const next = addWatchedEventId(this.watchedEventIds, eventId);
+    if (!isWatchingEvent(next, eventId)) {
+      return { ok: false, error: "Watch limit reached." };
+    }
+    this.watchedEventIds = next;
+    this.retrackPresence();
+    this.patchSelfWatchInParticipants();
+    return { ok: true };
+  }
+
+  unwatch(eventId: string): { ok: true } | { ok: false; error: string } {
+    if (!this.self) {
+      return { ok: false, error: "Enter to unwatch." };
+    }
+    this.watchedEventIds = removeWatchedEventId(this.watchedEventIds, eventId);
+    this.retrackPresence();
+    this.patchSelfWatchInParticipants();
+    return { ok: true };
+  }
+
+  toggleWatch(eventId: string): { ok: true } | { ok: false; error: string } {
+    if (!this.self) {
+      return { ok: false, error: "Enter to watch." };
+    }
+    if (isWatchingEvent(this.watchedEventIds, eventId)) {
+      return this.unwatch(eventId);
+    }
+    return this.watch(eventId);
+  }
+
+  /** Drop stale watches for events no longer on the live canvas. */
+  pruneWatchedEvents(liveEventIds: readonly string[]): void {
+    if (!this.self) return;
+    const next = pruneWatchedEventIds(this.watchedEventIds, liveEventIds);
+    if (
+      next.length === this.watchedEventIds.length &&
+      next.every((id, i) => id === this.watchedEventIds[i])
+    ) {
+      return;
+    }
+    this.watchedEventIds = next;
+    this.retrackPresence();
+    this.patchSelfWatchInParticipants();
   }
 
   /**
@@ -145,6 +224,32 @@ export class ParticipationController {
   ): void {
     this.participants = next;
     this.deps.onParticipants(next);
+  }
+
+  private buildTrackPayload(): ParticipationPresencePayload | null {
+    if (!this.self) return null;
+    return presencePayloadFromSession(this.self, this.watchedEventIds);
+  }
+
+  private retrackPresence(): void {
+    const payload = this.buildTrackPayload();
+    if (!payload || !this.subscription) return;
+    void this.subscription.track(payload).catch((error) => {
+      this.deps.onError?.(error);
+    });
+  }
+
+  private patchSelfWatchInParticipants(): void {
+    if (!this.self) return;
+    const selfId = this.self.sessionId;
+    const watches = [...this.watchedEventIds];
+    this.setParticipants(
+      this.participants.map((p) =>
+        p.sessionId === selfId
+          ? { ...p, watchedEventIds: watches }
+          : p,
+      ),
+    );
   }
 
   private disconnectPresence(): void {
@@ -167,9 +272,6 @@ export class ParticipationController {
     const presenceKey = session
       ? session.sessionId
       : `obs-${this.observerKey}`;
-    const trackPayload = session
-      ? presencePayloadFromSession(session)
-      : null;
 
     this.subscription = this.deps.presence.connect({
       presenceKey,
@@ -181,10 +283,11 @@ export class ParticipationController {
         onStatus: (status) => {
           if (this.stopped || generation !== this.trackGeneration) return;
           if (status === "SUBSCRIBED") {
-            if (trackPayload) {
+            const payload = this.buildTrackPayload();
+            if (payload) {
               this.deps.onStatus("live");
               void this.subscription
-                ?.track(trackPayload)
+                ?.track(payload)
                 .catch((error) => this.deps.onError?.(error));
             } else {
               this.deps.onStatus("anonymous");
@@ -197,6 +300,7 @@ export class ParticipationController {
           }
           if (status === "CLOSED") {
             // Reconnect uses same session identity — do not mint a new one.
+            // Local watchedEventIds retained for re-track on SUBSCRIBED.
             this.deps.onStatus(this.self ? "connecting" : "anonymous");
           }
         },

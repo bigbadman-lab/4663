@@ -12,22 +12,26 @@ import {
   isUuid,
   normalizeSessionId,
 } from "@/lib/presence/session-id";
+import { normalizeWatchedEventIds } from "@/lib/social/watch";
 
 const ALLOWED_KEYS = new Set([
   "sessionId",
   "name",
   "colour",
   "joinedAt",
+  "watchedEventIds",
 ]);
 
 export function presencePayloadFromSession(
   session: ParticipationSession,
+  watchedEventIds: readonly string[] = [],
 ): ParticipationPresencePayload {
   return {
     sessionId: session.sessionId,
     name: session.displayName,
     colour: session.colour,
     joinedAt: session.joinedAt,
+    watchedEventIds: normalizeWatchedEventIds(watchedEventIds),
   };
 }
 
@@ -59,11 +63,14 @@ export function normalizePresencePayload(
   }
   if (!Number.isFinite(Date.parse(record.joinedAt))) return null;
 
+  const watchedEventIds = normalizeWatchedEventIds(record.watchedEventIds);
+
   return {
     sessionId,
     name: nameResult.name,
     colour: record.colour,
     joinedAt: record.joinedAt,
+    watchedEventIds,
   };
 }
 

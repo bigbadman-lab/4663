@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { PonsActivityCopy } from "@/components/canvas/pons-activity-copy";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
+import { PonsWatchControl } from "@/components/social/pons-watch-control";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
 import { playhtmlEventElementId } from "@/lib/canvas/hero";
 import type { CanvasSlot } from "@/lib/canvas/slots";
@@ -57,6 +58,10 @@ export function PonsBuyingActivityContent({
         onCopy={() => {
           void onCopy();
         }}
+        stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
+      />
+      <PonsWatchControl
+        eventId={event.id}
         stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
       />
       {copied ? (

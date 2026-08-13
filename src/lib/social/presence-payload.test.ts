@@ -31,9 +31,11 @@ describe("Social 1B presence payload", () => {
       "joinedAt",
       "name",
       "sessionId",
+      "watchedEventIds",
     ]);
     assert.equal(payload.name, "Alex");
     assert.equal(payload.sessionId, SESSION_A);
+    assert.deepEqual(payload.watchedEventIds, []);
     assert.equal(
       Object.prototype.hasOwnProperty.call(payload, "location"),
       false,
@@ -55,6 +57,7 @@ describe("Social 1B presence payload", () => {
         name: "Alex",
         colour,
         joinedAt: "2026-08-12T12:00:00.000Z",
+        watchedEventIds: [],
       },
     );
     assert.equal(
@@ -68,6 +71,30 @@ describe("Social 1B presence payload", () => {
     );
   });
 
+  it("defaults missing watchedEventIds and accepts valid watch set", () => {
+    const colour = colourFromSessionId(SESSION_A);
+    const eventId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    assert.deepEqual(
+      normalizePresencePayload({
+        sessionId: SESSION_A,
+        name: "Alex",
+        colour,
+        joinedAt: "2026-08-12T12:00:00.000Z",
+      })?.watchedEventIds,
+      [],
+    );
+    assert.deepEqual(
+      normalizePresencePayload({
+        sessionId: SESSION_A,
+        name: "Alex",
+        colour,
+        joinedAt: "2026-08-12T12:00:00.000Z",
+        watchedEventIds: [eventId, "nope", eventId],
+      })?.watchedEventIds,
+      [eventId],
+    );
+  });
+
   it("deduplicates participants by session id", () => {
     const colourA = colourFromSessionId(SESSION_A);
     const colourB = colourFromSessionId(SESSION_B);
@@ -77,18 +104,21 @@ describe("Social 1B presence payload", () => {
         name: "Alex",
         colour: colourA,
         joinedAt: "2026-08-12T12:00:00.000Z",
+        watchedEventIds: [],
       },
       {
         sessionId: SESSION_A,
         name: "Alex Dup",
         colour: colourA,
         joinedAt: "2026-08-12T12:01:00.000Z",
+        watchedEventIds: [],
       },
       {
         sessionId: SESSION_B,
         name: "Sam",
         colour: colourB,
         joinedAt: "2026-08-12T12:02:00.000Z",
+        watchedEventIds: [],
       },
     ]);
     assert.equal(list.length, 2);

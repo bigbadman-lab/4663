@@ -36,6 +36,7 @@ function participant(
     name,
     colour: colourFromSessionId(sessionId),
     joinedAt: "2026-08-12T12:00:00.000Z",
+    watchedEventIds: [],
   };
 }
 

@@ -29,6 +29,7 @@ import {
 } from "@/lib/canvas/visible-events";
 import { usePublicEvents } from "@/lib/events/use-public-events";
 import { ParticipationProvider } from "@/lib/social/use-participation";
+import { WatchLiveEventPruner } from "@/components/social/watch-live-event-pruner";
 
 const CanvasPlayTree = dynamic(
   () =>
@@ -147,8 +148,14 @@ export function CanvasRoot() {
     return assignSlots(visible);
   }, [events, nowMs, maxVisible]);
 
+  const liveEventIds = useMemo(
+    () => liveItems.map((item) => item.event.id),
+    [liveItems],
+  );
+
   return (
     <ParticipationProvider>
+      <WatchLiveEventPruner eventIds={liveEventIds} />
       {!playReady ? (
         <CanvasShellFallback liveItems={liveItems} />
       ) : (

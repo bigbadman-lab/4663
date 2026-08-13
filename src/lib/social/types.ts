@@ -11,6 +11,8 @@ export type ParticipationPresencePayload = {
   name: string;
   colour: string;
   joinedAt: string;
+  /** Session-bound WATCH set — ephemeral Presence only. */
+  watchedEventIds: string[];
 };
 
 /** Tab-scoped named participation identity (sessionStorage). */
