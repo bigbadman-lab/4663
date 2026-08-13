@@ -36,6 +36,16 @@ export function formatPresenceCount(liveUsers: number | null): string {
 }
 
 /**
+ * Compact footer count for the location-bubble strip.
+ * Loading → …; otherwise `{n} HERE`.
+ */
+export function formatPresenceHereLabel(liveUsers: number | null): string {
+  if (liveUsers === null) return "…";
+  const n = Math.max(0, Math.floor(liveUsers));
+  return `${n} HERE`;
+}
+
+/**
  * Build sorted public location groups from summary aggregates.
  * Prefers byCity (already coarsened public labels); falls back to byCountry.
  */
