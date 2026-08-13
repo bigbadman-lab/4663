@@ -39,7 +39,7 @@ describe("Stage IC3.10 independent brand anchors", () => {
     const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     assert.equal((brand.match(/<h1\b/g) ?? []).length, 1);
     assert.ok(brand.includes("BRAND_HERO_TITLE"));
-    assert.equal(BRAND_HERO_TITLE, "4663");
+    assert.equal(BRAND_HERO_TITLE, "A CANVAS FOR THE INTERNET.");
 
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("BrandAnchors"));
@@ -77,7 +77,10 @@ describe("Stage IC3.10 independent brand anchors", () => {
     assert.ok(brand.includes("top-[52%]"));
     assert.ok(brand.includes("left-1/2"));
     assert.ok(brand.includes("BRAND_HERO_SUBTITLE"));
-    assert.equal(BRAND_HERO_SUBTITLE, "THE LIVE CANVAS FOR ROBINHOOD CHAIN");
+    assert.equal(
+      BRAND_HERO_SUBTITLE,
+      "Create, communicate and interact — with web3 capabilities built in.",
+    );
     assert.ok(BRAND_LOGO_STYLE.left.includes("24px"));
     assert.ok(BRAND_LOGO_STYLE.top.includes("24px"));
   });

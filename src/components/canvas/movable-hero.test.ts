@@ -68,8 +68,11 @@ describe("Stage 10B.5 / IC3.10 brand hero", () => {
     assert.ok(brand.includes("left-1/2"));
     assert.ok(brand.includes("BRAND_HERO_TITLE"));
     assert.ok(brand.includes("BRAND_HERO_SUBTITLE"));
-    assert.equal(BRAND_HERO_SUBTITLE, "THE LIVE CANVAS FOR ROBINHOOD CHAIN");
-    assert.equal(BRAND_HERO_TITLE, "4663");
+    assert.equal(
+      BRAND_HERO_SUBTITLE,
+      "Create, communicate and interact — with web3 capabilities built in.",
+    );
+    assert.equal(BRAND_HERO_TITLE, "A CANVAS FOR THE INTERNET.");
     assert.equal((brand.match(/<h1\b/g) ?? []).length, 1);
   });
 
@@ -81,10 +84,12 @@ describe("Stage 10B.5 / IC3.10 brand hero", () => {
 
   it("13. no custom drag / no PlayHTML brand can-move", () => {
     const brand = readSrc("src/components/canvas/brand-anchors.tsx");
-    assert.equal(brand.includes("onPointerDown"), false);
+    // Local COLOR/HIDE menu may dismiss on window pointerdown — not a drag path.
     assert.equal(brand.includes("onMouseDown"), false);
     assert.equal(brand.includes("CanMoveElement"), false);
+    assert.equal(brand.includes("setPointerCapture"), false);
     assert.equal(brand.includes("setData"), false);
+    assert.equal(brand.includes("onDragStart"), false);
     assert.ok(brand.includes("pointer-events-none"));
   });
 });

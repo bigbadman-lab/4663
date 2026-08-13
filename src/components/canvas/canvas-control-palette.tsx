@@ -22,6 +22,7 @@ import {
 } from "@/lib/canvas/control-notice";
 import { MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { PLAYHTML_CONTROL_PALETTE_ID } from "@/lib/canvas/hero";
+import { useHeroPreferences } from "@/lib/canvas/use-hero-preferences";
 import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
 
 export type CanvasControlPaletteProps = {
@@ -176,6 +177,7 @@ export function CanvasControlPalette({
   const noticeText = controlNotice
     ? controlNoticeMessage(controlNotice)
     : null;
+  const { preferences: heroPreferences, showHero } = useHeroPreferences();
 
   return (
     <div
@@ -202,6 +204,17 @@ export function CanvasControlPalette({
           >
             {noticeText}
           </p>
+        ) : null}
+        {!heroPreferences.visible ? (
+          <button
+            type="button"
+            className="mb-1.5 inline-flex min-h-11 items-center px-3 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+            data-4663-show-hero
+            aria-label="Show hero"
+            onClick={() => showHero()}
+          >
+            [ SHOW HERO ]
+          </button>
         ) : null}
         <div
           className="flex w-full items-stretch justify-between gap-1 rounded-2xl border border-neutral-300/90 bg-white/90 px-1.5 py-1.5 shadow-sm backdrop-blur-[2px] sm:gap-1.5 sm:px-2 sm:py-2"

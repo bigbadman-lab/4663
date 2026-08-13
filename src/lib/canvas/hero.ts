@@ -21,9 +21,9 @@ export function playhtmlEventElementId(eventId: string): string {
   return `4663-event-${eventId}`;
 }
 
-export const BRAND_HERO_TITLE = "4663" as const;
+export const BRAND_HERO_TITLE = "A CANVAS FOR THE INTERNET." as const;
 export const BRAND_HERO_SUBTITLE =
-  "THE LIVE CANVAS FOR ROBINHOOD CHAIN" as const;
+  "Create, communicate and interact — with web3 capabilities built in." as const;
 
 /**
  * @deprecated IC3.10 — brand is viewport-fixed; kept for tests that assert
