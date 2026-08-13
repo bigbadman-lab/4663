@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Social 2A published TEXT + Social 2B live typing + Social 3A ephemeral DRAW.
+ * Social 2A published TEXT + Social 2B live typing + Social 3A ephemeral DRAW
+ * + Social 6 MARK create entry (durable marks rendered here; not session-ephemeral).
  *
  * Published TEXT: PlayHTML usePageData("4663-ephemeral-texts")
  * Published DRAW: PlayHTML usePageData("4663-ephemeral-drawings")
  * Live drafts (text + drawing): Supabase Broadcast on 4663-social-broadcast
+ * MARK: Postgres via /api/social/marks (survives LEAVE/RESET/Presence loss)
  */
 
 import { usePageData } from "@playhtml/react";
@@ -16,13 +18,17 @@ import {
   type MouseEvent,
 } from "react";
 import { CanvasCreateMenu } from "@/components/social/canvas-create-menu";
+import { CanvasMarkObject } from "@/components/social/canvas-mark-object";
 import { DrawingSessionEditor } from "@/components/social/drawing-session-editor";
 import { EphemeralDrawingObjectView } from "@/components/social/ephemeral-drawing-object";
 import { EphemeralTextComposer } from "@/components/social/ephemeral-text-composer";
 import { EphemeralTextObjectView } from "@/components/social/ephemeral-text-object";
 import { LiveDrawingDraftView } from "@/components/social/live-drawing-draft";
 import { LiveTextDraftView } from "@/components/social/live-text-draft";
+import { MarkComposer } from "@/components/social/mark-composer";
 import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
+import { validateMarkBody } from "@/lib/social/canvas-mark";
+import { useCanvasMarks } from "@/lib/social/use-canvas-marks";
 import {
   createDrawingDraftId,
   createThrottledSender,
@@ -104,10 +110,20 @@ type CreateUi =
       widthPct: number;
       heightPct: number;
       aspectRatio: number;
+    }
+  | {
+      mode: "mark";
+      leftPct: number;
+      topPct: number;
     };
 
 export function EphemeralTextLayer() {
   const { self, isParticipating, participants, status } = useParticipation();
+  const {
+    marks,
+    hasMarkForSession,
+    createMark,
+  } = useCanvasMarks();
   const [pageData, setPageData] = usePageData<EphemeralTextsPageData>(
     EPHEMERAL_TEXTS_PAGE_DATA_NAME,
     EMPTY_EPHEMERAL_TEXTS_PAGE_DATA,
@@ -498,6 +514,34 @@ export function EphemeralTextLayer() {
     writeDrawingsPageData(removeEphemeralDrawing(current, drawingId));
   };
 
+  const publishMark = async (body: string) => {
+    if (!self) return { ok: false as const, error: "Enter to mark." };
+    const ui = createUiRef.current;
+    if (ui?.mode !== "mark") {
+      return { ok: false as const, error: "Nothing to mark." };
+    }
+    const validated = validateMarkBody(body);
+    if (!validated.ok) return validated;
+    if (hasMarkForSession(self.sessionId)) {
+      return { ok: false as const, error: "Already marked this session." };
+    }
+
+    const result = await createMark({
+      ownerSessionId: self.sessionId,
+      ownerDisplayName: self.displayName,
+      ownerColour: self.colour,
+      body: validated.body,
+      leftPct: ui.leftPct,
+      topPct: ui.topPct,
+    });
+    if (!result.ok) return result;
+    setCreateUi(null);
+    return { ok: true as const };
+  };
+
+  const canMark =
+    isParticipating && !!self && !hasMarkForSession(self.sessionId);
+
   const visibleRemoteDrafts = draftsForRemoteView(
     remoteDrafts,
     self?.sessionId ?? null,
@@ -519,6 +563,10 @@ export function EphemeralTextLayer() {
         onClick={onEmptyCanvasClick}
         aria-hidden
       />
+
+      {marks.map((mark) => (
+        <CanvasMarkObject key={mark.id} mark={mark} />
+      ))}
 
       {texts.map((text) => (
         <EphemeralTextObjectView
@@ -554,6 +602,7 @@ export function EphemeralTextLayer() {
           <CanvasCreateMenu
             leftPct={createUi.leftPct}
             topPct={createUi.topPct}
+            canMark={canMark}
             onChooseText={() =>
               setCreateUi({
                 mode: "compose",
@@ -592,6 +641,14 @@ export function EphemeralTextLayer() {
                 aspectRatio,
               });
             }}
+            onChooseMark={() => {
+              if (!canMark) return;
+              setCreateUi({
+                mode: "mark",
+                leftPct: createUi.leftPct,
+                topPct: createUi.topPct,
+              });
+            }}
             onCancel={() => setCreateUi(null)}
           />
         </div>
@@ -606,6 +663,18 @@ export function EphemeralTextLayer() {
             onPublish={publish}
             onCancel={abandonCreate}
             onDraftBodyChange={onDraftBodyChange}
+          />
+        </div>
+      ) : null}
+
+      {createUi?.mode === "mark" && self ? (
+        <div className="pointer-events-auto">
+          <MarkComposer
+            leftPct={createUi.leftPct}
+            topPct={createUi.topPct}
+            colour={self.colour}
+            onPublish={publishMark}
+            onCancel={abandonCreate}
           />
         </div>
       ) : null}

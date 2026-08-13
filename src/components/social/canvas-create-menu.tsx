@@ -1,22 +1,26 @@
 "use client";
 
 /**
- * Compact empty-canvas create menu — TEXT + DRAW.
+ * Compact empty-canvas create menu — TEXT + DRAW + MARK.
  */
 
 type CanvasCreateMenuProps = {
   leftPct: number;
   topPct: number;
+  canMark?: boolean;
   onChooseText: () => void;
   onChooseDraw: () => void;
+  onChooseMark?: () => void;
   onCancel: () => void;
 };
 
 export function CanvasCreateMenu({
   leftPct,
   topPct,
+  canMark = false,
   onChooseText,
   onChooseDraw,
+  onChooseMark,
   onCancel,
 }: CanvasCreateMenuProps) {
   return (
@@ -48,6 +52,19 @@ export function CanvasCreateMenu({
         >
           [ DRAW ]
         </button>
+        {canMark ? (
+          <button
+            type="button"
+            className="text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+            data-4663-canvas-create-mark
+            onClick={(event) => {
+              event.stopPropagation();
+              onChooseMark?.();
+            }}
+          >
+            [ MARK ]
+          </button>
+        ) : null}
         <button
           type="button"
           className="text-[10px] text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
