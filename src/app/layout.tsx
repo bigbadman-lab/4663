@@ -18,8 +18,7 @@ const geistMono = Geist_Mono({
 const SITE_URL = "https://4663.live";
 const SITE_NAME = "4663";
 const SITE_TITLE = "4663 - a canvas for the internet";
-const SITE_DESCRIPTION =
-  "One shared canvas. Everyone here. Robinhood Chain happening live.";
+const SITE_DESCRIPTION = "A canvas for the internet";
 const OG_IMAGE_PATH = "/4663meta.jpg";
 const FAVICON_PATH = "/4663fav.png";
 
