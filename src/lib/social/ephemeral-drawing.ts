@@ -30,6 +30,13 @@ export const DRAWING_ZONE_WIDTH_PCT = DRAWING_ZONE_WIDTH_WORLD_PCT;
 export const DRAWING_ZONE_HEIGHT_PCT = DRAWING_ZONE_HEIGHT_WORLD_PCT;
 
 /**
+ * Accepted width/height % for drafts + page-data (IC3.3).
+ * Floor must allow IC2 world zones (~6.6% × ~6.1875%); ceiling keeps legacy ~22%.
+ */
+export const DRAWING_SIZE_PCT_MIN = 4 as const;
+export const DRAWING_SIZE_PCT_MAX = 40 as const;
+
+/**
  * Frozen authoring aspect ratio bounds (pixel width / pixel height).
  * Covers square-ish zones and extreme but plausible canvas ratios.
  */
@@ -169,7 +176,7 @@ export function normalizeDrawingStrokes(
 function clampSizePct(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   // Allow IC2 world-safe zone (~6.6%) while rejecting absurd sizes.
-  return Math.min(25, Math.max(4, value));
+  return Math.min(DRAWING_SIZE_PCT_MAX, Math.max(DRAWING_SIZE_PCT_MIN, value));
 }
 
 export function isValidDrawingAspectRatio(
@@ -284,8 +291,18 @@ export function normalizeEphemeralDrawingObject(
   }
   if (record.leftPct < -5 || record.leftPct > 105) return null;
   if (record.topPct < -5 || record.topPct > 105) return null;
-  if (record.widthPct < 8 || record.widthPct > 40) return null;
-  if (record.heightPct < 8 || record.heightPct > 40) return null;
+  if (
+    record.widthPct < DRAWING_SIZE_PCT_MIN ||
+    record.widthPct > DRAWING_SIZE_PCT_MAX
+  ) {
+    return null;
+  }
+  if (
+    record.heightPct < DRAWING_SIZE_PCT_MIN ||
+    record.heightPct > DRAWING_SIZE_PCT_MAX
+  ) {
+    return null;
+  }
 
   const widthPct = clampSizePct(record.widthPct, DRAWING_ZONE_WIDTH_PCT);
   const heightPct = clampSizePct(record.heightPct, DRAWING_ZONE_HEIGHT_PCT);

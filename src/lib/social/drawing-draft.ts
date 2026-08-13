@@ -6,6 +6,8 @@
 import {
   DRAWING_MAX_STROKES,
   DRAWING_MAX_TOTAL_POINTS,
+  DRAWING_SIZE_PCT_MAX,
+  DRAWING_SIZE_PCT_MIN,
   DRAWING_ZONE_HEIGHT_PCT,
   DRAWING_ZONE_WIDTH_PCT,
   hasMeaningfulStrokes,
@@ -60,7 +62,7 @@ export function createDrawingDraftId(
 
 function clampSizePct(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
-  return Math.min(25, Math.max(4, value));
+  return Math.min(DRAWING_SIZE_PCT_MAX, Math.max(DRAWING_SIZE_PCT_MIN, value));
 }
 
 export function normalizeDrawingDraft(raw: unknown): DrawingDraft | null {
@@ -93,8 +95,18 @@ export function normalizeDrawingDraft(raw: unknown): DrawingDraft | null {
   }
   if (record.leftPct < -5 || record.leftPct > 105) return null;
   if (record.topPct < -5 || record.topPct > 105) return null;
-  if (record.widthPct < 8 || record.widthPct > 40) return null;
-  if (record.heightPct < 8 || record.heightPct > 40) return null;
+  if (
+    record.widthPct < DRAWING_SIZE_PCT_MIN ||
+    record.widthPct > DRAWING_SIZE_PCT_MAX
+  ) {
+    return null;
+  }
+  if (
+    record.heightPct < DRAWING_SIZE_PCT_MIN ||
+    record.heightPct > DRAWING_SIZE_PCT_MAX
+  ) {
+    return null;
+  }
 
   const widthPct = clampSizePct(record.widthPct, DRAWING_ZONE_WIDTH_PCT);
   const heightPct = clampSizePct(record.heightPct, DRAWING_ZONE_HEIGHT_PCT);

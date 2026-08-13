@@ -29,6 +29,7 @@ import {
   type ViewportRect,
   worldTransformStyle,
 } from "@/lib/canvas/world-camera";
+import { dispatchEmptyCanvasClick } from "@/lib/social/canvas-create-actions";
 
 /** Module flag: empty-canvas click must ignore post-pan synthetic clicks. */
 let suppressEmptyCanvasClick = false;
@@ -189,6 +190,7 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     const endPan = (event: PointerEvent) => {
       const pan = panRef.current;
       if (!pan || event.pointerId !== pan.pointerId) return;
+      const wasActivePan = pan.active;
       panRef.current = null;
       document.body.removeAttribute("data-4663-panning");
       if (pan.captureEl) {
@@ -198,11 +200,35 @@ export function useCanvasCamera(): UseCanvasCameraResult {
           // ignore
         }
       }
-      if (pan.active) {
+      if (wasActivePan) {
+        // Pan gesture: suppress the synthetic click that may follow pointerup.
+        suppressEmptyCanvasClick = true;
         window.setTimeout(() => {
           suppressEmptyCanvasClick = false;
         }, 0);
+        return;
       }
+
+      // pointercancel is not a tap — do not open create UI.
+      if (event.type === "pointercancel") return;
+
+      // Tap / sub-threshold drag: open create menu explicitly.
+      // Viewport pointer capture retargets events away from empty-hit, so the
+      // empty-hit onClick often never fires after the world/camera refactor.
+      dispatchEmptyCanvasClick(
+        new MouseEvent("click", {
+          clientX: event.clientX,
+          clientY: event.clientY,
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        }),
+      );
+      // If a native click still arrives on empty-hit, ignore the duplicate.
+      suppressEmptyCanvasClick = true;
+      window.setTimeout(() => {
+        suppressEmptyCanvasClick = false;
+      }, 0);
     };
 
     window.addEventListener("pointermove", onPointerMove);
