@@ -86,42 +86,43 @@ export function BrandHero() {
       className="pointer-events-none absolute inset-0 z-[1]"
     >
       <div
-        className="pointer-events-auto absolute left-1/2 top-[calc(42%-3.25rem)] z-[2] flex -translate-x-1/2 -translate-y-1/2 items-center"
-        data-4663-hero-appearance-tools
-      >
-        <button
-          type="button"
-          className={HERO_TOOL_BUTTON}
-          data-4663-hero-hide
-          aria-label="Hide hero"
-          onClick={() => hideHero()}
-        >
-          HIDE
-        </button>
-      </div>
-
-      <div
         id={PLAYHTML_HERO_TITLE_ID}
         className="absolute left-1/2 top-[42%] z-[1] w-full max-w-[min(100%,42rem)] -translate-x-1/2 -translate-y-1/2 px-4"
         style={BRAND_TITLE_STYLE}
         data-4663-hero-title
         data-4663-brand-anchor="title"
       >
-        <button
-          type="button"
-          className={`${HERO_SELECT_BUTTON} w-full`}
-          aria-label={`Cycle hero colour (current ${preferences.color})`}
-          data-4663-hero-select="title"
-          data-4663-hero-color-value={preferences.color}
-          onClick={() => cycleColor()}
-        >
-          <h1
-            className={`whitespace-pre-line text-center text-5xl font-semibold tracking-tight sm:text-6xl ${titleColorClass}`}
-            style={colorStyle}
+        <div className="relative">
+          <div
+            className="pointer-events-auto absolute bottom-full left-1/2 z-[2] mb-1 flex -translate-x-1/2 items-center sm:mb-2"
+            data-4663-hero-appearance-tools
           >
-            {BRAND_HERO_TITLE}
-          </h1>
-        </button>
+            <button
+              type="button"
+              className={HERO_TOOL_BUTTON}
+              data-4663-hero-hide
+              aria-label="Hide hero"
+              onClick={() => hideHero()}
+            >
+              HIDE
+            </button>
+          </div>
+          <button
+            type="button"
+            className={`${HERO_SELECT_BUTTON} w-full`}
+            aria-label={`Cycle hero colour (current ${preferences.color})`}
+            data-4663-hero-select="title"
+            data-4663-hero-color-value={preferences.color}
+            onClick={() => cycleColor()}
+          >
+            <h1
+              className={`whitespace-pre-line text-center text-5xl font-semibold tracking-tight sm:text-6xl ${titleColorClass}`}
+              style={colorStyle}
+            >
+              {BRAND_HERO_TITLE}
+            </h1>
+          </button>
+        </div>
       </div>
 
       <div
