@@ -39,7 +39,7 @@ export function OfficialContractControl({
       onPointerDown={stopPlayhtmlMoveStart}
       onMouseDown={stopPlayhtmlMoveStart}
       onTouchStart={stopPlayhtmlMoveStart}
-      className="min-h-11 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:min-h-0 sm:text-[11px]"
+      className="font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
       aria-label="Copy official 4663 token contract"
       data-4663-official-contract
     >
