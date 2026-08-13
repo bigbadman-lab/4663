@@ -30,6 +30,7 @@ export type UseParticipationResult = {
   isParticipating: boolean;
   enter: (displayName: string) => { ok: true } | { ok: false; error: string };
   leave: () => void;
+  resetContent: () => { ok: true } | { ok: false; error: string };
   isWatching: (eventId: string) => boolean;
   watch: (eventId: string) => { ok: true } | { ok: false; error: string };
   unwatch: (eventId: string) => { ok: true } | { ok: false; error: string };
@@ -135,6 +136,15 @@ function useParticipationController(): UseParticipationResult {
     leave: () => {
       controllerRef.current?.leave();
       setWatchedEventIds([]);
+    },
+    resetContent: () => {
+      const controller = controllerRef.current;
+      if (!controller) {
+        return { ok: false as const, error: "Participation is unavailable." };
+      }
+      const result = controller.resetContent();
+      setWatchedEventIds([...controller.getWatchedEventIds()]);
+      return result;
     },
     isWatching: (eventId: string) => isWatchingEvent(watchedEventIds, eventId),
     watch: (eventId: string) => {

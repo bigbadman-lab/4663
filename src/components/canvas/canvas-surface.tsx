@@ -20,6 +20,12 @@ export type CanvasSurfaceProps = {
   summonId?: string | null;
   summonItems?: readonly SummonLayerItem[];
   onSummon?: () => void;
+  onDismissSummon?: () => void;
+  onReset?: () => void;
+  canSummon?: boolean;
+  summonActive?: boolean;
+  isSummonOwner?: boolean;
+  canReset?: boolean;
 };
 
 export function CanvasSurface({
@@ -27,6 +33,12 @@ export function CanvasSurface({
   summonId = null,
   summonItems = [],
   onSummon,
+  onDismissSummon,
+  onReset,
+  canSummon = false,
+  summonActive = false,
+  isSummonOwner = false,
+  canReset = false,
 }: CanvasSurfaceProps) {
   return (
     <div
@@ -42,7 +54,15 @@ export function CanvasSurface({
         <SummonLayer summonId={summonId} items={summonItems} />
       ) : null}
       <ParticipantPresenceLayer />
-      <CanvasControlPalette onSummon={onSummon} />
+      <CanvasControlPalette
+        onSummon={onSummon}
+        onDismissSummon={onDismissSummon}
+        onReset={onReset}
+        canSummon={canSummon}
+        summonActive={summonActive}
+        isSummonOwner={isSummonOwner}
+        canReset={canReset}
+      />
     </div>
   );
 }

@@ -23,6 +23,10 @@ import {
   notifySessionEnded,
   type SessionEndedContext,
 } from "@/lib/social/session-cleanup";
+import {
+  notifySessionContentReset,
+  type SessionContentResetContext,
+} from "@/lib/social/session-content-reset";
 import type {
   ParticipationPresencePayload,
   ParticipationSession,
@@ -45,6 +49,8 @@ export type ParticipationControllerDeps = {
   onError?: (error: unknown) => void;
   /** Override for tests; defaults to module sessionCleanupRegistry.notify. */
   onSessionEnded?: (ctx: SessionEndedContext) => void;
+  /** Override for tests; defaults to sessionContentResetRegistry.notify. */
+  onSessionContentReset?: (ctx: SessionContentResetContext) => void;
   now?: () => Date;
   randomUUID?: () => string;
 };
@@ -61,11 +67,16 @@ export class ParticipationController {
   private trackGeneration = 0;
   private readonly observerKey: string;
   private readonly onSessionEnded: (ctx: SessionEndedContext) => void;
+  private readonly onSessionContentReset: (
+    ctx: SessionContentResetContext,
+  ) => void;
 
   constructor(private readonly deps: ParticipationControllerDeps) {
     const randomUUID = deps.randomUUID ?? (() => crypto.randomUUID());
     this.observerKey = randomUUID();
     this.onSessionEnded = deps.onSessionEnded ?? notifySessionEnded;
+    this.onSessionContentReset =
+      deps.onSessionContentReset ?? notifySessionContentReset;
   }
 
   getSelf(): ParticipationSession | null {
@@ -155,6 +166,22 @@ export class ParticipationController {
     );
 
     this.onSessionEnded({ reason: "leave", sessionId: leftId });
+  }
+
+  /**
+   * RESET: clear session-owned ephemeral activity; keep named identity.
+   * Does not untrack Presence or clear sessionStorage.
+   */
+  resetContent(): { ok: true } | { ok: false; error: string } {
+    if (!this.self) {
+      return { ok: false, error: "Enter to reset." };
+    }
+    const sessionId = this.self.sessionId;
+    this.watchedEventIds = [];
+    this.retrackPresence();
+    this.patchSelfWatchInParticipants();
+    this.onSessionContentReset({ reason: "reset", sessionId });
+    return { ok: true };
   }
 
   watch(eventId: string): { ok: true } | { ok: false; error: string } {

@@ -68,6 +68,7 @@ import {
   type EphemeralTextsPageData,
 } from "@/lib/social/ephemeral-text";
 import { registerSessionEndedHandler } from "@/lib/social/session-cleanup";
+import { registerSessionContentResetHandler } from "@/lib/social/session-content-reset";
 import { createSocialBroadcastClient } from "@/lib/social/social-broadcast";
 import {
   buildTextDraft,
@@ -240,9 +241,9 @@ export function EphemeralTextLayer() {
     };
   }, []);
 
-  // Explicit LEAVE → clear composer/draw + drafts + owned published objects.
+  // Explicit LEAVE / RESET → clear composer/draw + owned published objects.
   useEffect(() => {
-    return registerSessionEndedHandler(({ sessionId }) => {
+    const clearOwned = (sessionId: string) => {
       const ui = createUiRef.current;
       if (ui?.mode === "compose") {
         clearLocalDraftBroadcast(ui.draftId, sessionId);
@@ -267,7 +268,18 @@ export function EphemeralTextLayer() {
       setRemoteDrawingDrafts((prev) =>
         removeDrawingDraftsByOwner(prev, sessionId),
       );
+    };
+
+    const unsubLeave = registerSessionEndedHandler(({ sessionId }) => {
+      clearOwned(sessionId);
     });
+    const unsubReset = registerSessionContentResetHandler(({ sessionId }) => {
+      clearOwned(sessionId);
+    });
+    return () => {
+      unsubLeave();
+      unsubReset();
+    };
   }, []);
 
   // Presence-loss: published texts/drawings + remote drafts.

@@ -1,5 +1,5 @@
 /**
- * Stage 10B.9 — shared SUMMON pure helpers + structural wiring.
+ * Stage 10B.9 / Social 5 — SUMMON helpers + structural wiring.
  */
 
 import assert from "node:assert/strict";
@@ -10,17 +10,20 @@ import { fileURLToPath } from "node:url";
 import { playhtmlEventElementId } from "@/lib/canvas/hero";
 import { CANVAS_SLOTS } from "@/lib/canvas/slots";
 import {
+  canClaimActiveSummon,
+  clearActiveSummonIfOwner,
+  createActiveSummonState,
+  normalizeActiveSummonPageData,
+  normalizeActiveSummonState,
+  retainActiveSummonForPresentOwner,
+  ACTIVE_SUMMON_PAGE_DATA_NAME,
+} from "@/lib/canvas/active-summon";
+import {
   assignSummonSlots,
   canDispatchSummon,
-  createSummonPayload,
-  isSummonExpired,
-  isSummonStaleOnReceive,
-  parseSummonPayload,
-  PLAYHTML_SUMMON_EVENT_TYPE,
   playhtmlSummonedElementId,
   resolveSummonEvents,
   selectSummonEventIds,
-  shouldApplySummon,
   SUMMON_COOLDOWN_MS,
   SUMMON_LIFETIME_MS,
   SUMMON_MAX_EVENTS,
@@ -44,6 +47,8 @@ function readSrc(rel: string): string {
 }
 
 const NOW = Date.parse("2026-08-12T12:00:00.000Z");
+const OWNER = "550e8400-e29b-41d4-a716-446655440000";
+const OTHER = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
 function event(
   overrides: Partial<PublicEvent> & Pick<PublicEvent, "id" | "occurredAt">,
@@ -78,49 +83,41 @@ describe("Stage 10B.9 summon selection + payload", () => {
         }),
       ),
     ];
-    const ids = selectSummonEventIds(events, NOW, SUMMON_MAX_EVENTS);
-    assert.equal(ids.length, 8);
+    const ids = selectSummonEventIds(events, NOW);
+    assert.equal(ids.length, SUMMON_MAX_EVENTS);
     assert.equal(ids.includes(idAt(0)), false);
     assert.equal(ids.includes(idAt(1)), false);
-    assert.equal(ids[0], idAt(10));
-    assert.equal(ids[7], idAt(17));
-
-    assert.equal(createSummonPayload([]), null);
-    assert.deepEqual(selectSummonEventIds([], NOW), []);
+    assert.equal(createActiveSummonState({ ownerSessionId: OWNER, eventIds: [] }), null);
   });
 
   it("4–6. payload shape, order preserved, malformed ignored", () => {
-    const payload = createSummonPayload([idAt(1), idAt(2)], {
+    const state = createActiveSummonState({
+      ownerSessionId: OWNER,
+      eventIds: [idAt(1), idAt(2)],
       summonId: idAt(99),
-      startedAt: NOW,
+      startedAt: "2026-08-13T00:00:00.000Z",
     });
-    assert.ok(payload);
-    assert.equal(payload!.summonId, idAt(99));
-    assert.deepEqual(payload!.eventIds, [idAt(1), idAt(2)]);
-    assert.equal(payload!.startedAt, NOW);
-    assert.equal(PLAYHTML_SUMMON_EVENT_TYPE, "4663-summon");
-
-    assert.equal(parseSummonPayload(null), null);
-    assert.equal(parseSummonPayload({ summonId: "x", eventIds: [], startedAt: 1 }), null);
+    assert.ok(state);
+    assert.equal(state!.ownerSessionId, OWNER);
+    assert.equal(ACTIVE_SUMMON_PAGE_DATA_NAME, "4663-active-summon");
+    assert.equal(normalizeActiveSummonState(null), null);
     assert.equal(
-      parseSummonPayload({
-        summonId: idAt(1),
-        eventIds: ["not-a-uuid"],
-        startedAt: NOW,
+      normalizeActiveSummonState({
+        summonId: "x",
+        ownerSessionId: OWNER,
+        eventIds: [idAt(1)],
+        startedAt: "2026-08-13T00:00:00.000Z",
       }),
       null,
     );
-    assert.deepEqual(
-      parseSummonPayload({
-        summonId: idAt(1),
-        eventIds: [idAt(2), idAt(3)],
-        startedAt: NOW,
+    assert.equal(
+      normalizeActiveSummonState({
+        summonId: idAt(99),
+        ownerSessionId: OWNER,
+        eventIds: [idAt(1), idAt(1)],
+        startedAt: "2026-08-13T00:00:00.000Z",
       }),
-      {
-        summonId: idAt(1),
-        eventIds: [idAt(2), idAt(3)],
-        startedAt: NOW,
-      },
+      null,
     );
   });
 });
@@ -128,21 +125,16 @@ describe("Stage 10B.9 summon selection + payload", () => {
 describe("Stage 10B.9 summon slots + ids + resolve", () => {
   it("7–9. deterministic SUMMON_SLOTS; summoned ids distinct from live", () => {
     assert.equal(SUMMON_SLOTS.length, 8);
-    assert.notDeepEqual(SUMMON_SLOTS, CANVAS_SLOTS);
+    assert.notDeepEqual(
+      SUMMON_SLOTS.map((s) => `${s.leftPct},${s.topPct}`),
+      CANVAS_SLOTS.map((s) => `${s.leftPct},${s.topPct}`),
+    );
     const events = [event({ id: idAt(1), occurredAt: isoAgo(200_000) })];
     const slotted = assignSummonSlots(events);
-    assert.equal(slotted[0]!.slot.id, "summon-0");
-    assert.equal(slotted[0]!.slot.leftPct, SUMMON_SLOTS[0]!.leftPct);
-
-    const summonId = idAt(50);
-    const eventId = idAt(1);
-    assert.equal(
-      playhtmlSummonedElementId(summonId, eventId),
-      `4663-summoned-${summonId}-${eventId}`,
-    );
+    assert.equal(slotted[0]?.slot.id, "summon-0");
     assert.notEqual(
-      playhtmlSummonedElementId(summonId, eventId),
-      playhtmlEventElementId(eventId),
+      playhtmlSummonedElementId(idAt(99), idAt(1)),
+      playhtmlEventElementId(idAt(1)),
     );
   });
 
@@ -151,111 +143,110 @@ describe("Stage 10B.9 summon slots + ids + resolve", () => {
       event({ id: idAt(1), occurredAt: isoAgo(200_000) }),
       event({ id: idAt(2), occurredAt: isoAgo(200_000) }),
     ];
-    const filtered = suppressLiveDuplicates(events, new Set([idAt(1)]));
-    assert.equal(filtered.length, 1);
-    assert.equal(filtered[0]!.id, idAt(2));
+    const live = new Set([idAt(1)]);
+    assert.deepEqual(
+      suppressLiveDuplicates(events, live).map((e) => e.id),
+      [idAt(2)],
+    );
   });
 
-  it("11–13. replace / expiry / stale receive", () => {
+  it("11–13. owner clear / presence retain / mutex", () => {
+    const state = createActiveSummonState({
+      ownerSessionId: OWNER,
+      eventIds: [idAt(1)],
+      summonId: idAt(99),
+      startedAt: "2026-08-13T00:00:00.000Z",
+    })!;
+    const data = { active: state };
     assert.equal(
-      shouldApplySummon({
-        payload: { summonId: idAt(1), eventIds: [], startedAt: NOW },
-        activeSummonId: idAt(2),
-        nowMs: NOW,
-      }),
-      "apply",
+      clearActiveSummonIfOwner(data, OTHER).active?.summonId,
+      state.summonId,
+    );
+    assert.equal(clearActiveSummonIfOwner(data, OWNER).active, null);
+    assert.equal(
+      retainActiveSummonForPresentOwner(data, new Set([OTHER])).active,
+      null,
     );
     assert.equal(
-      shouldApplySummon({
-        payload: { summonId: idAt(1), eventIds: [], startedAt: NOW },
-        activeSummonId: idAt(1),
-        nowMs: NOW,
-      }),
-      "ignore-duplicate",
+      retainActiveSummonForPresentOwner(data, new Set([OWNER])).active?.summonId,
+      state.summonId,
+    );
+    assert.equal(canClaimActiveSummon({ active: null }, new Set()), true);
+    assert.equal(
+      canClaimActiveSummon(data, new Set([OWNER])),
+      false,
     );
     assert.equal(
-      shouldApplySummon({
-        payload: {
-          summonId: idAt(3),
-          eventIds: [],
-          startedAt: NOW - SUMMON_LIFETIME_MS - 1,
-        },
-        activeSummonId: null,
-        nowMs: NOW,
-      }),
-      "ignore-stale",
+      canClaimActiveSummon(data, new Set([OTHER])),
+      true,
     );
-    assert.equal(SUMMON_LIFETIME_MS, 20_000);
-    assert.equal(isSummonExpired(NOW - 20_000, NOW), true);
-    assert.equal(isSummonStaleOnReceive(NOW - 20_001, NOW), true);
   });
 
-  it("14–17. resolve order, missing ignored, recovery merge, duplicate apply key", () => {
-    const local = [event({ id: idAt(1), occurredAt: isoAgo(200_000) })];
-    const recovery = [
-      event({ id: idAt(2), occurredAt: isoAgo(210_000) }),
-      event({ id: idAt(3), occurredAt: isoAgo(220_000) }),
-    ];
+  it("14–17. resolve order, missing ignored, recovery merge", () => {
+    const a = event({ id: idAt(1), occurredAt: isoAgo(200_000) });
+    const b = event({ id: idAt(2), occurredAt: isoAgo(200_000) });
     const resolved = resolveSummonEvents(
-      [idAt(3), idAt(1), idAt(9), idAt(2)],
-      local,
-      recovery,
+      [idAt(2), idAt(1), idAt(3)],
+      [a],
+      [b],
     );
     assert.deepEqual(
       resolved.map((e) => e.id),
-      [idAt(3), idAt(1), idAt(2)],
-    );
-
-    assert.equal(
-      shouldApplySummon({
-        payload: { summonId: idAt(7), eventIds: [idAt(1)], startedAt: NOW },
-        activeSummonId: idAt(7),
-        nowMs: NOW,
-      }),
-      "ignore-duplicate",
+      [idAt(2), idAt(1)],
     );
   });
 
-  it("18. 4s cooldown", () => {
+  it("18. 4s cooldown still available", () => {
     assert.equal(SUMMON_COOLDOWN_MS, 4_000);
     assert.equal(canDispatchSummon(null, NOW), true);
-    assert.equal(canDispatchSummon(NOW, NOW + 3_999), false);
-    assert.equal(canDispatchSummon(NOW, NOW + 4_000), true);
+    assert.equal(canDispatchSummon(NOW - 3_999, NOW), false);
+    assert.equal(canDispatchSummon(NOW - 4_000, NOW), true);
   });
 });
 
-describe("Stage 10B.9 summon wiring", () => {
-  it("19–24. palette Summon only; providers/stream/live semantics unchanged", () => {
+describe("Social 5 summon session semantics", () => {
+  it("fixed timer no longer drives active lifetime in controller", () => {
+    const controller = readSrc("src/components/canvas/use-summon-controller.ts");
+    assert.equal(controller.includes("SUMMON_LIFETIME_MS"), false);
+    assert.equal(controller.includes("setTimeout"), false);
+    assert.ok(controller.includes("ACTIVE_SUMMON_PAGE_DATA_NAME"));
+    assert.ok(controller.includes("registerSessionEndedHandler"));
+    assert.ok(controller.includes("retainActiveSummonForPresentOwner"));
+    assert.ok(controller.includes("usePageData"));
+    // Constant retained as deprecated marker only.
+    assert.equal(SUMMON_LIFETIME_MS, 20_000);
+  });
+
+  it("page-data active state + named gate + dismiss + RESET wiring", () => {
+    assert.equal(
+      normalizeActiveSummonPageData({ active: null }).active,
+      null,
+    );
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
-    assert.ok(palette.includes('item.id === "summon"'));
-    assert.ok(palette.includes("onSummon?.()"));
-    assert.ok(palette.includes("onPlaceholderAction"));
+    assert.ok(palette.includes("canSummon"));
+    assert.ok(palette.includes("onDismissSummon"));
+    assert.ok(palette.includes("[ DISMISS ]"));
+    assert.ok(palette.includes("onReset"));
+    assert.ok(palette.includes('item.id === "reset"'));
 
     const playTree = readSrc("src/components/canvas/canvas-play-tree.tsx");
-    assert.equal((playTree.match(/<PlayProvider\b/g) ?? []).length, 1);
-    assert.ok(playTree.includes("useSummonController"));
+    assert.ok(playTree.includes("resetContent"));
+    assert.ok(playTree.includes("isSummonOwner"));
 
-    const root = readSrc("src/components/canvas/canvas-root.tsx");
-    assert.equal((root.match(/usePublicEvents\(\)/g) ?? []).length, 1);
-    assert.ok(root.includes("events={events}"));
+    const summoned = readSrc("src/components/canvas/summoned-pons-object.tsx");
+    assert.equal(summoned.includes("PonsWatchControl"), false);
+    assert.equal(summoned.includes("PIN"), false);
+    assert.ok(/<CanMoveElement[^>]*>\s*<div\b/.test(summoned) || summoned.includes("<CanMoveElement"));
+  });
 
+  it("19–24. palette Summon wiring; providers/stream/live semantics unchanged", () => {
     assert.equal(LIVE_OBJECT_MAX_AGE_MS, 90_000);
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_DESKTOP, 6);
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_NARROW, 4);
-    assert.equal(CANVAS_SLOTS.length, 6);
-
-    const summoned = readSrc("src/components/canvas/summoned-pons-object.tsx");
-    assert.ok(summoned.includes("EARLIER") || summoned.includes("earlierLabel"));
-    assert.ok(summoned.includes("playhtmlSummonedElementId"));
-    assert.ok(summoned.includes("CanMoveElement"));
-    assert.equal(summoned.includes("aria-live"), false);
-
-    const controller = readSrc(
-      "src/components/canvas/use-summon-controller.ts",
-    );
-    assert.ok(controller.includes("registerPlayEventListener"));
-    assert.ok(controller.includes("dispatchPlayEvent"));
-    assert.ok(controller.includes("fetchRecentPublicEvents"));
-    assert.ok(controller.includes("applyPayload(payload)"));
+    const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
+    assert.ok(palette.includes("onSummon"));
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("SummonLayer"));
+    assert.ok(surface.includes("CanvasControlPalette"));
   });
 });

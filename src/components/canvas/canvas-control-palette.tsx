@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Shared movable control palette — placeholder icons only.
- * Actions are intentional no-ops until later stages.
+ * Shared movable control palette — SUMMON / RESET / placeholders.
  */
 
 import { CanMoveElement } from "@playhtml/react";
@@ -93,11 +92,25 @@ function PlaceholderIcon({ item }: { item: ControlPaletteItem }) {
   );
 }
 
+export type CanvasControlPaletteProps = {
+  onSummon?: () => void;
+  onDismissSummon?: () => void;
+  onReset?: () => void;
+  canSummon?: boolean;
+  summonActive?: boolean;
+  isSummonOwner?: boolean;
+  canReset?: boolean;
+};
+
 export function CanvasControlPalette({
   onSummon,
-}: {
-  onSummon?: () => void;
-}) {
+  onDismissSummon,
+  onReset,
+  canSummon = false,
+  summonActive = false,
+  isSummonOwner = false,
+  canReset = false,
+}: CanvasControlPaletteProps) {
   return (
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
@@ -108,36 +121,73 @@ export function CanvasControlPalette({
       >
         <div className="-translate-x-1/2">
           <div
-            className="flex max-w-[calc(100vw-2rem)] items-center gap-1 rounded-md border border-neutral-300 bg-white p-1 sm:gap-1.5 sm:p-1.5"
+            className="flex max-w-[calc(100vw-2rem)] flex-col items-center gap-1"
             data-4663-control-palette-shell
           >
-            {CONTROL_PALETTE_ITEMS.map((item) => (
+            <div className="flex items-center gap-1 rounded-md border border-neutral-300 bg-white p-1 sm:gap-1.5 sm:p-1.5">
+              {CONTROL_PALETTE_ITEMS.map((item) => {
+                const summonDisabled =
+                  item.id === "summon" && (!canSummon || summonActive);
+                const resetDisabled = item.id === "reset" && !canReset;
+                const disabled =
+                  (item.id === "summon" && summonDisabled) ||
+                  (item.id === "reset" && resetDisabled);
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    title={item.label}
+                    aria-label={item.label}
+                    aria-disabled={disabled ? true : undefined}
+                    data-4663-palette-control={item.id}
+                    data-4663-palette-disabled={disabled ? "true" : "false"}
+                    data-4663-palette-summon-active={
+                      item.id === "summon" && summonActive ? "true" : undefined
+                    }
+                    disabled={disabled}
+                    onClick={() => {
+                      if (item.id === "summon") {
+                        if (!canSummon || summonActive) return;
+                        onSummon?.();
+                        return;
+                      }
+                      if (item.id === "reset") {
+                        if (!canReset) return;
+                        onReset?.();
+                        return;
+                      }
+                      onPlaceholderAction(item.id);
+                    }}
+                    onPointerDown={stopMoveStart}
+                    onMouseDown={stopMoveStart}
+                    onTouchStart={stopMoveStart}
+                    className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded border border-transparent hover:border-neutral-200 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400 disabled:cursor-not-allowed disabled:opacity-40 sm:h-11 sm:w-11"
+                  >
+                    <span
+                      className="flex h-6 w-6 items-center justify-center"
+                      data-4663-palette-icon-slot={item.id}
+                    >
+                      <PlaceholderIcon item={item} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {summonActive && isSummonOwner ? (
               <button
-                key={item.id}
                 type="button"
-                title={item.label}
-                aria-label={item.label}
-                data-4663-palette-control={item.id}
-                onClick={() => {
-                  if (item.id === "summon") {
-                    onSummon?.();
-                    return;
-                  }
-                  onPlaceholderAction(item.id);
+                className="font-mono text-[10px] tracking-wide text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                data-4663-summon-dismiss
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDismissSummon?.();
                 }}
                 onPointerDown={stopMoveStart}
-                onMouseDown={stopMoveStart}
-                onTouchStart={stopMoveStart}
-                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded border border-transparent hover:border-neutral-200 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400 sm:h-11 sm:w-11"
               >
-                <span
-                  className="flex h-6 w-6 items-center justify-center"
-                  data-4663-palette-icon-slot={item.id}
-                >
-                  <PlaceholderIcon item={item} />
-                </span>
+                [ DISMISS ]
               </button>
-            ))}
+            ) : null}
           </div>
         </div>
       </div>

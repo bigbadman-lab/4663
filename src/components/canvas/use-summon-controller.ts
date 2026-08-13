@@ -1,137 +1,144 @@
 "use client";
 
 /**
- * Shared SUMMON controller — PlayHTML ephemeral events + local resolve.
- * Mount only under PlayProvider.
+ * Social 5 — SUMMON controller via PlayHTML page data (late-join + mutex).
+ * Lifetime is owner-session-bound (no fixed timer).
  */
 
-import { usePlayContext } from "@playhtml/react";
+import { usePageData } from "@playhtml/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SummonLayerItem } from "@/components/canvas/summon-layer";
 import {
+  ACTIVE_SUMMON_PAGE_DATA_NAME,
+  canClaimActiveSummon,
+  clearActiveSummonIfOwner,
+  createActiveSummonState,
+  EMPTY_ACTIVE_SUMMON_PAGE_DATA,
+  normalizeActiveSummonPageData,
+  retainActiveSummonForPresentOwner,
+  type ActiveSummonPageData,
+  type ActiveSummonState,
+} from "@/lib/canvas/active-summon";
+import {
   assignSummonSlots,
   canDispatchSummon,
-  createSummonPayload,
-  parseSummonPayload,
-  PLAYHTML_SUMMON_EVENT_TYPE,
   resolveSummonEvents,
   selectSummonEventIds,
-  shouldApplySummon,
   SUMMON_COOLDOWN_MS,
-  SUMMON_LIFETIME_MS,
   suppressLiveDuplicates,
-  type SummonPayload,
 } from "@/lib/canvas/summon";
 import { isEventVisibleByAge } from "@/lib/canvas/visible-events";
 import { fetchRecentPublicEvents } from "@/lib/events/fetch-recent";
 import type { PublicEvent } from "@/lib/events/types";
+import { registerSessionContentResetHandler } from "@/lib/social/session-content-reset";
+import { registerSessionEndedHandler } from "@/lib/social/session-cleanup";
+import { useParticipation } from "@/lib/social/use-participation";
 
 export type UseSummonControllerResult = {
   summonId: string | null;
   items: readonly SummonLayerItem[];
+  active: ActiveSummonState | null;
+  isOwner: boolean;
+  canSummon: boolean;
   onSummon: () => void;
-};
-
-type ActiveSummon = {
-  summonId: string;
-  startedAt: number;
-  eventIds: string[];
-  resolved: PublicEvent[];
+  onDismiss: () => void;
 };
 
 export function useSummonController(
   events: readonly PublicEvent[],
   nowMs: number,
 ): UseSummonControllerResult {
-  const { dispatchPlayEvent, registerPlayEventListener, removePlayEventListener } =
-    usePlayContext();
+  const { self, isParticipating, participants, status } = useParticipation();
+  const [pageData, setPageData] = usePageData<ActiveSummonPageData>(
+    ACTIVE_SUMMON_PAGE_DATA_NAME,
+    EMPTY_ACTIVE_SUMMON_PAGE_DATA,
+  );
+  const [resolved, setResolved] = useState<PublicEvent[]>([]);
 
-  const [active, setActive] = useState<ActiveSummon | null>(null);
+  const pageDataRef = useRef(pageData);
+  const setPageDataRef = useRef(setPageData);
+  pageDataRef.current = pageData;
+  setPageDataRef.current = setPageData;
 
-  const activeSummonIdRef = useRef<string | null>(null);
-  const lastDispatchAtRef = useRef<number | null>(null);
   const eventsRef = useRef(events);
-  const applyRef = useRef<(payload: SummonPayload) => void>(() => {});
+  eventsRef.current = events;
 
+  const lastDispatchAtRef = useRef<number | null>(null);
+
+  const normalized = normalizeActiveSummonPageData(pageData);
+  const active = normalized.active;
+
+  const writePageData = (next: ActiveSummonPageData) => {
+    setPageDataRef.current(normalizeActiveSummonPageData(next));
+  };
+
+  // Resolve active event ids (with optional recovery fetch).
   useEffect(() => {
-    eventsRef.current = events;
-  }, [events]);
+    if (!active) {
+      setResolved([]);
+      return;
+    }
 
-  useEffect(() => {
-    async function applyPayload(payload: SummonPayload): Promise<void> {
-      const nowMs = Date.now();
-      const decision = shouldApplySummon({
-        payload,
-        activeSummonId: activeSummonIdRef.current,
-        nowMs,
-      });
-      if (decision !== "apply") return;
+    let cancelled = false;
 
-      activeSummonIdRef.current = payload.summonId;
-
+    async function resolveActive(state: ActiveSummonState): Promise<void> {
       const local = eventsRef.current;
-      let resolved = resolveSummonEvents(payload.eventIds, local);
-      const missing = payload.eventIds.some(
-        (id) => !resolved.some((event) => event.id === id),
+      let next = resolveSummonEvents(state.eventIds, local);
+      const missing = state.eventIds.some(
+        (id) => !next.some((event) => event.id === id || event.id.toLowerCase() === id),
       );
-
       if (missing) {
         try {
           const recovered = await fetchRecentPublicEvents();
-          resolved = resolveSummonEvents(payload.eventIds, local, recovered);
+          next = resolveSummonEvents(state.eventIds, local, recovered);
         } catch {
-          // keep partial resolve
+          // keep partial
         }
       }
-
-      const liveIds = new Set(
-        local
-          .filter((event) => isEventVisibleByAge(event, Date.now()))
-          .map((event) => event.id),
-      );
-      resolved = suppressLiveDuplicates(resolved, liveIds);
-
-      setActive({
-        summonId: payload.summonId,
-        startedAt: payload.startedAt,
-        eventIds: payload.eventIds,
-        resolved,
-      });
+      if (!cancelled) setResolved(next);
     }
 
-    applyRef.current = (payload) => {
-      void applyPayload(payload);
-    };
-
-    const listenerId = registerPlayEventListener(PLAYHTML_SUMMON_EVENT_TYPE, {
-      onEvent: (raw) => {
-        const payload = parseSummonPayload(raw);
-        if (!payload) return;
-        void applyPayload(payload);
-      },
-    });
-
+    void resolveActive(active);
     return () => {
-      removePlayEventListener(PLAYHTML_SUMMON_EVENT_TYPE, listenerId);
+      cancelled = true;
     };
-  }, [registerPlayEventListener, removePlayEventListener]);
-
-  useEffect(() => {
-    if (!active) return;
-    const remaining = Math.max(
-      0,
-      SUMMON_LIFETIME_MS - (Date.now() - active.startedAt),
-    );
-    const id = window.setTimeout(() => {
-      if (activeSummonIdRef.current === active.summonId) {
-        activeSummonIdRef.current = null;
-      }
-      setActive((current) =>
-        current?.summonId === active.summonId ? null : current,
-      );
-    }, remaining);
-    return () => window.clearTimeout(id);
   }, [active]);
+
+  // LEAVE: owner clears active SUMMON.
+  useEffect(() => {
+    return registerSessionEndedHandler(({ sessionId }) => {
+      const current = normalizeActiveSummonPageData(pageDataRef.current);
+      const next = clearActiveSummonIfOwner(current, sessionId);
+      if (next.active !== current.active) {
+        writePageData(next);
+      }
+    });
+  }, []);
+
+  // RESET: owner clears active SUMMON only.
+  useEffect(() => {
+    return registerSessionContentResetHandler(({ sessionId }) => {
+      const current = normalizeActiveSummonPageData(pageDataRef.current);
+      const next = clearActiveSummonIfOwner(current, sessionId);
+      if (next.active !== current.active) {
+        writePageData(next);
+      }
+    });
+  }, []);
+
+  // Presence-loss: clear when owner is no longer present.
+  useEffect(() => {
+    if (status === "connecting" || status === "error") return;
+
+    const present = new Set(participants.map((p) => p.sessionId));
+    if (self) present.add(self.sessionId);
+
+    const current = normalizeActiveSummonPageData(pageDataRef.current);
+    const next = retainActiveSummonForPresentOwner(current, present);
+    if ((next.active?.summonId ?? null) !== (current.active?.summonId ?? null)) {
+      writePageData(next);
+    }
+  }, [participants, self, status]);
 
   const liveIds = useMemo(() => {
     return new Set(
@@ -143,38 +150,71 @@ export function useSummonController(
 
   const items = useMemo(() => {
     if (!active) return [];
-    const visible = suppressLiveDuplicates(active.resolved, liveIds);
-    return assignSummonSlots(visible);
-  }, [active, liveIds]);
+    const visible = suppressLiveDuplicates(resolved, liveIds);
+    // Preserve shared eventIds order for stable slots.
+    const byId = new Map(visible.map((e) => [e.id.toLowerCase(), e]));
+    const ordered: PublicEvent[] = [];
+    for (const id of active.eventIds) {
+      const event = byId.get(id);
+      if (event) ordered.push(event);
+    }
+    return assignSummonSlots(ordered);
+  }, [active, resolved, liveIds]);
+
+  const presentIds = useMemo(() => {
+    const set = new Set(participants.map((p) => p.sessionId));
+    if (self) set.add(self.sessionId);
+    return set;
+  }, [participants, self]);
+
+  const mutexFree = canClaimActiveSummon(normalized, presentIds);
+  const isOwner =
+    !!self && !!active && active.ownerSessionId === self.sessionId;
+  const canSummon =
+    isParticipating &&
+    !!self &&
+    mutexFree &&
+    canDispatchSummon(lastDispatchAtRef.current, Date.now(), SUMMON_COOLDOWN_MS);
 
   function onSummon(): void {
-    const nowMs = Date.now();
-    if (!canDispatchSummon(lastDispatchAtRef.current, nowMs, SUMMON_COOLDOWN_MS)) {
+    if (!isParticipating || !self) return;
+    const now = Date.now();
+    if (!canDispatchSummon(lastDispatchAtRef.current, now, SUMMON_COOLDOWN_MS)) {
       return;
     }
 
-    const eventIds = selectSummonEventIds(eventsRef.current, nowMs);
-    const payload = createSummonPayload(eventIds);
-    if (!payload) return;
+    const current = normalizeActiveSummonPageData(pageDataRef.current);
+    const present = new Set(participants.map((p) => p.sessionId));
+    present.add(self.sessionId);
+    if (!canClaimActiveSummon(current, present)) return;
 
-    lastDispatchAtRef.current = nowMs;
+    const eventIds = selectSummonEventIds(eventsRef.current, now);
+    const state = createActiveSummonState({
+      ownerSessionId: self.sessionId,
+      eventIds,
+    });
+    if (!state) return;
 
-    try {
-      dispatchPlayEvent({
-        type: PLAYHTML_SUMMON_EVENT_TYPE,
-        eventPayload: payload,
-      });
-    } catch {
-      // fall through to local apply
+    lastDispatchAtRef.current = now;
+    writePageData({ active: state });
+  }
+
+  function onDismiss(): void {
+    if (!self) return;
+    const current = normalizeActiveSummonPageData(pageDataRef.current);
+    const next = clearActiveSummonIfOwner(current, self.sessionId);
+    if (next.active !== current.active) {
+      writePageData(next);
     }
-
-    // Initiator fallback if room does not echo to self — deduped by summonId.
-    applyRef.current(payload);
   }
 
   return {
     summonId: active?.summonId ?? null,
     items,
+    active,
+    isOwner,
+    canSummon,
     onSummon,
+    onDismiss,
   };
 }

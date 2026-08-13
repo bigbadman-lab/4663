@@ -11,6 +11,7 @@ import { CanvasSurface } from "@/components/canvas/canvas-surface";
 import { useSummonController } from "@/components/canvas/use-summon-controller";
 import type { SlottedLiveEvent } from "@/lib/canvas/slots";
 import type { PublicEvent } from "@/lib/events/types";
+import { useParticipation } from "@/lib/social/use-participation";
 
 export type CanvasPlayTreeProps = {
   liveItems: readonly SlottedLiveEvent[];
@@ -23,6 +24,7 @@ function CanvasPlayTreeInner({
   events,
   nowMs,
 }: CanvasPlayTreeProps) {
+  const { isParticipating, resetContent } = useParticipation();
   const summon = useSummonController(events, nowMs);
 
   return (
@@ -36,6 +38,14 @@ function CanvasPlayTreeInner({
         summonId={summon.summonId}
         summonItems={summon.items}
         onSummon={summon.onSummon}
+        onDismissSummon={summon.onDismiss}
+        onReset={() => {
+          resetContent();
+        }}
+        canSummon={summon.canSummon}
+        summonActive={summon.active !== null}
+        isSummonOwner={summon.isOwner}
+        canReset={isParticipating}
       />
     </div>
   );
