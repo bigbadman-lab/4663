@@ -99,10 +99,12 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     assert.equal(PLAYHTML_HERO_SUBTITLE_ID, "4663-hero-subtitle");
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
-    assert.ok(surface.includes("MovableLogo"));
-    assert.ok(surface.includes("MovableHero"));
+    assert.ok(surface.includes("id={PLAYHTML_WORLD_BOUNDS_ID}"));
+    assert.equal(surface.includes("MovableLogo"), false);
+    assert.equal(surface.includes("MovableHero"), false);
 
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
+    assert.ok(chrome.includes("BrandAnchors"));
     assert.equal(chrome.includes("CanMoveElement"), false);
     assert.equal(chrome.includes("PlayProvider"), false);
     assert.equal(chrome.includes(PLAYHTML_LOGO_ID), false);

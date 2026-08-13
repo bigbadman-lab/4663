@@ -49,7 +49,7 @@ describe("Stage IC3.2 HOME fit scale", () => {
     assert.equal(initialHomeCameraForViewport(1440, 900).scale, 1);
   });
 
-  it("2–5. mobile portrait boot centres hero+subtitle at scale 1 (IC3.9)", () => {
+  it("2–5. mobile portrait boot uses scale 1 (IC3.10 viewport brand)", () => {
     for (const [vw, vh] of [
       [320, 568],
       [375, 812],
@@ -58,30 +58,18 @@ describe("Stage IC3.2 HOME fit scale", () => {
     ] as const) {
       const cam = initialHomeCameraForViewport(vw, vh);
       assert.equal(cam.scale, 1, `${vw}: expected scale 1, got ${cam.scale}`);
-      assert.ok(cam.scale >= HOME_FIT_MIN_SCALE - 1e-9);
-      assert.equal(
-        isWorldPointInCameraView(HOME_HERO_TITLE_WORLD, cam, vw, vh),
-        true,
-        `hero @ ${vw}`,
-      );
-      assert.equal(
-        isWorldPointInCameraView(HOME_HERO_SUBTITLE_WORLD, cam, vw, vh),
-        true,
-        `subtitle @ ${vw}`,
-      );
-      // Brand-first framing: title near horizontal centre of viewport.
-      const s = cam.scale;
-      const titleScreenX = (HOME_HERO_TITLE_WORLD.x - cam.x) * s;
+      // Home artboard centre stays horizontally centred in the crop.
+      const homeCenterX = HOME_REGION_LEFT_PX + 720;
+      const screenX = (homeCenterX - cam.x) * cam.scale;
       assert.ok(
-        Math.abs(titleScreenX / vw - 0.5) < 0.08,
-        `title not centred @ ${vw}: frac=${titleScreenX / vw}`,
+        Math.abs(screenX / vw - 0.5) < 0.08,
+        `home centre not centred @ ${vw}: frac=${screenX / vw}`,
       );
       const vis = visibleWorldSize(vw, vh, cam.scale);
       assert.ok(cam.x >= 0);
       assert.ok(cam.y >= 0);
       assert.ok(cam.x + vis.width <= WORLD_WIDTH_PX + 1e-6);
       assert.ok(cam.y + vis.height <= WORLD_HEIGHT_PX + 1e-6);
-      // Runtime HOME is always scale 1 (IC3.2.1).
       assert.equal(homeCameraForViewport(vw, vh).scale, 1);
     }
   });

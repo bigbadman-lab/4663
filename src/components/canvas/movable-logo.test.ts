@@ -1,5 +1,5 @@
 /**
- * Stage 10B.6 / IC3.9 — brand logo anchor (canonical, non-movable).
+ * Stage 10B.6 / IC3.10 — viewport-fixed brand logo (non-movable).
  */
 
 import assert from "node:assert/strict";
@@ -8,12 +8,9 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  HERO_SUBTITLE_DEFAULT_STYLE,
-  HERO_TITLE_DEFAULT_STYLE,
+  BRAND_LOGO_STYLE,
   LOGO_DEFAULT_STYLE,
   PLAYHTML_CANVAS_BOUNDS_ID,
-  PLAYHTML_HERO_SUBTITLE_ID,
-  PLAYHTML_HERO_TITLE_ID,
   PLAYHTML_LOGO_ID,
 } from "@/lib/canvas/hero";
 
@@ -26,70 +23,52 @@ function readSrc(rel: string): string {
   return readFileSync(path.join(root, rel), "utf8");
 }
 
-describe("Stage 10B.6 / IC3.9 brand logo", () => {
+describe("Stage 10B.6 / IC3.10 brand logo", () => {
   it("logo object exists with stable id 4663-logo", () => {
     assert.equal(PLAYHTML_LOGO_ID, "4663-logo");
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.ok(logo.includes("MovableLogo"));
-    assert.ok(logo.includes(PLAYHTML_LOGO_ID));
-    assert.equal(logo.includes("CanMoveElement"), false);
-    assert.ok(logo.includes("/4663pfp.png"));
-    assert.ok(logo.includes('data-4663-brand-anchor="logo"'));
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.ok(brand.includes("BrandLogo"));
+    assert.ok(brand.includes(PLAYHTML_LOGO_ID));
+    assert.equal(brand.includes("CanMoveElement"), false);
+    assert.ok(brand.includes("/4663pfp.png"));
+    assert.ok(brand.includes('data-4663-brand-anchor="logo"'));
   });
 
-  it("logo sits in world surface; not a can-move target", () => {
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.equal(logo.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"), false);
+  it("logo is viewport chrome; not in world / can-move", () => {
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.equal(brand.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"), false);
     assert.equal(PLAYHTML_CANVAS_BOUNDS_ID, "4663-world");
 
+    const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
+    assert.ok(chrome.includes("BrandAnchors"));
+
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
-    assert.ok(surface.includes("MovableLogo"));
-    assert.ok(surface.includes("id={PLAYHTML_WORLD_BOUNDS_ID}"));
+    assert.equal(surface.includes("MovableLogo"), false);
+    assert.equal(surface.includes("BrandLogo"), false);
   });
 
-  it("default top-left positioning at ~24px", () => {
+  it("default top-left positioning with safe-area", () => {
     assert.equal(LOGO_DEFAULT_STYLE.left, "24px");
     assert.equal(LOGO_DEFAULT_STYLE.top, "24px");
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.ok(logo.includes("LOGO_DEFAULT_STYLE"));
+    assert.ok(BRAND_LOGO_STYLE.left.includes("safe-area-inset-left"));
+    assert.ok(BRAND_LOGO_STYLE.top.includes("safe-area-inset-top"));
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.ok(brand.includes("BRAND_LOGO_STYLE"));
   });
 
   it("responsive size and iOS rounded-square styling", () => {
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.ok(logo.includes("h-16 w-16"));
-    assert.ok(logo.includes("sm:h-[72px] sm:w-[72px]"));
-    assert.ok(logo.includes("rounded-[16px]"));
-    assert.ok(logo.includes("sm:rounded-[18px]"));
-    assert.ok(logo.includes("overflow-hidden"));
-    assert.equal(logo.includes("rounded-full"), false);
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.ok(brand.includes("h-16 w-16"));
+    assert.ok(brand.includes("sm:h-[72px] sm:w-[72px]"));
+    assert.ok(brand.includes("rounded-[16px]"));
+    assert.ok(brand.includes("sm:rounded-[18px]"));
+    assert.equal(brand.includes("rounded-full"), false);
   });
 
-  it("no PlayHTML transform owner; clip/size on inner wrapper", () => {
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.equal(logo.includes("CanMoveElement"), false);
-    assert.equal(logo.includes("onPointerDown"), false);
-    assert.equal(logo.includes("onMouseDown"), false);
-    assert.equal(logo.includes("localStorage"), false);
-    assert.equal(logo.includes("setData"), false);
-    const outerMatch = logo.match(
-      /id=\{PLAYHTML_LOGO_ID\}[\s\S]*?className="([^"]+)"/,
-    );
-    assert.ok(outerMatch);
-    assert.equal(outerMatch![1].includes("translate"), false);
-  });
-
-  it("hero origins unchanged; also non-movable brand anchors", () => {
-    assert.equal(PLAYHTML_HERO_TITLE_ID, "4663-hero-title");
-    assert.equal(PLAYHTML_HERO_SUBTITLE_ID, "4663-hero-subtitle");
-    assert.equal(HERO_TITLE_DEFAULT_STYLE.left, "50%");
-    assert.equal(HERO_TITLE_DEFAULT_STYLE.top, "42%");
-    assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.left, "50%");
-    assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.top, "52%");
-
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    assert.equal((hero.match(/<CanMoveElement\b/g) ?? []).length, 0);
-    assert.ok(hero.includes(PLAYHTML_HERO_TITLE_ID));
-    assert.ok(hero.includes(PLAYHTML_HERO_SUBTITLE_ID));
-    assert.equal(hero.includes(PLAYHTML_LOGO_ID), false);
+  it("no PlayHTML transform owner", () => {
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.equal(brand.includes("CanMoveElement"), false);
+    assert.equal(brand.includes("setData"), false);
+    assert.equal(brand.includes("onPointerDown"), false);
   });
 });

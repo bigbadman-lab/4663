@@ -9,8 +9,6 @@
 import { useEffect } from "react";
 import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette";
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
-import { MovableHero } from "@/components/canvas/movable-hero";
-import { MovableLogo } from "@/components/canvas/movable-logo";
 import {
   PinnedPonsLayer,
   type PinnedLayerItem,
@@ -119,7 +117,8 @@ export function CanvasSurface({
           {/*
             Stack (bottom → top):
             1. empty/pan hit — world click + local pan (desktop + touch; touch-action: none)
-            2. home-region — hero/Summon/PONS/pills (pe-none shell; children pe-auto)
+            2. home-region — Summon/PONS/pills (pe-none shell; children pe-auto)
+               Brand anchors live in viewport chrome (IC3.10), not here.
             3. EphemeralTextLayer — TEXT/DRAW objects + composers (world %)
             Home chrome stays clickable; empty home areas pass through to the hit layer.
             touch-action:none on empty-hit lets the app own one-finger pan; object hosts
@@ -145,8 +144,6 @@ export function CanvasSurface({
               height: HOME_REGION_HEIGHT_PX,
             }}
           >
-            <MovableLogo />
-            <MovableHero />
             <MovableLiveEventLayer
               items={liveItems}
               isPinned={isPinned}

@@ -82,25 +82,18 @@ describe("Stage IC3.9 canonical brand entry", () => {
   });
 
   it("4. non-zero mocked PlayHTML hero translation cannot corrupt fresh-entry presentation", () => {
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     // Brand is not a can-move target — shared {x,y} is never applied.
-    assert.equal(hero.includes("CanMoveElement"), false);
-    assert.equal(logo.includes("CanMoveElement"), false);
-    assert.equal(hero.includes("transform"), false);
-    assert.equal(logo.includes("translate("), false);
+    assert.equal(brand.includes("CanMoveElement"), false);
+    assert.equal(brand.includes("translate("), false);
 
-    // Mock dirty room state exists but has no code path into brand style.
     for (const [id, xy] of Object.entries(MOCK_DIRTY_TRANSFORMS)) {
       assert.ok(xy.x !== 0 || xy.y !== 0, id);
-      assert.equal(hero.includes(`translate(${xy.x}`), false);
-      assert.equal(logo.includes(`translate(${xy.x}`), false);
+      assert.equal(brand.includes(`translate(${xy.x}`), false);
     }
 
-    // Presentation uses CSS origins only.
-    assert.ok(hero.includes("HERO_TITLE_DEFAULT_STYLE"));
-    assert.ok(hero.includes("HERO_SUBTITLE_DEFAULT_STYLE"));
-    assert.ok(logo.includes("LOGO_DEFAULT_STYLE"));
+    assert.ok(brand.includes("BrandHero"));
+    assert.ok(brand.includes("BrandLogo"));
   });
 
   it("5. fresh desktop entry presents canonical hero", () => {
@@ -155,21 +148,19 @@ describe("Stage IC3.9 canonical brand entry", () => {
     const m1 = initialHomeCameraForViewport(375, 812);
     const m2 = initialHomeCameraForViewport(375, 812);
     assert.deepEqual(m1, m2);
-    // No localStorage / cache gate in brand or camera boot.
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     const cameraHook = readSrc("src/components/canvas/use-canvas-camera.ts");
-    assert.equal(hero.includes("localStorage"), false);
+    assert.equal(brand.includes("localStorage"), false);
     assert.equal(cameraHook.includes("localStorage"), false);
   });
 
   it("8–10. boot performs zero shared writes (PlayHTML / Supabase / network)", () => {
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     const cameraHook = readSrc("src/components/canvas/use-canvas-camera.ts");
     const cameraLib = readSrc("src/lib/canvas/world-camera.ts");
 
-    for (const src of [hero, logo, surface, cameraHook, cameraLib]) {
+    for (const src of [brand, surface, cameraHook, cameraLib]) {
       assert.equal(src.includes("setData"), false);
       assert.equal(src.includes("deleteElementData"), false);
       assert.equal(src.includes("supabase"), false);
@@ -177,11 +168,8 @@ describe("Stage IC3.9 canonical brand entry", () => {
       assert.equal(src.includes("BroadcastChannel"), false);
     }
 
-    // Brand mounts are local CSS only — no can-move registration.
-    assert.equal(hero.includes("CanMoveElement"), false);
-    assert.equal(logo.includes("CanMoveElement"), false);
-    assert.equal(hero.includes("@playhtml/react"), false);
-    assert.equal(logo.includes("@playhtml/react"), false);
+    assert.equal(brand.includes("CanMoveElement"), false);
+    assert.equal(brand.includes("@playhtml/react"), false);
   });
 
   it("11. HOME restores canonical brand view locally", () => {
@@ -189,22 +177,11 @@ describe("Stage IC3.9 canonical brand entry", () => {
     assert.equal(home.scale, 1);
     assert.equal(home.x, HOME_REGION_LEFT_PX);
     assert.equal(home.y, HOME_REGION_TOP_PX);
-    assert.equal(
-      isWorldPointInCameraView(HOME_HERO_TITLE_WORLD, home, 1440, 900),
-      true,
-    );
-    assert.equal(
-      isWorldPointInCameraView(HOME_HERO_SUBTITLE_WORLD, home, 1440, 900),
-      true,
-    );
+    // Viewport brand is independent of camera; HOME only frames the world.
+    assert.equal(home.scale, 1);
 
-    // Mobile HOME recovers to scale 1 (IC3.2.1) with brand still framed.
     const mobileHome = homeCameraForViewport(390, 844);
     assert.equal(mobileHome.scale, 1);
-    assert.equal(
-      isWorldPointInCameraView(HOME_HERO_TITLE_WORLD, mobileHome, 390, 844),
-      true,
-    );
 
     const hook = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(hook.includes("homeCameraForViewport"));
@@ -212,24 +189,18 @@ describe("Stage IC3.9 canonical brand entry", () => {
   });
 
   it("12. another client's shared hero state is unaffected (no brand can-move writes)", () => {
-    // Architecture: brand never registers can-move, so other clients' shared
-    // hero {x,y} cannot be mutated by this client's load — and are unused.
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    const logo = readSrc("src/components/canvas/movable-logo.tsx");
-    assert.equal(hero.includes("CanMoveElement"), false);
-    assert.equal(logo.includes("CanMoveElement"), false);
-    assert.ok(hero.includes("never writes PlayHTML"));
-    assert.ok(hero.includes("local launch anchors") || hero.includes("Local launch anchors"));
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.equal(brand.includes("CanMoveElement"), false);
+    assert.ok(brand.includes("not PlayHTML can-move") || brand.includes("NOT world objects"));
   });
 
   it("13. only one semantic H1 exists in live brand surfaces", () => {
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    assert.equal((hero.match(/<h1\b/g) ?? []).length, 1);
-    assert.equal((hero.match(/>\s*4663\s*</g) ?? []).length, 1);
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.equal((brand.match(/<h1\b/g) ?? []).length, 1);
 
-    // Fallback shell also has one H1; playReady swaps exclusively (not both).
+    // Fallback uses CanvasChrome (BrandAnchors); playReady swaps exclusively.
     const rootSrc = readSrc("src/components/canvas/canvas-root.tsx");
-    assert.equal((rootSrc.match(/<h1\b/g) ?? []).length, 1);
+    assert.equal((rootSrc.match(/<h1\b/g) ?? []).length, 0);
     assert.ok(rootSrc.includes("!playReady"));
     assert.ok(rootSrc.includes("CanvasPlayTree"));
   });
@@ -249,9 +220,8 @@ describe("Stage IC3.9 canonical brand entry", () => {
     );
     assert.ok(pons.includes("CanMoveElement"));
 
-    // Brand is the only intentional can-move removal.
     assert.equal(
-      readSrc("src/components/canvas/movable-hero.tsx").includes(
+      readSrc("src/components/canvas/brand-anchors.tsx").includes(
         "CanMoveElement",
       ),
       false,

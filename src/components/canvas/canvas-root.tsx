@@ -7,19 +7,10 @@
  */
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
 import { LiveEventLayer } from "@/components/canvas/live-event-layer";
 import type { PinnedLayerItem } from "@/components/canvas/pinned-pons-layer";
-import {
-  HERO_SUBTITLE_DEFAULT_STYLE,
-  HERO_TITLE_DEFAULT_STYLE,
-  LOGO_DEFAULT_STYLE,
-  PLAYHTML_HERO_SUBTITLE_ID,
-  PLAYHTML_HERO_TITLE_ID,
-  PLAYHTML_LOGO_ID,
-} from "@/lib/canvas/hero";
 import {
   assignSlots,
   CANVAS_SLOTS,
@@ -84,7 +75,7 @@ function useWallClockMs(tickMs: number): number {
   return nowMs;
 }
 
-/** Pre-PlayHTML shell: same default hero origins, no drag. */
+/** Pre-PlayHTML shell: brand via CanvasChrome; live events only in surface. */
 function CanvasShellFallback({
   liveItems,
 }: {
@@ -103,47 +94,6 @@ function CanvasShellFallback({
         data-4663-canvas-surface
         data-4663-canvas-fallback-surface
       >
-        <div
-          id={PLAYHTML_LOGO_ID}
-          className="pointer-events-none absolute z-[15] select-none"
-          style={LOGO_DEFAULT_STYLE}
-          data-4663-logo
-          data-4663-brand-anchor="logo"
-        >
-          <div className="h-16 w-16 overflow-hidden rounded-[16px] sm:h-[72px] sm:w-[72px] sm:rounded-[18px]">
-            <Image
-              src="/4663pfp.png"
-              alt="4663"
-              width={72}
-              height={72}
-              className="pointer-events-none h-full w-full object-cover"
-              draggable={false}
-              priority
-            />
-          </div>
-        </div>
-        <div
-          id={PLAYHTML_HERO_TITLE_ID}
-          className="pointer-events-none absolute z-[15] select-none"
-          style={HERO_TITLE_DEFAULT_STYLE}
-          data-4663-hero-title
-          data-4663-brand-anchor="title"
-        >
-          <h1 className="-translate-x-1/2 -translate-y-1/2 text-5xl font-semibold tracking-tight text-[color:var(--canvas-fg,#171717)] sm:text-6xl">
-            4663
-          </h1>
-        </div>
-        <div
-          id={PLAYHTML_HERO_SUBTITLE_ID}
-          className="pointer-events-none absolute z-[15] max-w-[16rem] select-none sm:max-w-none"
-          style={HERO_SUBTITLE_DEFAULT_STYLE}
-          data-4663-hero-subtitle
-          data-4663-brand-anchor="subtitle"
-        >
-          <p className="-translate-x-1/2 text-center font-mono text-[11px] leading-snug tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] sm:text-xs">
-            the live canvas for robinhood chain
-          </p>
-        </div>
         <LiveEventLayer items={liveItems} />
       </div>
     </div>

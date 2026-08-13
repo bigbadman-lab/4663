@@ -260,10 +260,8 @@ export const HOME_FIT_MIN_SCALE = 0.34 as const;
 export const WORLD_CAMERA_SCALE_ATTR = "data-4663-world-scale" as const;
 
 /**
- * Canonical HOME content rectangle (world px) for fit-scale / mobile HOME.
- * IC3.9 — brand-first: frame H1 + subtitle so the title is intentionally
- * centred. Logo is included when it lies inside that band; it is not allowed
- * to pull the composition off-centre the way a logo→hero union box did.
+ * Canonical HOME content rectangle (world px) — legacy fit math / tests.
+ * IC3.10 — not used to position viewport-fixed brand anchors.
  */
 export function homeFitContentBounds(): {
   left: number;
@@ -276,7 +274,6 @@ export function homeFitContentBounds(): {
   const heroHalf = HOME_FIT_HERO_HALF_WIDTH_PX + HOME_FIT_PAD_PX;
   const left = HOME_HERO_TITLE_WORLD.x - heroHalf;
   const right = HOME_HERO_TITLE_WORLD.x + heroHalf;
-  // Title optical center sits mid-glyph; pad above for the H1 block.
   const top = HOME_HERO_TITLE_WORLD.y - HOME_FIT_HERO_HALF_WIDTH_PX;
   const bottom = HOME_HERO_SUBTITLE_WORLD.y + HOME_FIT_BELOW_SUBTITLE_PX;
   return {
@@ -311,33 +308,21 @@ export function isWorldPointInCameraView(
 }
 
 /**
- * Largest local fit scale ≤ 1 for the HOME composition (IC3.2).
- * Used only for the initial landing frame — not for HOME / navigation.
+ * Largest local fit scale ≤ 1 (IC3.2 legacy helper).
+ * IC3.10 — brand is viewport-fixed; boot never zooms out solely for logo/H1.
+ * Always returns 1. Retained for scale-recovery helpers / tests.
  */
 export function homeFitScaleForViewport(
-  viewportWidth: number,
-  viewportHeight: number,
+  _viewportWidth: number,
+  _viewportHeight: number,
 ): number {
-  const vw = Math.max(1, viewportWidth);
-  const vh = Math.max(1, viewportHeight);
-  if (vw >= HOME_FRAME_DESKTOP_MIN_WIDTH_PX) return 1;
-
-  const content = homeFitContentBounds();
-  const topChrome = Math.min(HOME_FRAME_TOP_CHROME_PX, vh * 0.1);
-  const bottomChrome = Math.min(HOME_FRAME_BOTTOM_CHROME_PX, vh * 0.3);
-  const sidePad = Math.min(16, vw * 0.04);
-  const usableW = Math.max(1, vw - sidePad * 2);
-  const usableH = Math.max(1, vh - topChrome - bottomChrome);
-  const fitScale = Math.min(
-    1,
-    usableW / content.width,
-    usableH / content.height,
-  );
-  return Math.max(HOME_FIT_MIN_SCALE, fitScale);
+  return 1;
 }
 
 /**
- * Frame HOME content (or full artboard on desktop) at a given local scale.
+ * Frame HOME artboard (or scaled view) centred in the viewport (IC3.10).
+ * Brand anchors are viewport-fixed chrome — camera framing no longer
+ * targets logo/H1/subtitle world geometry.
  */
 export function frameHomeCameraForViewport(
   viewportWidth: number,
@@ -351,55 +336,31 @@ export function frameHomeCameraForViewport(
   const homeCenterX = HOME_REGION_LEFT_PX + HOME_REGION_WIDTH_PX / 2;
   const homeCenterY = HOME_REGION_TOP_PX + HOME_REGION_HEIGHT_PX / 2;
 
-  // Desktop: keep the familiar full-artboard-centred crop.
-  if (vw >= HOME_FRAME_DESKTOP_MIN_WIDTH_PX) {
-    return clampCamera(
-      {
-        x: homeCenterX - vw / (2 * s),
-        y: homeCenterY - vh / (2 * s),
-        scale: s,
-      },
-      vw,
-      vh,
-    );
-  }
-
-  const content = homeFitContentBounds();
-  const topChrome = Math.min(HOME_FRAME_TOP_CHROME_PX, vh * 0.1);
-  const bottomChrome = Math.min(HOME_FRAME_BOTTOM_CHROME_PX, vh * 0.3);
-  const sidePad = Math.min(16, vw * 0.04);
-  const usableW = Math.max(1, vw - sidePad * 2);
-  const usableH = Math.max(1, vh - topChrome - bottomChrome);
-
-  // Center content in the usable band (chrome-aware), in world units.
-  const usableWorldW = usableW / s;
-  const usableWorldH = usableH / s;
-  const camX =
-    content.left - (usableWorldW - content.width) / 2 - sidePad / s;
-  const camY =
-    content.top - (usableWorldH - content.height) / 2 - topChrome / s;
-
-  return clampCamera({ x: camX, y: camY, scale: s }, vw, vh);
+  return clampCamera(
+    {
+      x: homeCenterX - vw / (2 * s),
+      y: homeCenterY - vh / (2 * s),
+      scale: s,
+    },
+    vw,
+    vh,
+  );
 }
 
 /**
- * Initial boot/refresh landing camera (IC3.2.1).
- * Narrow mobile may use fit scale < 1 so H1+subtitle read centred on first paint.
+ * Initial boot/refresh landing camera (IC3.10).
+ * Always scale 1 — brand is viewport-fixed; no fit-scale to expose logo.
  */
 export function initialHomeCameraForViewport(
   viewportWidth: number,
   viewportHeight: number,
 ): CanvasCamera {
-  return frameHomeCameraForViewport(
-    viewportWidth,
-    viewportHeight,
-    homeFitScaleForViewport(viewportWidth, viewportHeight),
-  );
+  return frameHomeCameraForViewport(viewportWidth, viewportHeight, 1);
 }
 
 /**
- * Runtime HOME control camera (IC3.2.1).
- * Always scale = 1 — normal-view recovery, never fitted zoom-out.
+ * Runtime HOME control camera (IC3.2.1 / IC3.10).
+ * Always scale = 1 — normal-view recovery.
  */
 export function homeCameraForViewport(
   viewportWidth: number,

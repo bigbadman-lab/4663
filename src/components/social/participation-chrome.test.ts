@@ -74,21 +74,22 @@ describe("Social 1B / 1C.1 participation control placement", () => {
   });
 
   it("participation control is NOT nested inside brand hero", () => {
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
-    assert.equal(hero.includes("ParticipationEnter"), false);
-    assert.equal(hero.includes("ParticipationSelf"), false);
-    assert.equal(hero.includes("useParticipation"), false);
-    assert.equal(hero.includes("PARTICIPATION_CONTROL"), false);
-    assert.equal((hero.match(/<CanMoveElement\b/g) ?? []).length, 0);
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.equal(brand.includes("ParticipationEnter"), false);
+    assert.equal(brand.includes("ParticipationSelf"), false);
+    assert.equal(brand.includes("useParticipation"), false);
+    assert.equal(brand.includes("PARTICIPATION_CONTROL"), false);
+    assert.equal((brand.match(/<CanMoveElement\b/g) ?? []).length, 0);
 
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("data-4663-chrome-participation"));
+    assert.ok(chrome.includes("BrandAnchors"));
   });
 
   it("ParticipantPresenceLayer remains unchanged wiring", () => {
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("ParticipantPresenceLayer"));
-    assert.ok(surface.includes("MovableHero"));
+    assert.equal(surface.includes("MovableHero"), false);
 
     const layer = readSrc(
       "src/components/social/participant-presence-layer.tsx",

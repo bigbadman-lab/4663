@@ -36,7 +36,7 @@ describe("Social 8A.2 canvas tone chrome placement", () => {
   });
 
   it("hero uses canvas fg/muted vars for tone readability", () => {
-    const hero = readSrc("src/components/canvas/movable-hero.tsx");
+    const hero = readSrc("src/components/canvas/brand-anchors.tsx");
     assert.ok(hero.includes("--canvas-fg"));
     assert.ok(hero.includes("--canvas-muted"));
   });

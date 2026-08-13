@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Fixed canvas chrome: intro/guide (top-right), hero-area participation,
- * presence + clock footer. Outside PlayHTML — never movable.
+ * Fixed canvas chrome: brand anchors + intro/guide (top-right),
+ * hero-area participation, presence + clock footer.
+ * Outside PlayHTML / camera world — never movable.
  */
 
 import { useCallback, useState } from "react";
+import { BrandAnchors } from "@/components/canvas/brand-anchors";
 import { CanvasGuideNote } from "@/components/canvas/canvas-guide-note";
 import { CanvasGuideTrigger } from "@/components/canvas/canvas-guide-trigger";
 import { CanvasIntroNote } from "@/components/canvas/canvas-intro-note";
@@ -38,6 +40,8 @@ export function CanvasChrome() {
         className="pointer-events-none absolute inset-0 z-20"
         data-4663-canvas-chrome
       >
+        <BrandAnchors />
+
         <div
           className="pointer-events-auto absolute -translate-x-1/2 text-center"
           style={PARTICIPATION_CONTROL_DEFAULT_STYLE}
