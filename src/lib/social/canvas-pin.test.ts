@@ -9,15 +9,19 @@ import { colourFromSessionId } from "@/lib/social/colour";
 import {
   PIN_TTL_MS,
   isEventLiveForPin,
+  isPinOwner,
   normalizeCanvasPin,
   parseCreatePinInput,
+  parseUnpinPinInput,
   pinExpiresAtFromOccurred,
   pruneExpiredPins,
+  removeCanvasPinById,
+  shouldRestoreLiveAfterUnpin,
   suppressLiveEventsWhenPinned,
   upsertCanvasPin,
   type CanvasPin,
 } from "@/lib/social/canvas-pin";
-import { createCanvasPin } from "@/lib/social/pins-server";
+import { createCanvasPin, deleteCanvasPin } from "@/lib/social/pins-server";
 import type { PublicEvent } from "@/lib/events/types";
 
 const SESSION_A = "550e8400-e29b-41d4-a716-446655440000";
@@ -120,6 +124,99 @@ describe("Social 7 PIN helpers", () => {
     assert.ok(normalizeCanvasPin(pin));
     assert.deepEqual(pruneExpiredPins([pin], Date.parse(pin.expiresAt)), []);
     assert.equal(upsertCanvasPin([], pin).length, 1);
+  });
+
+  it("owner helpers + live restoration after unpin", () => {
+    const pin = samplePin();
+    assert.equal(isPinOwner(pin, SESSION_A), true);
+    assert.equal(isPinOwner(pin, "550e8400-e29b-41d4-a716-446655440099"), false);
+    assert.equal(removeCanvasPinById([pin], pin.id).length, 0);
+
+    const parsed = parseUnpinPinInput({
+      pinId: pin.id,
+      participationSessionId: SESSION_A,
+    });
+    assert.equal(parsed.ok, true);
+
+    assert.equal(
+      shouldRestoreLiveAfterUnpin(
+        new Date(NOW - 5 * 60 * 1000).toISOString(),
+        NOW,
+      ),
+      true,
+    );
+    assert.equal(
+      shouldRestoreLiveAfterUnpin(
+        new Date(NOW - LIVE_OBJECT_MAX_AGE_MS).toISOString(),
+        NOW,
+      ),
+      false,
+    );
+  });
+});
+
+describe("Social 7.1 PIN server delete", () => {
+  it("deletes only when session owns pin", async () => {
+    let deleteCalls = 0;
+    const supabase = {
+      from() {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      async maybeSingle() {
+                        return {
+                          data: {
+                            id: "770e8400-e29b-41d4-a716-446655440000",
+                            chain_id: 4663,
+                            pinned_by_session_id: SESSION_A,
+                          },
+                          error: null,
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+          delete() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      async eq() {
+                        deleteCalls += 1;
+                        return { error: null };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+
+    const denied = await deleteCanvasPin(supabase as never, {
+      pinId: "770e8400-e29b-41d4-a716-446655440000",
+      participationSessionId: "550e8400-e29b-41d4-a716-446655440099",
+    });
+    assert.equal(denied.ok, false);
+    if (!denied.ok) assert.equal(denied.error, "not_pin_owner");
+    assert.equal(deleteCalls, 0);
+
+    const ok = await deleteCanvasPin(supabase as never, {
+      pinId: "770e8400-e29b-41d4-a716-446655440000",
+      participationSessionId: SESSION_A,
+    });
+    assert.equal(ok.ok, true);
+    assert.equal(deleteCalls, 1);
   });
 });
 

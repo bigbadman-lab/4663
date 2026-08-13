@@ -1,5 +1,5 @@
 /**
- * Injectable Realtime INSERT subscription for public.canvas_pins.
+ * Injectable Realtime INSERT + DELETE subscription for public.canvas_pins.
  */
 
 import type { BrowserSupabase } from "@/lib/events/supabase-browser";
@@ -21,8 +21,9 @@ export type PinsRealtimeSubscription = {
 };
 
 export type PinsRealtimeClient = {
-  subscribeInserts: (handlers: {
+  subscribeChanges: (handlers: {
     onInsert: (row: unknown) => void;
+    onDelete: (row: unknown) => void;
     onStatus: (status: PinsRealtimeStatus) => void;
   }) => PinsRealtimeSubscription;
 };
@@ -31,7 +32,7 @@ export function createPinsRealtimeClient(
   supabase: BrowserSupabase,
 ): PinsRealtimeClient {
   return {
-    subscribeInserts({ onInsert, onStatus }) {
+    subscribeChanges({ onInsert, onDelete, onStatus }) {
       const channel: RealtimeChannel = supabase
         .channel(CANVAS_PINS_REALTIME_CHANNEL)
         .on(
@@ -43,6 +44,17 @@ export function createPinsRealtimeClient(
           },
           (payload) => {
             onInsert(payload.new);
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: CANVAS_PINS_TABLE,
+          },
+          (payload) => {
+            onDelete(payload.old);
           },
         )
         .subscribe((status) => {

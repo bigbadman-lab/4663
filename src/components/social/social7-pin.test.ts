@@ -64,17 +64,19 @@ describe("Social 7 PIN UI + lifecycle invariants", () => {
     assert.ok(hook.includes("pruneExpiredPins"));
   });
 
-  it("API + migration: no generated column; unique event; RLS; realtime", () => {
+  it("API + migration: no generated column; unique event; RLS; realtime; owner DELETE", () => {
     const route = readSrc("src/app/api/social/pins/route.ts");
     assert.ok(route.includes("createCanvasPin"));
     assert.ok(route.includes("loadActiveCanvasPins"));
-    assert.equal(route.includes("export async function DELETE"), false);
+    assert.ok(route.includes("export async function DELETE"));
+    assert.ok(route.includes("deleteCanvasPin"));
 
     const server = readSrc("src/lib/social/pins-server.ts");
     assert.ok(server.includes("not_live"));
     assert.ok(server.includes("already_pinned"));
     assert.ok(server.includes("isEventLiveForPin"));
     assert.ok(server.includes("pinExpiresAtFromOccurred"));
+    assert.ok(server.includes("not_pin_owner"));
     assert.equal(/created_at\s*:/.test(server), false);
 
     const migration = readSrc(
@@ -87,6 +89,16 @@ describe("Social 7 PIN UI + lifecycle invariants", () => {
     assert.ok(migration.includes("canvas_pins_public_select"));
     assert.ok(migration.includes("supabase_realtime"));
     assert.ok(migration.includes("ENABLE ROW LEVEL SECURITY"));
+    assert.ok(migration.includes("GRANT SELECT"));
+    assert.equal(migration.includes("FOR DELETE"), false);
+    assert.equal(migration.includes("GRANT DELETE"), false);
+  });
+
+  it("pinned object exposes owner-only UNPIN control", () => {
+    const pinned = readSrc("src/components/canvas/pinned-pons-object.tsx");
+    assert.ok(pinned.includes("[ UNPIN ]"));
+    assert.ok(pinned.includes("isPinOwner"));
+    assert.ok(pinned.includes("data-4663-pons-unpin"));
   });
 
   it("duplicate suppression + watch pruner includes pinned ids", () => {

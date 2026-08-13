@@ -10,6 +10,7 @@ import {
   canvasPinFromRow,
   isEventLiveForPin,
   parseCreatePinInput,
+  parseUnpinPinInput,
   pinExpiresAtFromOccurred,
   type CanvasPin,
 } from "@/lib/social/canvas-pin";
@@ -125,4 +126,58 @@ export async function createCanvasPin(
     return { ok: false, error: "insert_failed", status: 500 };
   }
   return { ok: true, pin, status: 201 };
+}
+
+export type DeleteCanvasPinResult =
+  | { ok: true; status: 200; alreadyGone?: boolean }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Owner UNPIN — service-role delete after session ownership check.
+ * Ownership: pinned_by_session_id === claimed participationSessionId.
+ */
+export async function deleteCanvasPin(
+  supabase: PresenceSupabase,
+  body: unknown,
+): Promise<DeleteCanvasPinResult> {
+  const parsed = parseUnpinPinInput(body);
+  if (!parsed.ok) {
+    return { ok: false, error: parsed.error, status: 400 };
+  }
+
+  const { data: row, error: lookupError } = await supabase
+    .from(CANVAS_PINS_TABLE)
+    .select("id, chain_id, pinned_by_session_id")
+    .eq("id", parsed.pinId)
+    .eq("chain_id", CHAIN_ID)
+    .maybeSingle();
+
+  if (lookupError) {
+    return { ok: false, error: "lookup_failed", status: 500 };
+  }
+  if (!row) {
+    // Idempotent: already gone.
+    return { ok: true, status: 200, alreadyGone: true };
+  }
+
+  const ownerId =
+    typeof row.pinned_by_session_id === "string"
+      ? row.pinned_by_session_id.trim().toLowerCase()
+      : "";
+  if (ownerId !== parsed.participationSessionId) {
+    return { ok: false, error: "not_pin_owner", status: 403 };
+  }
+
+  const { error: deleteError } = await supabase
+    .from(CANVAS_PINS_TABLE)
+    .delete()
+    .eq("id", parsed.pinId)
+    .eq("chain_id", CHAIN_ID)
+    .eq("pinned_by_session_id", parsed.participationSessionId);
+
+  if (deleteError) {
+    return { ok: false, error: "delete_failed", status: 500 };
+  }
+
+  return { ok: true, status: 200 };
 }

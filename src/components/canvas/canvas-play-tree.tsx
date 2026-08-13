@@ -24,6 +24,9 @@ export type CanvasPlayTreeProps = {
   onPin: (
     eventId: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onUnpin: (
+    pinId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 function CanvasPlayTreeInner({
@@ -33,6 +36,7 @@ function CanvasPlayTreeInner({
   nowMs,
   isPinned,
   onPin,
+  onUnpin,
 }: CanvasPlayTreeProps) {
   const { isParticipating, resetContent, self } = useParticipation();
   const summon = useSummonController(events, nowMs);
@@ -67,6 +71,7 @@ function CanvasPlayTreeInner({
         canReset={isParticipating}
         isPinned={isPinned}
         onPin={onPin}
+        onUnpin={onUnpin}
       />
     </div>
   );

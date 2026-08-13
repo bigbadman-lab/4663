@@ -106,7 +106,7 @@ describe("Social 8A responsive bottom control dock", () => {
 
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
     assert.ok(layer.includes("registerCanvasCreateActions"));
-    assert.ok(layer.includes("DOCK_CREATE_DEFAULT_PCT"));
+    assert.ok(layer.includes("DOCK_CREATE_DEFAULT_ORIGIN"));
     assert.ok(layer.includes("openText"));
     assert.ok(layer.includes("openDraw"));
     assert.ok(layer.includes("openMark"));

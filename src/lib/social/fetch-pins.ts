@@ -91,3 +91,49 @@ export async function postCanvasPin(
 
   return { ok: false, error, status: res.status };
 }
+
+export type DeleteCanvasPinInput = {
+  pinId: string;
+  participationSessionId: string;
+};
+
+export type DeleteCanvasPinClientResult =
+  | { ok: true; alreadyGone?: boolean }
+  | { ok: false; error: string; status: number };
+
+export async function deleteCanvasPinRequest(
+  input: DeleteCanvasPinInput,
+  fetchFn: typeof fetch = fetch,
+): Promise<DeleteCanvasPinClientResult> {
+  const res = await fetchFn(PINS_API_PATH, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  let payload: unknown = null;
+  try {
+    payload = await res.json();
+  } catch {
+    return { ok: false, error: "invalid_response", status: res.status };
+  }
+
+  if (res.ok) {
+    const alreadyGone =
+      payload !== null &&
+      typeof payload === "object" &&
+      !Array.isArray(payload) &&
+      (payload as { alreadyGone?: unknown }).alreadyGone === true;
+    return { ok: true, alreadyGone };
+  }
+
+  const error =
+    payload !== null &&
+    typeof payload === "object" &&
+    !Array.isArray(payload) &&
+    typeof (payload as { error?: unknown }).error === "string"
+      ? (payload as { error: string }).error
+      : "delete_failed";
+
+  return { ok: false, error, status: res.status };
+}

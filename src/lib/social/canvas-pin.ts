@@ -86,6 +86,35 @@ export function upsertCanvasPin(
   );
 }
 
+export function removeCanvasPinById(
+  pins: readonly CanvasPin[],
+  pinId: string,
+): CanvasPin[] {
+  if (!isUuid(pinId)) return [...pins];
+  const id = normalizeSessionId(pinId);
+  return pins.filter((pin) => pin.id !== id);
+}
+
+export function isPinOwner(
+  pin: Pick<CanvasPin, "pinnedBySessionId">,
+  sessionId: string | null | undefined,
+): boolean {
+  if (!sessionId || !isUuid(sessionId)) return false;
+  return pin.pinnedBySessionId === normalizeSessionId(sessionId);
+}
+
+/**
+ * After UNPIN: live copy restores only while event remains LIVE (<10m).
+ * Pure helper for tests / documentation of restoration rule.
+ */
+export function shouldRestoreLiveAfterUnpin(
+  occurredAtIso: string,
+  nowMs: number,
+  liveMaxAgeMs: number = LIVE_OBJECT_MAX_AGE_MS,
+): boolean {
+  return isEventLiveForPin(occurredAtIso, nowMs, liveMaxAgeMs);
+}
+
 export function pinnedEventIdSet(
   pins: readonly CanvasPin[],
   nowMs: number = Date.now(),
@@ -260,6 +289,32 @@ export function parseCreatePinInput(body: unknown): ParsedCreatePin {
     participationSessionId: normalizeSessionId(record.participationSessionId),
     displayName: nameResult.name,
     colour: record.colour,
+  };
+}
+
+export type ParsedUnpinPin =
+  | {
+      ok: true;
+      pinId: string;
+      participationSessionId: string;
+    }
+  | { ok: false; error: string };
+
+export function parseUnpinPinInput(body: unknown): ParsedUnpinPin {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, error: "invalid_body" };
+  }
+  const record = body as Record<string, unknown>;
+  if (!isUuid(record.pinId)) {
+    return { ok: false, error: "invalid_pin" };
+  }
+  if (!isUuid(record.participationSessionId)) {
+    return { ok: false, error: "invalid_session" };
+  }
+  return {
+    ok: true,
+    pinId: normalizeSessionId(record.pinId),
+    participationSessionId: normalizeSessionId(record.participationSessionId),
   };
 }
 

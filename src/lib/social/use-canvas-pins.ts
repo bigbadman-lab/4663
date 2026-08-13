@@ -1,21 +1,25 @@
 "use client";
 
 /**
- * Social 7 — durable PIN client state (fetch + realtime INSERT + local expiry).
+ * Social 7 / 7.1 — durable PIN client state
+ * (fetch + realtime INSERT/DELETE + local expiry + owner UNPIN).
  * Not session-ephemeral: do not register with LEAVE/RESET/Presence cleanup.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
+import { isUuid, normalizeSessionId } from "@/lib/presence/session-id";
 import {
   canvasPinFromRow,
   isPinActive,
   pinnedEventIdSet,
   pruneExpiredPins,
+  removeCanvasPinById,
   upsertCanvasPin,
   type CanvasPin,
 } from "@/lib/social/canvas-pin";
 import {
+  deleteCanvasPinRequest,
   fetchActiveCanvasPins,
   postCanvasPin,
   type PostCanvasPinInput,
@@ -31,6 +35,10 @@ export type UseCanvasPinsResult = {
   createPin: (
     input: PostCanvasPinInput,
   ) => Promise<{ ok: true; pin: CanvasPin } | { ok: false; error: string }>;
+  unpin: (
+    pinId: string,
+    participationSessionId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function useCanvasPins(): UseCanvasPinsResult {
@@ -55,12 +63,18 @@ export function useCanvasPins(): UseCanvasPinsResult {
     try {
       const supabase = getBrowserSupabaseClient();
       const client = createPinsRealtimeClient(supabase);
-      const sub = client.subscribeInserts({
+      const sub = client.subscribeChanges({
         onInsert: (row) => {
           const pin = canvasPinFromRow(row);
           if (!pin) return;
           if (!isPinActive(pin, Date.now())) return;
           setPins((prev) => upsertCanvasPin(prev, pin));
+        },
+        onDelete: (row) => {
+          if (row === null || typeof row !== "object") return;
+          const id = (row as { id?: unknown }).id;
+          if (typeof id !== "string" || !isUuid(id)) return;
+          setPins((prev) => removeCanvasPinById(prev, normalizeSessionId(id)));
         },
         onStatus: () => {},
       });
@@ -84,19 +98,19 @@ export function useCanvasPins(): UseCanvasPinsResult {
     return () => window.clearInterval(id);
   }, []);
 
-  const active = useMemo(
-    () => pruneExpiredPins(pins, Date.now()),
-    [pins],
-  );
+  const active = useMemo(() => pruneExpiredPins(pins, Date.now()), [pins]);
 
   const pinnedEventIds = useMemo(
     () => pinnedEventIdSet(active, Date.now()),
     [active],
   );
 
-  const isPinned = (eventId: string) => pinnedEventIds.has(eventId);
+  const isPinned = useCallback(
+    (eventId: string) => pinnedEventIds.has(eventId),
+    [pinnedEventIds],
+  );
 
-  const createPin = async (input: PostCanvasPinInput) => {
+  const createPin = useCallback(async (input: PostCanvasPinInput) => {
     if (pinnedEventIdSet(pinsRef.current).has(input.eventId)) {
       return { ok: false as const, error: "Already pinned." };
     }
@@ -112,12 +126,31 @@ export function useCanvasPins(): UseCanvasPinsResult {
     }
     setPins((prev) => upsertCanvasPin(prev, result.pin));
     return { ok: true as const, pin: result.pin };
-  };
+  }, []);
+
+  const unpin = useCallback(
+    async (pinId: string, participationSessionId: string) => {
+      const result = await deleteCanvasPinRequest({
+        pinId,
+        participationSessionId,
+      });
+      if (!result.ok) {
+        if (result.error === "not_pin_owner") {
+          return { ok: false as const, error: "Not pin owner." };
+        }
+        return { ok: false as const, error: "Could not unpin." };
+      }
+      setPins((prev) => removeCanvasPinById(prev, pinId));
+      return { ok: true as const };
+    },
+    [],
+  );
 
   return {
     pins: active,
     pinnedEventIds,
     isPinned,
     createPin,
+    unpin,
   };
 }

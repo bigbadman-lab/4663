@@ -15,9 +15,12 @@ export type PinnedLayerItem = {
 
 export type PinnedPonsLayerProps = {
   items: readonly PinnedLayerItem[];
+  onUnpin?: (
+    pinId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
-export function PinnedPonsLayer({ items }: PinnedPonsLayerProps) {
+export function PinnedPonsLayer({ items, onUnpin }: PinnedPonsLayerProps) {
   if (items.length === 0) return null;
 
   return (
@@ -30,6 +33,7 @@ export function PinnedPonsLayer({ items }: PinnedPonsLayerProps) {
           key={item.pin.id}
           pin={item.pin}
           slot={item.slot}
+          onUnpin={onUnpin}
         />
       ))}
     </div>

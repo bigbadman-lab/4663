@@ -65,8 +65,13 @@ export function useSummonController(
 
   const lastDispatchAtRef = useRef<number | null>(null);
 
-  const normalized = normalizeActiveSummonPageData(pageData);
+  const normalized = useMemo(
+    () => normalizeActiveSummonPageData(pageData),
+    [pageData],
+  );
   const active = normalized.active;
+  // Stable identity for effects — normalize() allocates a new active object each call.
+  const activeSummonId = active?.summonId ?? null;
 
   const writePageData = (next: ActiveSummonPageData) => {
     setPageDataRef.current(normalizeActiveSummonPageData(next));
@@ -74,35 +79,71 @@ export function useSummonController(
 
   // Resolve active event ids (with optional recovery fetch).
   useEffect(() => {
-    if (!active) {
-      setResolved([]);
+    if (!activeSummonId) {
+      setResolved((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+
+    const state = normalizeActiveSummonPageData(pageDataRef.current).active;
+    if (!state || state.summonId !== activeSummonId) {
+      setResolved((prev) => (prev.length === 0 ? prev : []));
       return;
     }
 
     let cancelled = false;
 
-    async function resolveActive(state: ActiveSummonState): Promise<void> {
+    async function resolveActive(current: ActiveSummonState): Promise<void> {
       const local = eventsRef.current;
-      let next = resolveSummonEvents(state.eventIds, local);
-      const missing = state.eventIds.some(
-        (id) => !next.some((event) => event.id === id || event.id.toLowerCase() === id),
+      let next = resolveSummonEvents(current.eventIds, local);
+      const missing = current.eventIds.some(
+        (id) =>
+          !next.some(
+            (event) => event.id === id || event.id.toLowerCase() === id,
+          ),
       );
       if (missing) {
         try {
           const recovered = await fetchRecentPublicEvents();
-          next = resolveSummonEvents(state.eventIds, local, recovered);
+          next = resolveSummonEvents(current.eventIds, local, recovered);
         } catch {
           // keep partial
         }
       }
-      if (!cancelled) setResolved(next);
+      if (cancelled) return;
+      setResolved((prev) => {
+        if (
+          prev.length === next.length &&
+          prev.every((event, i) => event.id === next[i]?.id)
+        ) {
+          return prev;
+        }
+        return next;
+      });
     }
 
-    void resolveActive(active);
+    void resolveActive(state);
     return () => {
       cancelled = true;
     };
-  }, [active]);
+  }, [activeSummonId]);
+
+  // Re-resolve when the public event stream updates, without depending on a
+  // freshly allocated `active` object each render.
+  useEffect(() => {
+    if (!activeSummonId) return;
+    const state = normalizeActiveSummonPageData(pageDataRef.current).active;
+    if (!state || state.summonId !== activeSummonId) return;
+    const next = resolveSummonEvents(state.eventIds, events);
+    setResolved((prev) => {
+      if (
+        prev.length === next.length &&
+        prev.every((event, i) => event.id === next[i]?.id)
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [events, activeSummonId]);
 
   // LEAVE: owner clears active SUMMON.
   useEffect(() => {

@@ -38,6 +38,9 @@ export type CanvasSurfaceProps = {
   onPin?: (
     eventId: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onUnpin?: (
+    pinId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function CanvasSurface({
@@ -57,6 +60,7 @@ export function CanvasSurface({
   canReset = false,
   isPinned,
   onPin,
+  onUnpin,
 }: CanvasSurfaceProps) {
   return (
     <div
@@ -72,7 +76,7 @@ export function CanvasSurface({
         isPinned={isPinned}
         onPin={onPin}
       />
-      <PinnedPonsLayer items={pinnedItems} />
+      <PinnedPonsLayer items={pinnedItems} onUnpin={onUnpin} />
       {summonId ? (
         <SummonLayer summonId={summonId} items={summonItems} />
       ) : null}

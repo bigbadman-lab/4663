@@ -93,7 +93,7 @@ import {
 } from "@/lib/social/text-draft";
 import { useParticipation } from "@/lib/social/use-participation";
 import {
-  DOCK_CREATE_DEFAULT_PCT,
+  DOCK_CREATE_DEFAULT_ORIGIN,
   registerCanvasCreateActions,
 } from "@/lib/social/canvas-create-actions";
 
@@ -553,8 +553,8 @@ export function EphemeralTextLayer() {
   selfRef.current = self;
   hasMarkForSessionRef.current = hasMarkForSession;
 
-  // Social 8A — dock TEXT/DRAW/MARK opens existing create flows at default position.
-  // Register once; read latest participation/mark state from refs (avoid update-depth loops).
+  // Social 8A / 8A.1 — dock TEXT/DRAW/MARK at DOCK_CREATE_DEFAULT_ORIGIN (not click pos).
+  // Empty-canvas path still uses pointerToCanvasPct → menu. Register once; refs avoid loops.
   useEffect(() => {
     const abandonLocalDrafts = () => {
       const currentSelf = selfRef.current;
@@ -611,8 +611,8 @@ export function EphemeralTextLayer() {
         abandonLocalDrafts();
         setCreateUi({
           mode: "compose",
-          leftPct: DOCK_CREATE_DEFAULT_PCT.leftPct,
-          topPct: DOCK_CREATE_DEFAULT_PCT.topPct,
+          leftPct: DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
+          topPct: DOCK_CREATE_DEFAULT_ORIGIN.topPct,
           draftId: createTextDraftId(),
         });
       },
@@ -620,8 +620,8 @@ export function EphemeralTextLayer() {
         if (!isParticipatingRef.current || !selfRef.current) return;
         abandonLocalDrafts();
         openDrawAt(
-          DOCK_CREATE_DEFAULT_PCT.leftPct,
-          DOCK_CREATE_DEFAULT_PCT.topPct,
+          DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
+          DOCK_CREATE_DEFAULT_ORIGIN.topPct,
         );
       },
       openMark: () => {
@@ -631,8 +631,8 @@ export function EphemeralTextLayer() {
         abandonLocalDrafts();
         setCreateUi({
           mode: "mark",
-          leftPct: DOCK_CREATE_DEFAULT_PCT.leftPct,
-          topPct: DOCK_CREATE_DEFAULT_PCT.topPct,
+          leftPct: DOCK_CREATE_DEFAULT_ORIGIN.leftPct,
+          topPct: DOCK_CREATE_DEFAULT_ORIGIN.topPct,
         });
       },
     });

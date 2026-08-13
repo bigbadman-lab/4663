@@ -150,7 +150,7 @@ function CanvasRootInner() {
   const nowMs = useWallClockMs(LIVE_OBJECT_AGE_TICK_MS);
   const [playReady, setPlayReady] = useState(false);
   const { self } = useParticipation();
-  const { pins, pinnedEventIds, isPinned, createPin } = useCanvasPins();
+  const { pins, pinnedEventIds, isPinned, createPin, unpin } = useCanvasPins();
 
   useEffect(() => {
     queueMicrotask(() => setPlayReady(true));
@@ -190,6 +190,11 @@ function CanvasRootInner() {
     return { ok: true as const };
   };
 
+  const onUnpin = async (pinId: string) => {
+    if (!self) return { ok: false as const, error: "Enter to unpin." };
+    return unpin(pinId, self.sessionId);
+  };
+
   return (
     <>
       <WatchLiveEventPruner eventIds={watchEventIds} />
@@ -203,6 +208,7 @@ function CanvasRootInner() {
           nowMs={nowMs}
           isPinned={isPinned}
           onPin={onPin}
+          onUnpin={onUnpin}
         />
       )}
     </>
