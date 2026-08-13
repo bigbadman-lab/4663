@@ -23,11 +23,19 @@ import type { PublicEvent } from "@/lib/events/types";
 export type MovablePonsBuyingActivityObjectProps = {
   event: PublicEvent;
   slot: CanvasSlot;
+  pinEnabled?: boolean;
+  isPinned?: boolean;
+  onPin?: (
+    eventId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function MovablePonsBuyingActivityObject({
   event,
   slot,
+  pinEnabled = false,
+  isPinned = false,
+  onPin,
 }: MovablePonsBuyingActivityObjectProps) {
   return (
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
@@ -38,7 +46,13 @@ export function MovablePonsBuyingActivityObject({
         data-4663-live-event={event.id}
         data-4663-slot={slot.id}
       >
-        <PonsBuyingActivityContent event={event} isolateAddressPointer />
+        <PonsBuyingActivityContent
+          event={event}
+          isolateAddressPointer
+          pinEnabled={pinEnabled}
+          isPinned={isPinned}
+          onPin={onPin}
+        />
       </div>
     </CanMoveElement>
   );

@@ -9,9 +9,17 @@ import type { SlottedLiveEvent } from "@/lib/canvas/slots";
 
 export type MovableLiveEventLayerProps = {
   items: readonly SlottedLiveEvent[];
+  isPinned?: (eventId: string) => boolean;
+  onPin?: (
+    eventId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
-export function MovableLiveEventLayer({ items }: MovableLiveEventLayerProps) {
+export function MovableLiveEventLayer({
+  items,
+  isPinned,
+  onPin,
+}: MovableLiveEventLayerProps) {
   if (items.length === 0) return null;
 
   return (
@@ -24,6 +32,9 @@ export function MovableLiveEventLayer({ items }: MovableLiveEventLayerProps) {
           key={event.id}
           event={event}
           slot={slot}
+          pinEnabled={!!onPin}
+          isPinned={isPinned?.(event.id) ?? false}
+          onPin={onPin}
         />
       ))}
     </div>

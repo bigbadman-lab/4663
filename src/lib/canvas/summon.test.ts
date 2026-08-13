@@ -79,7 +79,7 @@ describe("Stage 10B.9 summon selection + payload", () => {
       ...Array.from({ length: 10 }, (_, i) =>
         event({
           id: idAt(i + 10),
-          occurredAt: isoAgo(120_000 + i * 1_000),
+          occurredAt: isoAgo(LIVE_OBJECT_MAX_AGE_MS + 60_000 + i * 1_000),
         }),
       ),
     ];
@@ -240,7 +240,7 @@ describe("Social 5 summon session semantics", () => {
   });
 
   it("19–24. palette Summon wiring; providers/stream/live semantics unchanged", () => {
-    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 90_000);
+    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 10 * 60 * 1000);
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_DESKTOP, 6);
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_NARROW, 4);
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");

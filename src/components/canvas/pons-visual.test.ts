@@ -84,7 +84,7 @@ describe("Stage 10B.10 PONS visual hierarchy", () => {
       playhtmlSummonedElementId(summonId, eventId),
       `4663-summoned-${summonId}-${eventId}`,
     );
-    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 90_000);
+    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 10 * 60 * 1000);
     assert.equal(SUMMON_LIFETIME_MS, 20_000);
 
     const live = readSrc(

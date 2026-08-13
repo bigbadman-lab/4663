@@ -161,7 +161,7 @@ describe("Stage 10B.7 movable live PONS objects", () => {
   });
 
   it("10–12. lifetime, caps, and assignSlots remain unchanged", () => {
-    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 90_000);
+    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 10 * 60 * 1000);
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_DESKTOP, 6);
     assert.equal(LIVE_OBJECT_MAX_VISIBLE_NARROW, 4);
 

@@ -91,7 +91,7 @@ describe("Stage 10B.5 PlayHTML movable hero", () => {
 
     const live = readSrc("src/lib/canvas/visible-events.ts");
     assert.ok(live.includes("LIVE_OBJECT_MAX_AGE_MS"));
-    assert.ok(live.includes("90_000"));
+    assert.ok(live.includes("10 * 60 * 1000") || live.includes("600_000"));
   });
 
   it("13. no custom drag implementation", () => {

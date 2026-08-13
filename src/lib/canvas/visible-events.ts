@@ -1,13 +1,16 @@
 /**
- * Stage 10B — which live stream events appear as canvas objects.
- * UI visibility only; does not change Stage 9 stream semantics.
+ * Stage 10B / Social 7 — which live stream events appear as canvas objects.
+ * UI visibility only; does not change Stage 9 stream / worker semantics.
  */
 
 import { comparePublicEvents } from "@/lib/events/merge";
 import type { PublicEvent } from "@/lib/events/types";
 
-/** Wall-clock age window for on-canvas visibility (ms). Inclusive at boundary. */
-export const LIVE_OBJECT_MAX_AGE_MS = 90_000;
+/**
+ * Wall-clock LIVE window (ms) from event.occurredAt.
+ * LIVE iff 0 <= age < LIVE_OBJECT_MAX_AGE_MS (exactly 10m → not LIVE).
+ */
+export const LIVE_OBJECT_MAX_AGE_MS = 10 * 60 * 1000;
 
 export const LIVE_OBJECT_MAX_VISIBLE_DESKTOP = 6;
 export const LIVE_OBJECT_MAX_VISIBLE_NARROW = 4;
@@ -20,14 +23,14 @@ export function eventAgeMs(event: PublicEvent, nowMs: number): number {
   return nowMs - occurred;
 }
 
-/** Include when 0 <= age <= maxAgeMs. Future / invalid timestamps excluded. */
+/** Include when 0 <= age < maxAgeMs. Exactly maxAgeMs is not LIVE. */
 export function isEventVisibleByAge(
   event: PublicEvent,
   nowMs: number,
   maxAgeMs: number = LIVE_OBJECT_MAX_AGE_MS,
 ): boolean {
   const age = eventAgeMs(event, nowMs);
-  return age >= 0 && age <= maxAgeMs;
+  return age >= 0 && age < maxAgeMs;
 }
 
 /** Newest first: reverse of stream ascending order. */
@@ -39,7 +42,7 @@ export function comparePublicEventsNewestFirst(
 }
 
 /**
- * Filter by 90s wall age, sort newest-first, take maxVisible.
+ * Filter by LIVE wall age, sort newest-first, take maxVisible.
  */
 export function selectVisibleLiveEvents(
   events: readonly PublicEvent[],

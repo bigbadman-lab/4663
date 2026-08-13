@@ -34,25 +34,34 @@ function isoAgo(msAgo: number): string {
 }
 
 describe("selectVisibleLiveEvents / age window", () => {
-  it("1. events older than 90s are excluded", () => {
+  it("1. events older than 10m are excluded", () => {
     const events = [
-      event({ id: "aaaaaaaa-bbbb-cccc-dddd-000000000001", occurredAt: isoAgo(90_001) }),
+      event({ id: "aaaaaaaa-bbbb-cccc-dddd-000000000001", occurredAt: isoAgo(600_001) }),
     ];
     assert.deepEqual(selectVisibleLiveEvents(events, NOW, 6), []);
   });
 
-  it("2. event exactly 90s old is included", () => {
+  it("2. event exactly 10m old is excluded (exclusive boundary)", () => {
     const e = event({
       id: "aaaaaaaa-bbbb-cccc-dddd-000000000002",
       occurredAt: isoAgo(LIVE_OBJECT_MAX_AGE_MS),
     });
-    assert.equal(isEventVisibleByAge(e, NOW), true);
-    assert.equal(selectVisibleLiveEvents([e], NOW, 6).length, 1);
+    assert.equal(LIVE_OBJECT_MAX_AGE_MS, 10 * 60 * 1000);
+    assert.equal(isEventVisibleByAge(e, NOW), false);
+    assert.equal(selectVisibleLiveEvents([e], NOW, 6).length, 0);
   });
 
-  it("3. event >90s excluded", () => {
+  it("3. event just under 10m is included", () => {
     const e = event({
       id: "aaaaaaaa-bbbb-cccc-dddd-000000000003",
+      occurredAt: isoAgo(LIVE_OBJECT_MAX_AGE_MS - 1),
+    });
+    assert.equal(isEventVisibleByAge(e, NOW), true);
+  });
+
+  it("3b. event >10m excluded", () => {
+    const e = event({
+      id: "aaaaaaaa-bbbb-cccc-dddd-000000000013",
       occurredAt: isoAgo(LIVE_OBJECT_MAX_AGE_MS + 1),
     });
     assert.equal(isEventVisibleByAge(e, NOW), false);
@@ -96,16 +105,16 @@ describe("selectVisibleLiveEvents / age window", () => {
     const history = Array.from({ length: 20 }, (_, i) =>
       event({
         id: `aaaaaaaa-bbbb-cccc-dddd-${String(i).padStart(12, "0")}`,
-        occurredAt: isoAgo(120_000 + i * 1000),
+        occurredAt: isoAgo(LIVE_OBJECT_MAX_AGE_MS + 1_000 + i * 1000),
       }),
     );
     assert.deepEqual(selectVisibleLiveEvents(history, NOW, 6), []);
   });
 
-  it("11. visible objects disappear when age tick passes 90s", () => {
+  it("11. visible objects disappear when age tick crosses 10m", () => {
     const e = event({
       id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-      occurredAt: isoAgo(89_000),
+      occurredAt: isoAgo(LIVE_OBJECT_MAX_AGE_MS - 1_000),
     });
     assert.equal(selectVisibleLiveEvents([e], NOW, 6).length, 1);
     const later = NOW + 2_000;

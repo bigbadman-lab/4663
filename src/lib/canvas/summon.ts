@@ -55,7 +55,7 @@ export function canDispatchSummon(
 }
 
 /**
- * Newest-first historical ids, excluding currently-live (<=90s) events.
+ * Newest-first historical ids, excluding currently-live (<10m) events.
  * Returns up to SUMMON_MAX_EVENTS (may be fewer if history is thin).
  */
 export function selectSummonEventIds(

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Stage 10 — single client root for the 4663 canvas.
+ * Stage 10 / Social 7 — single client root for the 4663 canvas.
  * Owns the public events hook exactly once.
  * PlayHTML mounts client-only (ssr: false) to avoid document access at prerender.
  */
@@ -11,6 +11,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { CanvasChrome } from "@/components/canvas/canvas-chrome";
 import { LiveEventLayer } from "@/components/canvas/live-event-layer";
+import type { PinnedLayerItem } from "@/components/canvas/pinned-pons-layer";
 import {
   HERO_SUBTITLE_DEFAULT_STYLE,
   HERO_TITLE_DEFAULT_STYLE,
@@ -20,7 +21,12 @@ import {
   PLAYHTML_HERO_TITLE_ID,
   PLAYHTML_LOGO_ID,
 } from "@/lib/canvas/hero";
-import { assignSlots, type SlottedLiveEvent } from "@/lib/canvas/slots";
+import {
+  assignSlots,
+  CANVAS_SLOTS,
+  preferredSlotIndex,
+  type SlottedLiveEvent,
+} from "@/lib/canvas/slots";
 import {
   LIVE_OBJECT_AGE_TICK_MS,
   LIVE_OBJECT_MAX_VISIBLE_DESKTOP,
@@ -28,7 +34,12 @@ import {
   selectVisibleLiveEvents,
 } from "@/lib/canvas/visible-events";
 import { usePublicEvents } from "@/lib/events/use-public-events";
-import { ParticipationProvider } from "@/lib/social/use-participation";
+import { suppressLiveEventsWhenPinned } from "@/lib/social/canvas-pin";
+import {
+  ParticipationProvider,
+  useParticipation,
+} from "@/lib/social/use-participation";
+import { useCanvasPins } from "@/lib/social/use-canvas-pins";
 import { WatchLiveEventPruner } from "@/components/social/watch-live-event-pruner";
 
 const CanvasPlayTree = dynamic(
@@ -133,11 +144,13 @@ function CanvasShellFallback({
   );
 }
 
-export function CanvasRoot() {
+function CanvasRootInner() {
   const { events } = usePublicEvents();
   const maxVisible = useLiveObjectCap();
   const nowMs = useWallClockMs(LIVE_OBJECT_AGE_TICK_MS);
   const [playReady, setPlayReady] = useState(false);
+  const { self } = useParticipation();
+  const { pins, pinnedEventIds, isPinned, createPin } = useCanvasPins();
 
   useEffect(() => {
     queueMicrotask(() => setPlayReady(true));
@@ -145,22 +158,61 @@ export function CanvasRoot() {
 
   const liveItems = useMemo(() => {
     const visible = selectVisibleLiveEvents(events, nowMs, maxVisible);
-    return assignSlots(visible);
-  }, [events, nowMs, maxVisible]);
+    const unpinned = suppressLiveEventsWhenPinned(visible, pinnedEventIds);
+    return assignSlots(unpinned);
+  }, [events, nowMs, maxVisible, pinnedEventIds]);
 
-  const liveEventIds = useMemo(
-    () => liveItems.map((item) => item.event.id),
-    [liveItems],
-  );
+  const pinnedItems: PinnedLayerItem[] = useMemo(() => {
+    return pins.map((pin) => {
+      const index = preferredSlotIndex(pin.eventId, CANVAS_SLOTS.length);
+      return {
+        pin,
+        slot: CANVAS_SLOTS[index]!,
+      };
+    });
+  }, [pins]);
+
+  const watchEventIds = useMemo(() => {
+    const ids = new Set(liveItems.map((item) => item.event.id));
+    for (const pin of pins) ids.add(pin.eventId);
+    return [...ids];
+  }, [liveItems, pins]);
+
+  const onPin = async (eventId: string) => {
+    if (!self) return { ok: false as const, error: "Enter to pin." };
+    const result = await createPin({
+      eventId,
+      participationSessionId: self.sessionId,
+      displayName: self.displayName,
+      colour: self.colour,
+    });
+    if (!result.ok) return result;
+    return { ok: true as const };
+  };
 
   return (
-    <ParticipationProvider>
-      <WatchLiveEventPruner eventIds={liveEventIds} />
+    <>
+      <WatchLiveEventPruner eventIds={watchEventIds} />
       {!playReady ? (
         <CanvasShellFallback liveItems={liveItems} />
       ) : (
-        <CanvasPlayTree liveItems={liveItems} events={events} nowMs={nowMs} />
+        <CanvasPlayTree
+          liveItems={liveItems}
+          pinnedItems={pinnedItems}
+          events={events}
+          nowMs={nowMs}
+          isPinned={isPinned}
+          onPin={onPin}
+        />
       )}
+    </>
+  );
+}
+
+export function CanvasRoot() {
+  return (
+    <ParticipationProvider>
+      <CanvasRootInner />
     </ParticipationProvider>
   );
 }

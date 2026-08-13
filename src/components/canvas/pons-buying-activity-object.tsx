@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { PonsActivityCopy } from "@/components/canvas/pons-activity-copy";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
+import { PonsPinControl } from "@/components/social/pons-pin-control";
 import { PonsWatchControl } from "@/components/social/pons-watch-control";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
 import { playhtmlEventElementId } from "@/lib/canvas/hero";
@@ -27,6 +28,12 @@ export type PonsBuyingActivityObjectProps = {
    */
   isolateAddressPointer?: boolean;
   movableChrome?: boolean;
+  /** Social 7 — PIN affordance for named participants on live objects. */
+  pinEnabled?: boolean;
+  isPinned?: boolean;
+  onPin?: (
+    eventId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 function stopMoveStart(event: { stopPropagation(): void }): void {
@@ -37,9 +44,17 @@ function stopMoveStart(event: { stopPropagation(): void }): void {
 export function PonsBuyingActivityContent({
   event,
   isolateAddressPointer = false,
+  pinEnabled = false,
+  isPinned = false,
+  onPin,
 }: {
   event: PublicEvent;
   isolateAddressPointer?: boolean;
+  pinEnabled?: boolean;
+  isPinned?: boolean;
+  onPin?: (
+    eventId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -64,6 +79,14 @@ export function PonsBuyingActivityContent({
         eventId={event.id}
         stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
       />
+      {pinEnabled && onPin ? (
+        <PonsPinControl
+          eventId={event.id}
+          isPinned={isPinned}
+          onPin={onPin}
+          stopMoveStart={isolateAddressPointer ? stopMoveStart : undefined}
+        />
+      ) : null}
       {copied ? (
         <p className="mt-1 text-[10px] tracking-wide text-neutral-400">
           copied
@@ -85,6 +108,9 @@ export function PonsBuyingActivityObject({
   slot,
   isolateAddressPointer = false,
   movableChrome = false,
+  pinEnabled = false,
+  isPinned = false,
+  onPin,
 }: PonsBuyingActivityObjectProps) {
   return (
     <div
@@ -97,6 +123,9 @@ export function PonsBuyingActivityObject({
       <PonsBuyingActivityContent
         event={event}
         isolateAddressPointer={isolateAddressPointer}
+        pinEnabled={pinEnabled}
+        isPinned={isPinned}
+        onPin={onPin}
       />
     </div>
   );
