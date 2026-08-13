@@ -11,7 +11,7 @@ import {
   type PublicEventsStreamStatus,
 } from "@/lib/events/browser-stream";
 import { createEventsRealtimeClient } from "@/lib/events/realtime-client";
-import { createBrowserSupabase } from "@/lib/events/supabase-browser";
+import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 import type { PublicEvent } from "@/lib/events/types";
 
 export type UsePublicEventsResult = {
@@ -28,7 +28,7 @@ export function usePublicEvents(): UsePublicEventsResult {
     let controller: PublicEventsStreamController | null = null;
 
     try {
-      const supabase = createBrowserSupabase();
+      const supabase = getBrowserSupabaseClient();
       controller = new PublicEventsStreamController({
         realtime: createEventsRealtimeClient(supabase),
         fetchRecent: createDefaultFetchRecent(),

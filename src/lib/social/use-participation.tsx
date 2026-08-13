@@ -12,7 +12,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { createBrowserSupabase } from "@/lib/events/supabase-browser";
+import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 import { ParticipationController } from "@/lib/social/participation-controller";
 import { createParticipationPresenceClient } from "@/lib/social/participation-realtime";
 import type {
@@ -65,7 +65,7 @@ function useParticipationController(): UseParticipationResult {
     let active: ParticipationController | null = null;
 
     try {
-      const supabase = createBrowserSupabase();
+      const supabase = getBrowserSupabaseClient();
       active = new ParticipationController({
         storage: window.sessionStorage,
         presence: createParticipationPresenceClient(supabase),

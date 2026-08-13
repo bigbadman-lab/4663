@@ -22,7 +22,7 @@ import { EphemeralTextComposer } from "@/components/social/ephemeral-text-compos
 import { EphemeralTextObjectView } from "@/components/social/ephemeral-text-object";
 import { LiveDrawingDraftView } from "@/components/social/live-drawing-draft";
 import { LiveTextDraftView } from "@/components/social/live-text-draft";
-import { createBrowserSupabase } from "@/lib/events/supabase-browser";
+import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 import {
   createDrawingDraftId,
   createThrottledSender,
@@ -186,7 +186,7 @@ export function EphemeralTextLayer() {
     > | null = null;
 
     try {
-      const supabase = createBrowserSupabase();
+      const supabase = getBrowserSupabaseClient();
       const client = createSocialBroadcastClient(supabase);
       sub = client.connect({
         onDraftUpdated: (payload) => {
