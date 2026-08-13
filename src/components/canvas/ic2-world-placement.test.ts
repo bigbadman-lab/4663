@@ -74,7 +74,7 @@ describe("Stage IC2 world-aware TEXT + DRAW placement", () => {
     assert.ok(Math.abs(homePct.leftPct - 50) < 0.01);
     assert.ok(Math.abs(homePct.topPct - 50) < 0.01);
 
-    const panned: CanvasCamera = { x: 3000, y: 2000 };
+    const panned: CanvasCamera = { x: 3000, y: 2000, scale: 1 };
     const pannedPoint = screenPointToWorldPoint(
       100,
       80,
@@ -92,7 +92,7 @@ describe("Stage IC2 world-aware TEXT + DRAW placement", () => {
   });
 
   it("4. pointer-created TEXT while panned stores expected world position", () => {
-    const cam: CanvasCamera = { x: 2500, y: 1800 };
+    const cam: CanvasCamera = { x: 2500, y: 1800, scale: 1 };
     const { leftPct, topPct } = screenPointToWorldPct(
       200,
       150,
@@ -116,7 +116,7 @@ describe("Stage IC2 world-aware TEXT + DRAW placement", () => {
   it("5. dock-created TEXT uses current camera/view rather than HOME constant", () => {
     const homeCam = homeCameraForViewport(1440, 900);
     const atHome = dockCreateWorldPct(viewportHome, homeCam);
-    const panned = dockCreateWorldPct(viewportHome, { x: 3200, y: 2100 });
+    const panned = dockCreateWorldPct(viewportHome, { x: 3200, y: 2100, scale: 1 });
     assert.notDeepEqual(atHome, panned);
 
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
@@ -143,7 +143,7 @@ describe("Stage IC2 world-aware TEXT + DRAW placement", () => {
   });
 
   it("7–8. DRAW zone while panned stores world position; clamps to world not HOME", () => {
-    const cam: CanvasCamera = { x: 3500, y: 2400 };
+    const cam: CanvasCamera = { x: 3500, y: 2400, scale: 1 };
     const click = screenPointToWorldPct(50, 50, viewportHome, cam);
     const zone = drawingZoneOriginFromClick(click.leftPct, click.topPct);
     assert.ok(zone.leftPct >= 0);
@@ -182,8 +182,8 @@ describe("Stage IC2 world-aware TEXT + DRAW placement", () => {
   });
 
   it("10–11. camera does not mutate TEXT/DRAW records; two cameras agree on world %", () => {
-    const camA: CanvasCamera = { x: 100, y: 200 };
-    const camB: CanvasCamera = { x: 900, y: 600 };
+    const camA: CanvasCamera = { x: 100, y: 200, scale: 1 };
+    const camB: CanvasCamera = { x: 900, y: 600, scale: 1 };
     // Same world point (2400, 1600) seen from different cameras / screen positions.
     const worldX = 2400;
     const worldY = 1600;

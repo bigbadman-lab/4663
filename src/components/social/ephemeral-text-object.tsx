@@ -3,10 +3,14 @@
 /**
  * Published ephemeral TEXT — PlayHTML-movable for owner.
  * CanMoveElement requires a direct DOM host child.
- * Body is plain React text (no HTML).
+ * Body is plain text with optional inline EVM address copy controls (8A.10).
  */
 
 import { CanMoveElement } from "@playhtml/react";
+import { useState } from "react";
+import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
+import { copyTextQuiet } from "@/lib/canvas/clipboard";
+import { splitTextWithEvmAddresses } from "@/lib/canvas/format-address";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import { colourFromSessionId } from "@/lib/social/colour";
 import {
@@ -19,6 +23,65 @@ export type EphemeralTextObjectViewProps = {
   isOwner: boolean;
   onDelete: (textId: string) => void;
 };
+
+function stopMoveStart(event: { stopPropagation(): void }): void {
+  event.stopPropagation();
+}
+
+function EphemeralTextBody({
+  body,
+  colour,
+}: {
+  body: string;
+  colour: string;
+}) {
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const segments = splitTextWithEvmAddresses(body);
+
+  async function onCopyAddress(address: string): Promise<void> {
+    const ok = await copyTextQuiet(address);
+    if (!ok) return;
+    setCopiedAddress(address);
+    window.setTimeout(() => {
+      setCopiedAddress((current) => (current === address ? null : current));
+    }, 1200);
+  }
+
+  return (
+    <p
+      className="whitespace-pre-wrap break-words font-mono text-[12px] leading-snug tracking-wide sm:text-[13px]"
+      style={{ color: colour }}
+      data-4663-ephemeral-text-body
+    >
+      {segments.map((segment, index) => {
+        if (segment.type === "text") {
+          return <span key={`t-${index}`}>{segment.value}</span>;
+        }
+        return (
+          <span
+            key={`a-${index}-${segment.value}`}
+            className="pointer-events-auto inline-flex max-w-full flex-col items-start align-baseline"
+            data-4663-ephemeral-text-address
+          >
+            <PonsAddressCopyControl
+              variant="inline"
+              tokenAddress={segment.value}
+              stopMoveStart={stopMoveStart}
+              onCopy={() => {
+                void onCopyAddress(segment.value);
+              }}
+            />
+            {copiedAddress === segment.value ? (
+              <span className="text-[10px] tracking-wide text-neutral-400">
+                copied
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
 
 export function EphemeralTextObjectView({
   text,
@@ -40,13 +103,7 @@ export function EphemeralTextObjectView({
         data-4663-ephemeral-text-owner={isOwner ? "true" : "false"}
       >
         <div className="group -translate-x-1/2 -translate-y-1/2">
-          <p
-            className="whitespace-pre-wrap break-words font-mono text-[12px] leading-snug tracking-wide sm:text-[13px]"
-            style={{ color: colour }}
-            data-4663-ephemeral-text-body
-          >
-            {text.body}
-          </p>
+          <EphemeralTextBody body={text.body} colour={colour} />
           {isOwner ? (
             <button
               type="button"

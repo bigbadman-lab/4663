@@ -1,8 +1,55 @@
 diff --git a/node_modules/playhtml/dist/index-DlJfxvdB.js b/node_modules/playhtml/dist/index-DlJfxvdB.js
-index b38deff..ed23d30 100644
+index b38deff..0c57219 100644
 --- a/node_modules/playhtml/dist/index-DlJfxvdB.js
 +++ b/node_modules/playhtml/dist/index-DlJfxvdB.js
-@@ -13835,8 +13835,10 @@ function Yc(t, e) {
+@@ -7327,11 +7327,17 @@ function fg(t) {
+ function Zo(t, e, n) {
+   return Math.min(t, Math.max(t * e, n));
+ }
++function read4663WorldScale(e) {
++  // IC3.2: local camera scale on PlayHTML bounds (#4663-world). Default 1.
++  const n = e?.getAttribute?.("data-4663-world-scale");
++  const s = n == null ? 1 : parseFloat(n);
++  return Number.isFinite(s) && s > 0 ? s : 1;
++}
+ function Br(t, e, n) {
+-  const s = t.getBoundingClientRect(), r = e.getBoundingClientRect();
++  const s = t.getBoundingClientRect(), r = e.getBoundingClientRect(), i = read4663WorldScale(e);
+   return {
+-    x: s.left - r.left - e.clientLeft - n.x,
+-    y: s.top - r.top - e.clientTop - n.y
++    x: (s.left - r.left) / i - e.clientLeft - n.x,
++    y: (s.top - r.top) / i - e.clientTop - n.y
+   };
+ }
+ function pg(t, e, n, s, r = Br(t, e, n)) {
+@@ -7407,12 +7413,12 @@ const Il = {
+       });
+     },
+     onDrag: (t, { data: e, localData: n, setData: s, setLocalData: r, element: i }) => {
+-      const { clientX: o, clientY: c } = Jn(t), a = e.x + o - n.startMouseX, l = e.y + c - n.startMouseY, u = qo(i);
++      const { clientX: o, clientY: c } = Jn(t), u = qo(i), S = read4663WorldScale(u ?? i), a = e.x + (o - n.startMouseX) / S, l = e.y + (c - n.startMouseY) / S;
+       if (u) {
+         const w = {
+           x: n.dragX ?? e.x,
+           y: n.dragY ?? e.y
+-        }, C = w.x + o - n.startMouseX, v = w.y + c - n.startMouseY, E = n.boundsBaseX !== void 0 && n.boundsBaseY !== void 0 ? { x: n.boundsBaseX, y: n.boundsBaseY } : Br(i, u, w), x = pg(
++        }, C = w.x + (o - n.startMouseX) / S, v = w.y + (c - n.startMouseY) / S, E = n.boundsBaseX !== void 0 && n.boundsBaseY !== void 0 ? { x: n.boundsBaseX, y: n.boundsBaseY } : Br(i, u, w), x = pg(
+           i,
+           u,
+           w,
+@@ -7425,8 +7431,8 @@ const Il = {
+         s(y);
+         const _ = x.x - w.x, V = x.y - w.y;
+         r({
+-          startMouseX: n.startMouseX + _,
+-          startMouseY: n.startMouseY + V,
++          startMouseX: n.startMouseX + _ * S,
++          startMouseY: n.startMouseY + V * S,
+           dragX: y.x,
+           dragY: y.y,
+           boundsBaseX: E.x,
+@@ -13835,8 +13841,10 @@ function Yc(t, e) {
    if (!r) return;
    const i = ye(ne.play[t]?.[e]);
    if (!i || typeof i.observeDeep != "function") return;
@@ -14,7 +61,7 @@ index b38deff..ed23d30 100644
    let c = !1;
    const a = () => {
      c || (c = !0, queueMicrotask(() => {
-@@ -13902,8 +13904,15 @@ function Bn(t) {
+@@ -13902,8 +13910,15 @@ function Bn(t) {
        const r = s.get(e);
        if (!r || r.element !== t)
          continue;
@@ -32,7 +79,7 @@ index b38deff..ed23d30 100644
        const a = lt.get(i);
        a !== void 0 && (clearTimeout(a), lt.delete(i)), r.destroy?.(), G?.removeLocalAwareness(n, e), s.delete(e);
      }
-@@ -14055,12 +14064,12 @@ function l0(t, e) {
+@@ -14055,12 +14070,12 @@ function l0(t, e) {
    if (s && typeof s.observeDeep == "function") {
      const a = Ge.get(n);
      if (a) {

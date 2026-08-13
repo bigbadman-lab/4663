@@ -2,6 +2,7 @@
 
 /**
  * Short address + copy affordance for PONS activity cards.
+ * Also reused inline inside published user TEXT (Stage 8A.10).
  */
 
 import { formatShortAddress } from "@/lib/canvas/format-address";
@@ -44,23 +45,40 @@ export type PonsAddressCopyControlProps = {
   tokenAddress: string;
   onCopy: () => void;
   stopMoveStart?: (event: { stopPropagation(): void }) => void;
+  /**
+   * `block` — PONS card row (default).
+   * `inline` — embedded in free-flow TEXT; same type/hover/glyph, no full-width row.
+   */
+  variant?: "block" | "inline";
 };
+
+const BLOCK_CLASS =
+  "mt-1.5 flex w-full cursor-pointer touch-manipulation items-center gap-1.5 text-left text-[11px] text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline";
+
+const INLINE_CLASS =
+  "mx-0.5 inline-flex max-w-full cursor-pointer touch-manipulation items-center gap-1 align-baseline text-[11px] text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline";
 
 export function PonsAddressCopyControl({
   tokenAddress,
   onCopy,
   stopMoveStart,
+  variant = "block",
 }: PonsAddressCopyControlProps) {
+  const isInline = variant === "inline";
   return (
     <button
       type="button"
-      onClick={onCopy}
+      onClick={(event) => {
+        event.stopPropagation();
+        onCopy();
+      }}
       onPointerDown={stopMoveStart}
       onMouseDown={stopMoveStart}
       onTouchStart={stopMoveStart}
-      className="mt-1.5 flex w-full cursor-pointer touch-manipulation items-center gap-1.5 text-left text-[11px] text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline"
+      className={isInline ? INLINE_CLASS : BLOCK_CLASS}
       aria-label={`Copy token address ${tokenAddress}`}
       data-4663-event-address
+      data-4663-address-variant={variant}
     >
       <span className="min-w-0 truncate">{formatShortAddress(tokenAddress)}</span>
       <CopyGlyph />

@@ -69,6 +69,7 @@ describe("Stage 10B.10 PONS visual hierarchy", () => {
     assert.ok(address.includes("data-4663-copy-glyph"));
     assert.ok(address.includes("formatShortAddress"));
     assert.ok(address.includes("pointer-events-none"));
+    assert.ok(address.includes('variant = "block"'));
 
     const copy = readSrc("src/components/canvas/pons-activity-copy.tsx");
     assert.ok(copy.includes("EARLIER"));

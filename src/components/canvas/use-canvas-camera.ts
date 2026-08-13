@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * Stage IC1 / IC2.1 / IC3 — local camera + empty-space pan (desktop + touch).
- * HOME = immediate viewport reset to homeCameraForViewport(current size).
- * Camera is never networked. Pan starts only on empty-hit / world-pan-hit.
+ * Stage IC1–IC3.2 — local camera + empty-space pan (desktop + touch).
+ * HOME = homeCameraForViewport (x/y + local fit scale). Never networked.
  */
 
 import {
@@ -21,6 +20,7 @@ import {
   isCanvasPanHitTarget,
   panCamera,
   panDragThresholdPx,
+  WORLD_CAMERA_SCALE_ATTR,
   type CanvasCamera,
   type ViewportRect,
   worldTransformStyle,
@@ -63,7 +63,7 @@ export type UseCanvasCameraResult = {
 export function useCanvasCamera(): UseCanvasCameraResult {
   const worldRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const cameraRef = useRef<CanvasCamera>({ x: 0, y: 0 });
+  const cameraRef = useRef<CanvasCamera>({ x: 0, y: 0, scale: 1 });
   const panRef = useRef<{
     pointerId: number;
     pointerType: string;
@@ -85,7 +85,9 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       const style = worldTransformStyle(clamped);
       world.style.width = `${style.width}px`;
       world.style.height = `${style.height}px`;
+      world.style.transformOrigin = style.transformOrigin;
       world.style.transform = style.transform;
+      world.setAttribute(WORLD_CAMERA_SCALE_ATTR, String(style.scale));
     }
   }, []);
 

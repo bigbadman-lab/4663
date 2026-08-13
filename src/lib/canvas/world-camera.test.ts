@@ -42,8 +42,20 @@ describe("Stage IC1 world + camera helpers", () => {
     assert.equal(cam.y, HOME_REGION_TOP_PX);
   });
 
+  it("IC3.1/IC3.2 desktop band preserves centre framing; mobile uses fit scale", () => {
+    const desktop = homeCameraForViewport(1280, 800);
+    assert.equal(desktop.scale, 1);
+    assert.equal(
+      desktop.x,
+      HOME_REGION_LEFT_PX + HOME_REGION_WIDTH_PX / 2 - 640,
+    );
+    const mobile = homeCameraForViewport(390, 844);
+    assert.ok(mobile.scale < 1);
+    assert.ok(mobile.scale > 0);
+  });
+
   it("18. camera cannot leave finite world bounds", () => {
-    const cam = clampCamera({ x: -500, y: 99999 }, 1440, 900);
+    const cam = clampCamera({ x: -500, y: 99999, scale: 1 }, 1440, 900);
     assert.equal(cam.x, 0);
     assert.equal(cam.y, WORLD_HEIGHT_PX - 900);
   });

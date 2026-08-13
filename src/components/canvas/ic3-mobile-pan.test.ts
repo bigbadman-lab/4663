@@ -54,7 +54,7 @@ describe("Stage IC3 mobile pan + touch gesture ownership", () => {
     assert.equal(next.x, origin.x - 40);
     assert.equal(next.y, origin.y + 20);
 
-    const clamped = clampCamera({ x: -10, y: 99999 }, 390, 844);
+    const clamped = clampCamera({ x: -10, y: 99999, scale: 1 }, 390, 844);
     assert.equal(clamped.x, 0);
     assert.equal(clamped.y, WORLD_HEIGHT_PX - 844);
     assert.ok(clamped.x + 390 <= WORLD_WIDTH_PX);
@@ -139,12 +139,12 @@ describe("Stage IC3 mobile pan + touch gesture ownership", () => {
     assert.ok(movable.includes("bounds={PLAYHTML_CANVAS_BOUNDS_ID}"));
   });
 
-  it("no pinch/zoom/momentum introduced", () => {
+  it("no pinch/user-zoom/momentum introduced", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.equal(cam.toLowerCase().includes("momentum"), false);
     assert.equal(cam.toLowerCase().includes("inertia"), false);
-    assert.equal(cam.includes("scale("), false);
     assert.equal(cam.includes("worldZoom"), false);
+    assert.equal(cam.includes("pinch"), false);
     assert.ok(cam.includes("isPrimary"));
   });
 });

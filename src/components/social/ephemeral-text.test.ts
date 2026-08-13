@@ -52,10 +52,11 @@ describe("Social 2A ephemeral text UI", () => {
     assert.ok(composer.includes("onDraftBodyChange"));
   });
 
-  it("published object has no edit path; plain text body", () => {
+  it("published object has no edit path; plain text body with optional EVM copy", () => {
     const object = readSrc("src/components/social/ephemeral-text-object.tsx");
     assert.ok(object.includes("data-4663-ephemeral-text-body"));
-    assert.ok(object.includes("{text.body}"));
+    assert.ok(object.includes("EphemeralTextBody"));
+    assert.ok(object.includes("PonsAddressCopyControl"));
     assert.equal(object.includes("dangerouslySetInnerHTML"), false);
     assert.equal(object.includes("contentEditable"), false);
     assert.equal(object.includes("textarea"), false);

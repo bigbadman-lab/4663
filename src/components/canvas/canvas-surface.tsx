@@ -99,8 +99,10 @@ export function CanvasSurface({
           style={{
             width: WORLD_WIDTH_PX,
             height: WORLD_HEIGHT_PX,
-            transform: "translate(0px, 0px)",
+            transformOrigin: "0 0",
+            transform: "translate(0px, 0px) scale(1)",
           }}
+          data-4663-world-scale="1"
         >
           {/*
             Stack (bottom → top):
