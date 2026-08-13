@@ -38,7 +38,7 @@ describe("Social 2A ephemeral text UI", () => {
     assert.equal(menu.includes("EphemeralTextComposer"), false);
   });
 
-  it("draft is local composer only — no typing broadcast", () => {
+  it("draft is local composer only — no typing broadcast in composer module", () => {
     const composer = readSrc(
       "src/components/social/ephemeral-text-composer.tsx",
     );
@@ -47,6 +47,7 @@ describe("Social 2A ephemeral text UI", () => {
     assert.equal(composer.includes("createBrowserSupabase"), false);
     assert.equal(composer.includes(".channel("), false);
     assert.ok(composer.includes("maxLength={EPHEMERAL_TEXT_MAX_LENGTH}"));
+    assert.ok(composer.includes("onDraftBodyChange"));
   });
 
   it("published object has no edit path; plain text body", () => {
@@ -84,8 +85,9 @@ describe("Social 2A ephemeral text UI", () => {
     assert.ok(layer.includes("usePageData"));
     assert.ok(layer.includes("EPHEMERAL_TEXTS_PAGE_DATA_NAME"));
     assert.equal(EPHEMERAL_TEXTS_PAGE_DATA_NAME, "4663-ephemeral-texts");
-    assert.equal(layer.includes("4663-social-broadcast"), false);
     assert.equal(layer.includes("supabase.from"), false);
+    // Broadcast is for live drafts only — published texts stay in page data.
+    assert.ok(layer.includes("createSocialBroadcastClient"));
   });
 
   it("LEAVE cleanup registers session-ended; presence-loss retains present owners", () => {

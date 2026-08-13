@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Local-only TEXT composer (Social 2A — no live typing broadcast).
+ * Local TEXT composer (Social 2A publish + Social 2B live draft callbacks).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -13,6 +13,8 @@ type EphemeralTextComposerProps = {
   colour: string;
   onPublish: (body: string) => { ok: true } | { ok: false; error: string };
   onCancel: () => void;
+  /** Live typing projection — local body only; does not mutate published TEXT. */
+  onDraftBodyChange?: (body: string) => void;
 };
 
 export function EphemeralTextComposer({
@@ -21,6 +23,7 @@ export function EphemeralTextComposer({
   colour,
   onPublish,
   onCancel,
+  onDraftBodyChange,
 }: EphemeralTextComposerProps) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +67,9 @@ export function EphemeralTextComposer({
         style={{ caretColor: colour }}
         data-4663-ephemeral-text-input
         onChange={(event) => {
-          setValue(event.target.value.slice(0, EPHEMERAL_TEXT_MAX_LENGTH));
+          const next = event.target.value.slice(0, EPHEMERAL_TEXT_MAX_LENGTH);
+          setValue(next);
+          onDraftBodyChange?.(next);
           if (error) setError(null);
         }}
         onKeyDown={(event) => {
