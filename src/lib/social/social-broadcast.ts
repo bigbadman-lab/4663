@@ -1,11 +1,18 @@
 /**
  * Injectable Supabase Realtime Broadcast client for social draft events.
+ * Shared channel: text drafts (2B) + drawing drafts (3A).
  */
 
 import type { BrowserSupabase } from "@/lib/events/supabase-browser";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
+  DRAWING_DRAFT_CLEARED_EVENT,
+  DRAWING_DRAFT_UPDATED_EVENT,
   SOCIAL_BROADCAST_CHANNEL_NAME,
+  type DrawingDraft,
+  type DrawingDraftCleared,
+} from "@/lib/social/drawing-draft";
+import {
   TEXT_DRAFT_CLEARED_EVENT,
   TEXT_DRAFT_UPDATED_EVENT,
   type TextDraft,
@@ -22,6 +29,8 @@ export type SocialBroadcastStatus =
 export type SocialBroadcastHandlers = {
   onDraftUpdated: (draft: unknown) => void;
   onDraftCleared: (cleared: unknown) => void;
+  onDrawingDraftUpdated?: (draft: unknown) => void;
+  onDrawingDraftCleared?: (cleared: unknown) => void;
   onStatus: (status: SocialBroadcastStatus) => void;
 };
 
@@ -29,6 +38,8 @@ export type SocialBroadcastSubscription = {
   disconnect: () => void;
   sendDraftUpdated: (draft: TextDraft) => Promise<void>;
   sendDraftCleared: (cleared: TextDraftCleared) => Promise<void>;
+  sendDrawingDraftUpdated: (draft: DrawingDraft) => Promise<void>;
+  sendDrawingDraftCleared: (cleared: DrawingDraftCleared) => Promise<void>;
 };
 
 export type SocialBroadcastClient = {
@@ -64,6 +75,20 @@ export function createSocialBroadcastClient(
             handlers.onDraftCleared(payload);
           },
         )
+        .on(
+          "broadcast",
+          { event: DRAWING_DRAFT_UPDATED_EVENT },
+          ({ payload }) => {
+            handlers.onDrawingDraftUpdated?.(payload);
+          },
+        )
+        .on(
+          "broadcast",
+          { event: DRAWING_DRAFT_CLEARED_EVENT },
+          ({ payload }) => {
+            handlers.onDrawingDraftCleared?.(payload);
+          },
+        )
         .subscribe((status) => {
           handlers.onStatus(status);
         });
@@ -83,6 +108,20 @@ export function createSocialBroadcastClient(
           await channel.send({
             type: "broadcast",
             event: TEXT_DRAFT_CLEARED_EVENT,
+            payload: cleared,
+          });
+        },
+        sendDrawingDraftUpdated: async (draft) => {
+          await channel.send({
+            type: "broadcast",
+            event: DRAWING_DRAFT_UPDATED_EVENT,
+            payload: draft,
+          });
+        },
+        sendDrawingDraftCleared: async (cleared) => {
+          await channel.send({
+            type: "broadcast",
+            event: DRAWING_DRAFT_CLEARED_EVENT,
             payload: cleared,
           });
         },

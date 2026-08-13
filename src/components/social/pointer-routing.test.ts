@@ -83,6 +83,12 @@ describe("Social 2A.1 empty-canvas pointer routing", () => {
     );
     assert.ok(object.includes("pointer-events-auto absolute z-[16]"));
     assert.ok(object.includes("pointer-events-none absolute z-[16]"));
+
+    const drawing = readSrc(
+      "src/components/social/ephemeral-drawing-object.tsx",
+    );
+    assert.ok(drawing.includes("pointer-events-auto absolute z-[16]"));
+    assert.ok(drawing.includes("pointer-events-none absolute z-[16]"));
   });
 
   it("z-index values remain unchanged", () => {

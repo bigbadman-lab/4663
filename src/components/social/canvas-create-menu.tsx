@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Compact empty-canvas create menu — TEXT now; DRAW later.
+ * Compact empty-canvas create menu — TEXT + DRAW.
  */
 
 type CanvasCreateMenuProps = {
   leftPct: number;
   topPct: number;
   onChooseText: () => void;
+  onChooseDraw: () => void;
   onCancel: () => void;
 };
 
@@ -15,6 +16,7 @@ export function CanvasCreateMenu({
   leftPct,
   topPct,
   onChooseText,
+  onChooseDraw,
   onCancel,
 }: CanvasCreateMenuProps) {
   return (
@@ -34,6 +36,17 @@ export function CanvasCreateMenu({
           }}
         >
           [ TEXT ]
+        </button>
+        <button
+          type="button"
+          className="text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+          data-4663-canvas-create-draw
+          onClick={(event) => {
+            event.stopPropagation();
+            onChooseDraw();
+          }}
+        >
+          [ DRAW ]
         </button>
         <button
           type="button"
