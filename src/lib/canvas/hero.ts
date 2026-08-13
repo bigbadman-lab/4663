@@ -44,11 +44,12 @@ export const HERO_SUBTITLE_DEFAULT_STYLE = {
 
 /**
  * Fixed chrome participation control ([ ENTER ] / [ NAME ]).
- * Anchored under the viewport brand composition — not a PlayHTML child.
+ * Anchored under the viewport subtitle — clear of brand copy on desktop/mobile.
  */
 export const PARTICIPATION_CONTROL_DEFAULT_STYLE = {
   left: "50%",
-  top: "53.5%",
+  // Subtitle origin is 52%; clear 1–2 mono lines + gap (wraps on narrow widths).
+  top: "calc(52% + 2.75rem)",
 } as const;
 
 /**

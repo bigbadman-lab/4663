@@ -47,7 +47,10 @@ describe("Social 1B / 1C.1 participation control placement", () => {
     assert.equal(chrome.includes("CanMoveElement"), false);
 
     assert.equal(PARTICIPATION_CONTROL_DEFAULT_STYLE.left, "50%");
-    assert.equal(PARTICIPATION_CONTROL_DEFAULT_STYLE.top, "53.5%");
+    assert.equal(
+      PARTICIPATION_CONTROL_DEFAULT_STYLE.top,
+      "calc(52% + 2.75rem)",
+    );
     assert.equal(HERO_TITLE_DEFAULT_STYLE.top, "42%");
     assert.equal(HERO_SUBTITLE_DEFAULT_STYLE.top, "52%");
   });
