@@ -75,18 +75,25 @@ export function CanvasIntroNote({ onClose }: CanvasIntroNoteProps) {
         </div>
         <div className="space-y-3 font-mono text-[12px] leading-relaxed tracking-wide text-neutral-600 sm:text-[13px]">
           <p className="font-semibold text-neutral-900">
-            4663 is a shared live canvas for the internet.
+            4663 is a canvas for the internet with web3 capabilities.
           </p>
           <p>
-            Anyone, anywhere can write, move objects and communicate in real
-            time. No accounts. No sign-ups. No user data stored.
+            A shared, live space where anyone can write, draw, move things and
+            interact with people around the world. No accounts. No sign-ups.
           </p>
+          <p>The canvas is also connected to Robinhood Chain.</p>
           <p>
-            Behind the canvas, 4663 monitors Robinhood Chain for onchain
-            activity we believe is worth seeing, surfacing those events
-            directly onto the canvas.
+            4663 watches the chain in real time, monitors every new token
+            launched through PONS, and surfaces activity we think is worth
+            looking at.
           </p>
-          <p>Part human. Part machine. One public space, happening live.</p>
+          <p>But this is only the beginning.</p>
+          <p>
+            We&apos;re building 4663 as an open internet canvas where people,
+            onchain data, projects, businesses and the 4663 ecosystem can exist
+            together in one live space.
+          </p>
+          <p>Part canvas. Part network. Part machine.</p>
           <p className="font-semibold text-neutral-900">Welcome to 4663.</p>
         </div>
       </div>

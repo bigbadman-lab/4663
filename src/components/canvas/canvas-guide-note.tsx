@@ -13,53 +13,44 @@ type CanvasGuideNoteProps = {
 
 const GUIDE_ACTIONS = [
   {
-    heading: "MOVE AROUND",
-    body: "Drag the empty canvas and explore the world.",
-  },
-  {
-    heading: "MOVE THINGS",
-    body: "Pick up objects and leave them somewhere else.",
-  },
-  {
-    heading: "LEAVE TEXT",
-    body: "Write something directly onto the canvas for everyone to see.",
-  },
-  {
-    heading: "SHARE A CONTRACT",
-    body: "Found a Robinhood Chain token worth looking at? Paste its contract address onto the canvas. Anyone here can tap it to copy it.",
-  },
-  {
-    heading: "DRAW",
-    body: "Draw directly onto the shared canvas.",
+    heading: "EXPLORE THE CANVAS",
+    paragraphs: [
+      "Move around. Pick things up. Leave text. Draw. Share a contract.",
+      "What you leave becomes part of the space other people are exploring.",
+    ],
   },
   {
     heading: "SEE PEOPLE LIVE",
-    body: "Watch other people around the world type, draw, move things and explore the canvas while you're here.",
+    paragraphs: [
+      "4663 is shared globally.",
+      "Watch other people type, draw, move and interact with the canvas while you're here. Choose a temporary name if you want people to know who you are.",
+      "No account or sign-up is required.",
+    ],
   },
   {
-    heading: "FOLLOW WHAT'S HAPPENING ON PONS",
-    body: "Behind the scenes, 4663 monitors new token launches on the PONS launchpad. We watch for new wallets arriving after a launch and surface the activity we think deserves a closer look, in real time.",
+    heading: "WATCH ROBINHOOD CHAIN",
+    paragraphs: [
+      "4663 is connected to live onchain data.",
+      "We monitor every new token launched through PONS. The live terminal shows what we're currently watching as it happens.",
+      "From that activity, 4663 surfaces launches we think deserve a closer look.",
+    ],
     aside: "This isn't a signal to buy. It's something to investigate.",
   },
   {
-    heading: "WATCH",
-    body: "When 4663 surfaces a PONS event that interests you, keep it on your watch list while you explore.",
+    heading: "FIND WHAT'S INTERESTING",
+    paragraphs: [
+      "Open our Crypto watchlist to see the launches currently on our radar.",
+      "Watch them, pin interesting discoveries onto the canvas, or use SUMMON to bring previous activity back into view.",
+    ],
   },
   {
-    heading: "PIN",
-    body: "Pin an interesting event to the canvas so other people can see it.",
-  },
-  {
-    heading: "SUMMON",
-    body: "Bring older events that passed the same 4663 monitoring rules back onto the canvas.",
-  },
-  {
-    heading: "HOME",
-    body: "Return your view to the beginning.",
-  },
-  {
-    heading: "RESET",
-    body: "Clear the things you've added during your session.",
+    heading: "BUILD ON THE CANVAS",
+    paragraphs: [
+      "4663 is becoming more than a place to leave things.",
+      "We're building ways for projects and businesses to become part of the canvas, while bringing the 4663 token deeper into how the space works.",
+      "The canvas will keep changing.",
+      "So will what you can do with it.",
+    ],
   },
 ] as const;
 
@@ -134,7 +125,7 @@ export function CanvasGuideNote({ onClose }: CanvasGuideNoteProps) {
 
         <div className="space-y-4 font-mono text-[12px] leading-relaxed tracking-wide text-neutral-600 sm:text-[13px]">
           <p className="font-semibold text-neutral-900">
-            4663 is a live canvas shared by everyone here.
+            4663 is a live canvas shared with everyone here.
           </p>
 
           <ul className="space-y-3">
@@ -143,24 +134,17 @@ export function CanvasGuideNote({ onClose }: CanvasGuideNoteProps) {
                 <p className="font-semibold text-neutral-900">
                   {action.heading}
                 </p>
-                <p className="mt-0.5">{action.body}</p>
+                {action.paragraphs.map((paragraph) => (
+                  <p key={paragraph} className="mt-0.5">
+                    {paragraph}
+                  </p>
+                ))}
                 {"aside" in action && action.aside ? (
                   <p className="mt-1 text-neutral-500">{action.aside}</p>
                 ) : null}
               </li>
             ))}
           </ul>
-
-          <div className="border-t border-neutral-200 pt-4">
-            <p className="font-semibold text-neutral-900">
-              NO ACCOUNTS. NO SIGN-UP.
-            </p>
-            <p className="mt-1">
-              Choose a temporary name if you want other people here to know who
-              you are. You don&apos;t need to create an account or provide
-              personal information to participate.
-            </p>
-          </div>
         </div>
       </div>
     </div>
