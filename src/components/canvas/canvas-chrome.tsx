@@ -96,7 +96,7 @@ export function CanvasChrome() {
         </div>
 
         <div
-          className="pointer-events-auto absolute bottom-5 right-5 flex max-w-[min(11.5rem,calc(50%-0.75rem))] flex-col items-end gap-1 sm:bottom-6 sm:right-6 sm:max-w-[min(18rem,calc(50%-0.75rem))]"
+          className="pointer-events-auto absolute right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] flex max-w-[min(11.5rem,calc(50%-0.75rem))] flex-col items-end gap-0.5 sm:bottom-6 sm:right-6 sm:max-w-[min(18rem,calc(50%-0.75rem))] sm:gap-1"
           data-4663-chrome-bottom-right
           data-4663-chrome-clock
         >

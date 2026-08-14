@@ -85,7 +85,9 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(palette.includes("justify-center"));
     assert.ok(palette.includes("bottom-0"));
     assert.ok(palette.includes("safe-area-inset-bottom"));
+    assert.ok(palette.includes("5.75rem"));
     assert.ok(palette.includes("3.75rem"));
+    assert.ok(palette.includes("sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"));
     assert.ok(palette.includes("sm:h-8") || palette.includes("sm:min-h-14"));
     assert.ok(palette.includes("rounded-2xl"));
     assert.equal(PLAYHTML_CONTROL_PALETTE_ID, "4663-control-palette");

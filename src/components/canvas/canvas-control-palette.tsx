@@ -143,11 +143,7 @@ export function CanvasControlPalette({
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center"
-      style={{
-        /* Sit above bottom-left presence + bottom-right clock (chrome ~bottom-5/6). */
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 3.75rem)",
-      }}
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"
       data-4663-control-dock
       data-4663-control-palette
     >

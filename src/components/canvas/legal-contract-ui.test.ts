@@ -122,6 +122,14 @@ describe("Official contract bottom-right relocation", () => {
       control.includes('aria-label="Copy official $4663 token contract"'),
     );
 
+    const palette = readSrc(
+      "src/components/canvas/canvas-control-palette.tsx",
+    );
+    assert.ok(
+      palette.includes("5.75rem"),
+      "mobile dock clears taller contract+clock cluster",
+    );
+
     const hook = readSrc("src/components/canvas/use-official-token.ts");
     assert.ok(hook.includes("startOfficialTokenPolling"));
     assert.ok(hook.includes("fetchOfficialTokenJson"));
