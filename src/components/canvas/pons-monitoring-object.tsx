@@ -37,8 +37,8 @@ export function PonsMonitoringContent() {
   const {
     open,
     selectedTokenAddress,
-    setOpen,
     openPanel,
+    closePanel,
     clearSelectedToken,
   } = usePonsMonitoringPanelOpen();
   const openRef = useInteractiveControlProtection<HTMLButtonElement>();
@@ -96,7 +96,7 @@ export function PonsMonitoringContent() {
           tokens={tokens}
           initialTokenAddress={selectedTokenAddress}
           onClearSelection={clearSelectedToken}
-          onClose={() => setOpen(false)}
+          onClose={closePanel}
         />
       ) : null}
     </>

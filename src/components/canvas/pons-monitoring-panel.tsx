@@ -438,18 +438,24 @@ export function PonsMonitoringPanel({
     });
   }, [nowMs]);
 
+  // Keep Escape on the latest close handler without re-focusing on poll re-renders.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   const relativeNow = nowMs ?? clockMs;
+
   useEffect(() => {
     previouslyFocused.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    closeRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -460,9 +466,16 @@ export function PonsMonitoringPanel({
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      previouslyFocused.current?.focus();
+      previouslyFocused.current?.focus({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
+
+  // Focus CLOSE once the dialog portal exists. `mounted` flips once per open;
+  // watchlist token refreshes must not re-run this (would scroll to top).
+  useEffect(() => {
+    if (!mounted) return;
+    closeRef.current?.focus({ preventScroll: true });
+  }, [mounted]);
 
   if (!mounted) return null;
 
