@@ -96,6 +96,7 @@ describe("RADAR V1 canvas alert + explorers", () => {
     assert.ok(alert.includes("prefers-reduced-motion"));
     assert.ok(alert.includes("onOpen"));
     assert.ok(alert.includes("pointer-events-none"));
+    assert.ok(alert.includes('data-4663-radar-lottie'));
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("RadarAlertLayer"));
@@ -103,6 +104,46 @@ describe("RADAR V1 canvas alert + explorers", () => {
     const pkg = readSrc("package.json");
     assert.ok(pkg.includes('"lottie-react"'));
     assert.ok(readSrc("public/radar.json").includes('"v"'));
+  });
+
+  it("alert body is movable; only TAKE A LOOK opens RADAR", () => {
+    const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
+    assert.ok(alert.includes("CanMoveElement"));
+    assert.ok(alert.includes("PLAYHTML_CANVAS_BOUNDS_ID"));
+    assert.ok(alert.includes("playhtmlRadarAlertElementId"));
+    assert.ok(alert.includes("cursor-grab"));
+    assert.ok(alert.includes("active:cursor-grabbing"));
+    assert.ok(alert.includes("useInteractiveControlProtection"));
+    assert.ok(alert.includes("stopPlayhtmlMoveStart"));
+
+    // CTA is the open control — not a whole-card button wrapper.
+    assert.ok(alert.includes('data-4663-radar-alert-open'));
+    assert.ok(alert.includes("{RADAR_ALERT_COPY.cta}"));
+    assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(alert.includes("onDismiss(alert.eventId)"));
+    assert.ok(alert.includes("event.stopPropagation()"));
+
+    // Body/host must not wire open on the movable shell.
+    const hostBlock = alert.slice(
+      alert.indexOf("<CanMoveElement"),
+      alert.indexOf("data-4663-radar-alert-open"),
+    );
+    assert.equal(hostBlock.includes("onOpen("), false);
+    assert.equal(hostBlock.includes("onClick"), false);
+
+    // Lottie stays non-interactive so drag reaches the host.
+    const lottieIdx = alert.indexOf("data-4663-radar-lottie");
+    assert.ok(lottieIdx > 0);
+    const lottieWindow = alert.slice(Math.max(0, lottieIdx - 120), lottieIdx + 40);
+    assert.ok(lottieWindow.includes("pointer-events-none"));
+
+    // CTA isolates move-start (IC3.6 pattern) and keeps a mobile tap target.
+    assert.ok(alert.includes("min-h-11"));
+    const ctaIdx = alert.indexOf("data-4663-radar-alert-open");
+    const ctaWindow = alert.slice(ctaIdx, ctaIdx + 550);
+    assert.ok(ctaWindow.includes("onPointerDown={stopPlayhtmlMoveStart}"));
+    assert.ok(ctaWindow.includes("onMouseDown={stopPlayhtmlMoveStart}"));
+    assert.ok(ctaWindow.includes("onTouchStart={stopPlayhtmlMoveStart}"));
   });
 
   it("Blockscout token/wallet/tx/block helpers", () => {
@@ -147,22 +188,28 @@ describe("RADAR alert trigger wiring (store → layer → open)", () => {
     assert.ok(hook.includes("alerts"));
     assert.ok(hook.includes("[...pruned, ...diff.newAlerts]"));
 
-    const monitoring = readSrc(
-      "src/components/canvas/pons-monitoring-object.tsx",
-    );
-    assert.ok(monitoring.includes("export function RadarAlertLayer"));
-    assert.ok(monitoring.includes("useContinuationWatchlist()"));
-    assert.ok(monitoring.includes("alerts.map"));
-    assert.ok(monitoring.includes("RadarAlertObject"));
-    assert.ok(monitoring.includes("onOpen={openToToken}"));
-    assert.ok(monitoring.includes("onDismiss={dismissAlert}"));
+    const layer = readSrc("src/components/canvas/radar-alert-layer.tsx");
+    assert.ok(layer.includes("export function RadarAlertLayer"));
+    assert.ok(layer.includes("useContinuationWatchlist()"));
+    assert.ok(layer.includes("alerts.map"));
+    assert.ok(layer.includes("RadarAlertObject"));
+    assert.ok(layer.includes("onOpen={openToToken}"));
+    assert.ok(layer.includes("onDismiss={dismissAlert}"));
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("<RadarAlertLayer />"));
+    assert.ok(
+      surface.includes('from "@/components/canvas/radar-alert-layer"'),
+    );
 
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
     assert.ok(alert.includes("onDismiss(alert.eventId)"));
+    assert.ok(alert.includes('data-4663-radar-alert-open'));
+    assert.equal(
+      alert.includes('aria-label="JUST HIT OUR RADAR — take a look"'),
+      true,
+    );
 
     const state = readSrc(
       "src/components/canvas/pons-monitoring-panel-state.ts",

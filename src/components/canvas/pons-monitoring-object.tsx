@@ -7,7 +7,6 @@
 import Image from "next/image";
 import { PonsMonitoringPanel } from "@/components/canvas/pons-monitoring-panel";
 import { usePonsMonitoringPanelOpen } from "@/components/canvas/pons-monitoring-panel-state";
-import { RadarAlertObject } from "@/components/canvas/radar-alert-object";
 import { useContinuationWatchlist } from "@/components/canvas/use-continuation-watchlist";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
@@ -100,29 +99,6 @@ export function PonsMonitoringContent() {
         />
       ) : null}
     </>
-  );
-}
-
-/**
- * RADAR alerts sit in the home region (world), not inside the movable card.
- */
-export function RadarAlertLayer() {
-  const { alerts, dismissAlert } = useContinuationWatchlist();
-  const { openToToken } = usePonsMonitoringPanelOpen();
-
-  if (alerts.length === 0) return null;
-
-  return (
-    <div className="pointer-events-none absolute inset-0 z-[16]" data-4663-radar-alerts>
-      {alerts.map((alert) => (
-        <RadarAlertObject
-          key={alert.eventId}
-          alert={alert}
-          onOpen={openToToken}
-          onDismiss={dismissAlert}
-        />
-      ))}
-    </div>
   );
 }
 

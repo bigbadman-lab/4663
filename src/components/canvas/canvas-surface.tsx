@@ -11,7 +11,7 @@ import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
 import { MovableLiveChatObject } from "@/components/canvas/movable-live-chat";
 import { MovablePonsMonitoringObject } from "@/components/canvas/movable-pons-monitoring-object";
-import { RadarAlertLayer } from "@/components/canvas/pons-monitoring-object";
+import { RadarAlertLayer } from "@/components/canvas/radar-alert-layer";
 import { MovablePonsMonitorTerminal } from "@/components/canvas/movable-pons-monitor-terminal";
 import {
   PinnedPonsLayer,

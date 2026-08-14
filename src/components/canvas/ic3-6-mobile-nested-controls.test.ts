@@ -64,7 +64,7 @@ describe("IC3.6 PlayHTML touchstart steals nested taps", () => {
 });
 
 describe("IC3.6 shared interactive-control mechanism", () => {
-  it("WATCH / PIN / address / TEXT / UNPIN / deletes reuse the same hook", () => {
+  it("WATCH / PIN / address / TEXT / UNPIN / deletes / RADAR CTA reuse the same hook", () => {
     const hook = "useInteractiveControlProtection";
     const files = [
       "src/components/social/pons-watch-control.tsx",
@@ -73,6 +73,7 @@ describe("IC3.6 shared interactive-control mechanism", () => {
       "src/components/social/ephemeral-text-object.tsx",
       "src/components/canvas/pinned-pons-object.tsx",
       "src/components/social/ephemeral-drawing-object.tsx",
+      "src/components/canvas/radar-alert-object.tsx",
     ];
     for (const file of files) {
       assert.ok(readSrc(file).includes(hook), `${file} should use ${hook}`);

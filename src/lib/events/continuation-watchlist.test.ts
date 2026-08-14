@@ -187,7 +187,11 @@ describe("public PONS monitoring presentation", () => {
     assert.ok(monitoring.includes("PonsMonitoringPanel"));
     assert.ok(monitoring.includes("stopPlayhtmlMoveStart"));
     assert.ok(monitoring.includes("useInteractiveControlProtection"));
-    assert.ok(monitoring.includes("RadarAlertLayer"));
+    assert.equal(monitoring.includes("RadarAlertLayer"), false);
+
+    const alertLayer = readSrc("src/components/canvas/radar-alert-layer.tsx");
+    assert.ok(alertLayer.includes("export function RadarAlertLayer"));
+    assert.ok(alertLayer.includes("RadarAlertObject"));
 
     const root = readSrc("src/components/canvas/canvas-root.tsx");
     assert.ok(root.includes("PonsMonitoringObject"));

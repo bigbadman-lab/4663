@@ -2,11 +2,14 @@
 
 /**
  * Ephemeral RADAR canvas alert — Lottie radar + locked copy.
+ * PlayHTML-movable host; only [ TAKE A LOOK ] opens token detail.
  */
 
+import { CanMoveElement } from "@playhtml/react";
 import Lottie from "lottie-react";
 import { useEffect, useState } from "react";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
+import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import type { RadarAlert } from "@/lib/events/radar-alerts";
 
@@ -17,6 +20,11 @@ export const RADAR_ALERT_COPY = {
 } as const;
 
 export const RADAR_LOTTIE_SRC = "/radar.json" as const;
+
+/** Stable PlayHTML / DOM id for a live RADAR alert host. */
+export function playhtmlRadarAlertElementId(eventId: string): string {
+  return `4663-radar-alert-${eventId}`;
+}
 
 type RadarAlertObjectProps = {
   alert: RadarAlert;
@@ -63,59 +71,62 @@ export function RadarAlertObject({
 }: RadarAlertObjectProps) {
   const reducedMotion = usePrefersReducedMotion();
   const animationData = useRadarAnimationData();
-  const buttonRef = useInteractiveControlProtection<HTMLButtonElement>();
+  const ctaRef = useInteractiveControlProtection<HTMLButtonElement>();
 
   return (
-    <div
-      className="pointer-events-auto absolute z-[16] -translate-x-1/2 -translate-y-1/2 touch-manipulation"
-      style={{ left: `${alert.leftPct}%`, top: `${alert.topPct}%` }}
-      data-4663-radar-alert
-      data-4663-radar-alert-event={alert.eventId}
-    >
-      <button
-        ref={buttonRef}
-        type="button"
-        className="flex w-[10.5rem] cursor-pointer flex-col items-stretch gap-1.5 border border-neutral-300 bg-white px-2 py-2 text-left shadow-sm transition-colors hover:border-neutral-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:w-[11.5rem]"
-        aria-label="JUST HIT OUR RADAR — take a look"
-        data-4663-radar-alert-open
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpen(alert.tokenAddress);
-          onDismiss(alert.eventId);
-        }}
-        onPointerDown={stopPlayhtmlMoveStart}
-        onMouseDown={stopPlayhtmlMoveStart}
-        onTouchStart={stopPlayhtmlMoveStart}
+    <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
+      <div
+        id={playhtmlRadarAlertElementId(alert.eventId)}
+        className="pointer-events-auto absolute z-[16] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+        style={{ left: `${alert.leftPct}%`, top: `${alert.topPct}%` }}
+        data-4663-radar-alert
+        data-4663-radar-alert-event={alert.eventId}
       >
-        <div
-          className="pointer-events-none mx-auto h-[5.5rem] w-[5.5rem] sm:h-[6.5rem] sm:w-[6.5rem]"
-          data-4663-radar-lottie
-          aria-hidden
-        >
-          {animationData ? (
-            <Lottie
-              animationData={animationData}
-              loop={!reducedMotion}
-              autoplay={!reducedMotion}
-              style={{ width: "100%", height: "100%" }}
-              rendererSettings={{ preserveAspectRatio: "xMidYMid meet" }}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center font-mono text-[10px] text-neutral-400">
-              RADAR
-            </div>
-          )}
-        </div>
-        <span className="pointer-events-none font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
-          {RADAR_ALERT_COPY.title}
-        </span>
-        <span className="pointer-events-none font-mono text-[10px] leading-snug tracking-wide text-neutral-600">
-          {RADAR_ALERT_COPY.body}
-        </span>
-        <span className="pointer-events-none font-mono text-[10px] tracking-wide text-neutral-500 sm:text-[11px]">
-          {RADAR_ALERT_COPY.cta}
-        </span>
-      </button>
-    </div>
+        <article className="-translate-x-1/2 -translate-y-1/2 flex w-[10.5rem] flex-col items-stretch gap-1.5 border border-neutral-300 bg-white px-2 py-2 shadow-sm sm:w-[11.5rem]">
+          <div
+            className="pointer-events-none mx-auto h-[5.5rem] w-[5.5rem] sm:h-[6.5rem] sm:w-[6.5rem]"
+            data-4663-radar-lottie
+            aria-hidden
+          >
+            {animationData ? (
+              <Lottie
+                animationData={animationData}
+                loop={!reducedMotion}
+                autoplay={!reducedMotion}
+                style={{ width: "100%", height: "100%" }}
+                rendererSettings={{ preserveAspectRatio: "xMidYMid meet" }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center font-mono text-[10px] text-neutral-400">
+                RADAR
+              </div>
+            )}
+          </div>
+          <span className="pointer-events-none font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
+            {RADAR_ALERT_COPY.title}
+          </span>
+          <span className="pointer-events-none font-mono text-[10px] leading-snug tracking-wide text-neutral-600">
+            {RADAR_ALERT_COPY.body}
+          </span>
+          <button
+            ref={ctaRef}
+            type="button"
+            className="inline-flex min-h-11 w-full items-center justify-center touch-manipulation font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+            aria-label="JUST HIT OUR RADAR — take a look"
+            data-4663-radar-alert-open
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen(alert.tokenAddress);
+              onDismiss(alert.eventId);
+            }}
+            onPointerDown={stopPlayhtmlMoveStart}
+            onMouseDown={stopPlayhtmlMoveStart}
+            onTouchStart={stopPlayhtmlMoveStart}
+          >
+            {RADAR_ALERT_COPY.cta}
+          </button>
+        </article>
+      </div>
+    </CanMoveElement>
   );
 }
