@@ -109,17 +109,30 @@ describe("IC3.7 mobile input focus zoom", () => {
     assert.ok(form.includes("fixed inset-0"));
   });
 
+  it("11b. live chat input reuses IC3.7 mobile-safe class + counter-scale", () => {
+    const chat = readSrc("src/components/canvas/live-chat-object.tsx");
+    assert.ok(chat.includes("MOBILE_SAFE_COMPOSER_INPUT_CLASS"));
+    assert.ok(chat.includes("worldScaleCounterScale"));
+    assert.ok(chat.includes("data-4663-live-chat-input"));
+    assert.ok(chat.includes("data-4663-live-chat-composer-counter-scale"));
+  });
+
   it("12. world scale contributes — counter-scale restores screen size", () => {
-    const fit = homeFitScaleForViewport(390, 844);
-    assert.ok(fit < 1);
-    const counter = worldScaleCounterScale(fit);
-    assert.ok(Math.abs(counter * fit - 1) < 1e-9);
+    // IC3.10 — home fit is identity (scale 1). Counter-scale still matters when
+    // the local camera scale later differs from 1.
+    const homeFit = homeFitScaleForViewport(390, 844);
+    assert.equal(homeFit, 1);
+    assert.equal(worldScaleCounterScale(homeFit), 1);
+
+    const zoomedOut = 0.75;
+    const counter = worldScaleCounterScale(zoomedOut);
+    assert.ok(Math.abs(counter * zoomedOut - 1) < 1e-9);
     assert.equal(worldScaleCounterScale(1), 1);
 
-    // 12px * fit < 16 → proves font-only fix is insufficient under fit scale.
-    assert.ok(12 * fit < 16);
+    // 12px * zoomedOut < 16 → font-only fix is insufficient under world scale.
+    assert.ok(12 * zoomedOut < 16);
     // 16px after counter-scale → effective screen size ≈ 16.
-    assert.ok(16 * fit * counter >= 16 - 1e-9);
+    assert.ok(16 * zoomedOut * counter >= 16 - 1e-9);
 
     const composer = readSrc(
       "src/components/social/ephemeral-text-composer.tsx",

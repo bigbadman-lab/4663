@@ -6,12 +6,17 @@
  * IC3.6 — input / send / ENTER / EVM copy use interactive-control protection.
  */
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
+import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
 import { splitTextWithEvmAddresses } from "@/lib/canvas/format-address";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
+import {
+  MOBILE_SAFE_COMPOSER_INPUT_CLASS,
+  worldScaleCounterScale,
+} from "@/lib/canvas/mobile-form-control";
 import {
   formatPresenceHereLabel,
 } from "@/lib/presence/format-presence";
@@ -147,6 +152,12 @@ function ChatComposer({
   const sendRef = useInteractiveControlProtection<HTMLButtonElement>();
   const canSend = draft.trim().length > 0 && !sending;
 
+  // IC3.7 — chat lives under #4663-world scale; counter-scale + ≥16px mobile type.
+  const counterScale = useMemo(() => {
+    const scale = getCanvasPlacementSnapshot()?.camera.scale ?? 1;
+    return worldScaleCounterScale(scale);
+  }, []);
+
   async function submit(): Promise<void> {
     const body = draft.trim();
     if (!body || sending) return;
@@ -170,6 +181,11 @@ function ChatComposer({
     <form
       className="flex flex-col gap-1"
       data-4663-live-chat-composer
+      data-4663-live-chat-composer-counter-scale={String(counterScale)}
+      style={{
+        transform: `scale(${counterScale})`,
+        transformOrigin: "left bottom",
+      }}
       onSubmit={onSubmit}
       onPointerDown={stopPlayhtmlMoveStart}
     >
@@ -183,7 +199,7 @@ function ChatComposer({
           disabled={sending}
           autoComplete="off"
           spellCheck={false}
-          className="min-h-11 min-w-0 flex-1 border-0 bg-transparent p-0 font-mono text-[11px] tracking-wide text-neutral-800 outline-none placeholder:text-neutral-400 focus-visible:outline-none sm:min-h-0 sm:text-[12px]"
+          className={`min-h-11 min-w-0 flex-1 border-0 bg-transparent p-0 font-mono ${MOBILE_SAFE_COMPOSER_INPUT_CLASS} leading-snug tracking-wide text-neutral-800 outline-none placeholder:text-neutral-400 focus-visible:outline-none sm:min-h-0`}
           data-4663-live-chat-input
           onChange={(event) => {
             onClearError();

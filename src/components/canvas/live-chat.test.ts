@@ -91,6 +91,24 @@ describe("Live chat object UI + PlayHTML", () => {
     assert.ok(content.includes("copyTextQuiet"));
   });
 
+  it("IC3.7 mobile focus-zoom: shared ≥16px input class + world counter-scale", () => {
+    const content = readSrc("src/components/canvas/live-chat-object.tsx");
+    assert.ok(content.includes("MOBILE_SAFE_COMPOSER_INPUT_CLASS"));
+    assert.ok(content.includes("worldScaleCounterScale"));
+    assert.ok(content.includes("getCanvasPlacementSnapshot"));
+    assert.ok(content.includes("data-4663-live-chat-composer-counter-scale"));
+    // Focused chat input must use the shared ≥16px mobile class, not hardcoded sub-16 type.
+    assert.ok(
+      /data-4663-live-chat-input[\s\S]{0,200}MOBILE_SAFE_COMPOSER_INPUT_CLASS|MOBILE_SAFE_COMPOSER_INPUT_CLASS[\s\S]{0,200}data-4663-live-chat-input/.test(
+        content,
+      ) || content.includes("${MOBILE_SAFE_COMPOSER_INPUT_CLASS}"),
+    );
+    assert.equal(
+      /className=\{`[^`]*text-\[1[0-5]px\][^`]*\$\{MOBILE_SAFE/.test(content),
+      false,
+    );
+  });
+
   it("EVM address rendering reuses existing parser (rendering-only)", () => {
     const segments = splitTextWithEvmAddresses(`look at ${ADDR} please`);
     assert.deepEqual(segments, [
