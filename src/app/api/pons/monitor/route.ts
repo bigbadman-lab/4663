@@ -1,8 +1,10 @@
 /**
  * GET /api/pons/monitor
  * Compact read-only snapshot of launches currently under PONS watch.
+ * Health 2: short in-process TTL cache + in-flight coalescing.
  */
 
+import { getCachedPonsMonitor } from "@/lib/pons/monitor-cache";
 import { loadPonsMonitor } from "@/lib/pons/monitor";
 import { createPresenceSupabase } from "@/lib/presence/supabase-server";
 
@@ -24,7 +26,9 @@ export async function GET(): Promise<Response> {
     );
   }
 
-  const result = await loadPonsMonitor(supabase, Date.now());
+  const result = await getCachedPonsMonitor(() =>
+    loadPonsMonitor(supabase, Date.now()),
+  );
   if (!result.ok) {
     return Response.json(
       { ok: false, error: "monitor_unavailable" },

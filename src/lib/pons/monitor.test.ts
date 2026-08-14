@@ -123,6 +123,7 @@ describe("pons monitor read-model", () => {
   it("5. response shape omits worker secrets / internal fields", () => {
     const route = readSrc("src/app/api/pons/monitor/route.ts");
     assert.ok(route.includes("loadPonsMonitor"));
+    assert.ok(route.includes("getCachedPonsMonitor"));
     assert.ok(route.includes("Cache-Control"));
     assert.equal(route.includes("SUPABASE_SECRET"), false);
     assert.equal(route.includes("private_key"), false);
