@@ -11,7 +11,6 @@ import {
   formatShortAddress,
   splitTextWithEvmAddresses,
 } from "@/lib/canvas/format-address";
-import { formatChatClock } from "@/components/canvas/live-chat-object";
 import {
   CHAT_MESSAGES_REALTIME_CHANNEL,
   CHAT_MESSAGES_TABLE,
@@ -29,11 +28,6 @@ function readSrc(rel: string): string {
 const ADDR = "0x1234567890123456789012345678901234567890";
 
 describe("Live chat object UI + PlayHTML", () => {
-  it("formatChatClock renders compact UTC HH:MM", () => {
-    assert.equal(formatChatClock("2026-08-14T01:32:00.000Z"), "01:32");
-    assert.equal(formatChatClock("not-a-date"), "--:--");
-  });
-
   it("object id, CanMoveElement direct DOM child, default position", () => {
     const movable = readSrc("src/components/canvas/movable-live-chat.tsx");
     assert.ok(movable.includes("CanMoveElement"));
@@ -46,16 +40,26 @@ describe("Live chat object UI + PlayHTML", () => {
     assert.ok(content.includes('4663-live-chat'));
     assert.ok(content.includes('left: "74%"'));
     assert.ok(content.includes('top: "42%"'));
-    assert.ok(content.includes("4663 // GLOBAL CHAT"));
-    assert.ok(content.includes("SAY SOMETHING..."));
-    assert.ok(content.includes("ENTER A NAME TO SPEAK"));
-    assert.ok(content.includes("[ SEND ]"));
-    assert.ok(content.includes("formatChatClock"));
-    assert.ok(content.includes("-- GLOBAL LINE OPEN --"));
-    assert.ok(content.includes("rounded-none"));
+    assert.ok(content.includes("data-4663-live-chat-title"));
+    assert.match(content, /data-4663-live-chat-title[\s\S]{0,80}CHAT/);
+    assert.ok(content.includes("say something..."));
+    assert.ok(content.includes("enter a name to speak"));
+    assert.ok(content.includes("No messages yet."));
+    assert.ok(content.includes(">SEND</") || content.includes("\n          SEND\n"));
+    assert.ok(content.includes("formatPresenceHereLabel"));
+    assert.ok(content.includes("rounded-sm"));
+    assert.ok(content.includes("--canvas-bg"));
+
+    // Soft human window — no terminal / BBS chrome.
+    assert.equal(content.includes("4663 // GLOBAL CHAT"), false);
+    assert.equal(content.includes("GLOBAL LINE OPEN"), false);
+    assert.equal(content.includes("waiting for signal"), false);
+    assert.equal(content.includes("[ SEND ]"), false);
+    assert.equal(content.includes("scanlines"), false);
+    assert.equal(content.includes("formatChatClock"), false);
     assert.equal(content.includes("backdrop-blur"), false);
     assert.equal(content.includes("shadow-sm"), false);
-    assert.ok(content.includes("formatPresenceHereLabel"));
+    assert.equal(content.includes("&gt;"), false);
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("MovableLiveChatObject"));
