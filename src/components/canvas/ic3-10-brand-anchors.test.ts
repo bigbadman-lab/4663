@@ -79,7 +79,7 @@ describe("Stage IC3.10 independent brand anchors", () => {
     assert.ok(brand.includes("BRAND_HERO_SUBTITLE"));
     assert.equal(
       BRAND_HERO_SUBTITLE,
-      "Create, communicate and interact — with web3 capabilities.",
+      "Create, communicate and interact — with Web3 tools built in.",
     );
     assert.ok(BRAND_LOGO_STYLE.left.includes("24px"));
     assert.ok(BRAND_LOGO_STYLE.top.includes("24px"));
