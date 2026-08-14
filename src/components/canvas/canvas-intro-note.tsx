@@ -75,11 +75,11 @@ export function CanvasIntroNote({ onClose }: CanvasIntroNoteProps) {
         </div>
         <div className="space-y-3 font-mono text-[12px] leading-relaxed tracking-wide text-neutral-600 sm:text-[13px]">
           <p className="font-semibold text-neutral-900">
-            4663 is a canvas for the internet with web3 capabilities.
+            4663 is a canvas for the internet with Web3 tools built in.
           </p>
           <p>
-            A shared, live space where anyone can write, draw, move things and
-            interact with people around the world. No accounts. No sign-ups.
+            A shared, live space where anyone can write, draw, move things, chat
+            and interact with people around the world. No accounts. No sign-ups.
           </p>
           <p>The canvas is also connected to Robinhood Chain.</p>
           <p>

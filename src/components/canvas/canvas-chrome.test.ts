@@ -93,7 +93,8 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     const note = readSrc("src/components/canvas/canvas-intro-note.tsx");
     assert.ok(note.includes('role="dialog"'));
     assert.ok(note.includes('aria-modal="true"'));
-    assert.ok(note.includes("canvas for the internet with web3 capabilities"));
+    assert.ok(note.includes("canvas for the internet with Web3 tools built in"));
+    assert.ok(note.includes("move things, chat"));
     assert.ok(note.includes("No accounts. No sign-ups."));
     assert.ok(note.includes("connected to Robinhood Chain"));
     assert.ok(note.includes("Part canvas. Part network. Part machine."));

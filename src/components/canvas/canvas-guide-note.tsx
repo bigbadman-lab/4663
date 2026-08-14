@@ -15,39 +15,38 @@ const GUIDE_ACTIONS = [
   {
     heading: "EXPLORE THE CANVAS",
     paragraphs: [
-      "Move around. Pick things up. Leave text. Draw. Share a contract.",
-      "What you leave becomes part of the space other people are exploring.",
+      "Move around. Pick things up. Leave text. Draw. Explore what other people have left behind.",
+      "The canvas is shared, so what happens here becomes part of the space everyone else is exploring.",
     ],
   },
   {
-    heading: "SEE PEOPLE LIVE",
+    heading: "BE HERE WITH EVERYONE",
     paragraphs: [
-      "4663 is shared globally.",
-      "Watch other people type, draw, move and interact with the canvas while you're here. Choose a temporary name if you want people to know who you are.",
-      "No account or sign-up is required.",
+      "Choose ENTER to give yourself a temporary name.",
+      "See who else is here, watch people interact with the canvas and open GLOBAL CHAT to talk to everyone currently exploring 4663.",
+      "No account or sign-up required.",
     ],
   },
   {
     heading: "WATCH ROBINHOOD CHAIN",
     paragraphs: [
       "4663 is connected to live onchain data.",
-      "We monitor every new token launched through PONS. The live terminal shows what we're currently watching as it happens.",
-      "From that activity, 4663 surfaces launches we think deserve a closer look.",
-    ],
-    aside: "This isn't a signal to buy. It's something to investigate.",
-  },
-  {
-    heading: "FIND WHAT'S INTERESTING",
-    paragraphs: [
-      "Open our Crypto watchlist to see the launches currently on our radar.",
-      "Watch them, pin interesting discoveries onto the canvas, or use SUMMON to bring previous activity back into view.",
+      "We monitor new tokens launched through PONS and surface activity we think is worth looking at.",
+      "This isn't a signal to buy. It's something to investigate.",
     ],
   },
   {
-    heading: "BUILD ON THE CANVAS",
+    heading: "EXPLORE CRYPTO",
     paragraphs: [
-      "4663 is becoming more than a place to leave things.",
-      "We're building ways for projects and businesses to become part of the canvas, while bringing the 4663 token deeper into how the space works.",
+      "Click CRYPTO to see the last 5 Robinhood Chain tokens we've identified as potentially worth investigating.",
+      "These are surfaced from the live PONS activity 4663 monitors — not signals to buy, but tokens we think deserve a closer look.",
+    ],
+  },
+  {
+    heading: "BUILD WITH US",
+    paragraphs: [
+      "4663 is only getting started.",
+      "We're building a canvas where people, onchain data, projects, businesses and new Web3 tools can exist together in one shared space.",
       "The canvas will keep changing.",
       "So will what you can do with it.",
     ],
@@ -139,9 +138,6 @@ export function CanvasGuideNote({ onClose }: CanvasGuideNoteProps) {
                     {paragraph}
                   </p>
                 ))}
-                {"aside" in action && action.aside ? (
-                  <p className="mt-1 text-neutral-500">{action.aside}</p>
-                ) : null}
               </li>
             ))}
           </ul>

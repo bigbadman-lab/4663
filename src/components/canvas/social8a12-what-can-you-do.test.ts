@@ -19,10 +19,10 @@ function readSrc(rel: string): string {
 
 const REQUIRED_HEADINGS = [
   "EXPLORE THE CANVAS",
-  "SEE PEOPLE LIVE",
+  "BE HERE WITH EVERYONE",
   "WATCH ROBINHOOD CHAIN",
-  "FIND WHAT'S INTERESTING",
-  "BUILD ON THE CANVAS",
+  "EXPLORE CRYPTO",
+  "BUILD WITH US",
 ] as const;
 
 const REMOVED_HEADINGS = [
@@ -38,6 +38,9 @@ const REMOVED_HEADINGS = [
   "HOME",
   "RESET",
   "NO ACCOUNTS. NO SIGN-UP.",
+  "SEE PEOPLE LIVE",
+  "FIND WHAT'S INTERESTING",
+  "BUILD ON THE CANVAS",
 ] as const;
 
 describe("Stage 8A.12 WHAT CAN YOU DO modal", () => {
@@ -79,7 +82,7 @@ describe("Stage 8A.12 WHAT CAN YOU DO modal", () => {
     assert.ok(note.includes("data-4663-guide-note"));
   });
 
-  it("5–7. new guide sections + investigate aside; legacy sections removed", () => {
+  it("5–7. guide sections name current controls; SUMMON absent", () => {
     const note = readSrc("src/components/canvas/canvas-guide-note.tsx");
     for (const heading of REQUIRED_HEADINGS) {
       assert.ok(note.includes(heading), `missing heading: ${heading}`);
@@ -91,23 +94,23 @@ describe("Stage 8A.12 WHAT CAN YOU DO modal", () => {
         `legacy heading still present: ${heading}`,
       );
     }
-    assert.ok(note.includes("live terminal shows what we're currently watching"));
-    assert.ok(note.includes("Crypto watchlist"));
+    assert.ok(note.includes("ENTER"));
+    assert.ok(note.includes("GLOBAL CHAT"));
+    assert.ok(note.includes("CRYPTO"));
+    assert.ok(note.includes("last 5"));
+    assert.equal(note.includes("SUMMON"), false);
     assert.ok(
       note.includes(
         "This isn't a signal to buy. It's something to investigate.",
       ),
     );
+    assert.ok(note.includes("not signals to buy"));
   });
 
-  it("8–9. accounts copy lives in SEE PEOPLE LIVE; no over-strong privacy claim", () => {
+  it("8–9. accounts copy lives in BE HERE WITH EVERYONE; no over-strong privacy claim", () => {
     const note = readSrc("src/components/canvas/canvas-guide-note.tsx");
-    assert.ok(note.includes("No account or sign-up is required."));
-    assert.ok(
-      note.includes(
-        "Choose a temporary name if you want people to know who you are.",
-      ),
-    );
+    assert.ok(note.includes("No account or sign-up required."));
+    assert.ok(note.includes("Choose ENTER to give yourself a temporary name."));
     assert.equal(note.includes("NO ACCOUNTS. NO SIGN-UP."), false);
     assert.equal(note.includes("no data saved whatsoever"), false);
     assert.equal(note.includes("No user data stored"), false);
@@ -161,11 +164,10 @@ describe("Stage 8A.12 WHAT CAN YOU DO modal", () => {
     }
   });
 
-  it("15. existing WHAT IS THIS? behaviour remains with updated positioning copy", () => {
+  it("15. WHAT IS THIS? reflects Web3 tools + chat copy", () => {
     const intro = readSrc("src/components/canvas/canvas-intro-note.tsx");
-    assert.ok(
-      intro.includes("canvas for the internet with web3 capabilities"),
-    );
+    assert.ok(intro.includes("Web3 tools built in"));
+    assert.ok(intro.includes("move things, chat"));
     assert.ok(intro.includes("Part canvas. Part network. Part machine."));
     assert.ok(intro.includes("Welcome to 4663."));
     assert.ok(intro.includes("data-4663-intro-note"));
