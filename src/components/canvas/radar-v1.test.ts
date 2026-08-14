@@ -175,6 +175,37 @@ describe("RADAR V1 canvas alert + explorers", () => {
     assert.ok(hook.includes("visibleTokens"));
     assert.equal(hook.includes("diffRadarQualifications"), false);
     assert.ok(hook.includes("recentQualifications"));
+    assert.ok(hook.includes("getCanvasPlacementSnapshot"));
+    assert.ok(hook.includes("radarAlertSpawnWorldPct"));
+  });
+});
+
+describe("RADAR alert viewport placement wiring", () => {
+  it("alerts live on the world layer; spawn uses camera snapshot", () => {
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("<RadarAlertLayer />"));
+    assert.ok(surface.includes("<EphemeralTextLayer />"));
+    // Mounted as a world sibling of EphemeralTextLayer (after home-region closes).
+    const afterHome = surface.slice(surface.lastIndexOf("data-4663-home-region"));
+    const homeCloseToText = afterHome.slice(
+      0,
+      afterHome.indexOf("<EphemeralTextLayer"),
+    );
+    assert.ok(homeCloseToText.includes("</div>"));
+    assert.ok(homeCloseToText.includes("<RadarAlertLayer"));
+    // Not only inside the home-region opening tag block before first child close —
+    // ensure world comment documents world-% placement.
+    assert.ok(surface.includes("viewport-spawned RADAR alerts"));
+
+    const hook = readSrc(
+      "src/components/canvas/use-continuation-watchlist.ts",
+    );
+    assert.ok(hook.includes("resolvePosition"));
+    assert.ok(hook.includes("getCanvasPlacementSnapshot"));
+
+    const alerts = readSrc("src/lib/events/radar-alerts.ts");
+    assert.ok(alerts.includes("radarAlertSpawnWorldPct"));
+    assert.ok(alerts.includes("dockCreateWorldPct"));
   });
 });
 

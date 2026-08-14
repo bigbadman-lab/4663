@@ -2,7 +2,16 @@
  * Live RADAR alert detection from visible watchlist tokens[] (poll-diff).
  * First successful visible set seeds seen ids — no historical alerts.
  * Alerts mean: newly appeared ON OUR RADAR (top-5 membership) this session.
+ * Spawn positions are world % chosen inside the current local viewport.
  */
+
+import {
+  dockCreateWorldPct,
+  homePctToWorldPct,
+  type CanvasCamera,
+  type ViewportRect,
+  type WorldPct,
+} from "@/lib/canvas/world-camera";
 
 export const RADAR_ALERT_LIFETIME_MS = 4 * 60 * 1000;
 
@@ -17,35 +26,111 @@ export type RadarAlert = {
   tokenAddress: string;
   createdAtMs: number;
   expiresAtMs: number;
+  /** World % origin (PlayHTML / CanMoveElement), frozen at spawn. */
   leftPct: number;
   topPct: number;
 };
 
-/** Sparse spawn points in home region (avoid hero / dock / monitoring card). */
-export const RADAR_ALERT_SLOTS: readonly { leftPct: number; topPct: number }[] =
-  [
-    { leftPct: 68, topPct: 38 },
-    { leftPct: 78, topPct: 58 },
-    { leftPct: 58, topPct: 62 },
-    { leftPct: 74, topPct: 48 },
-  ] as const;
-
-export function radarAlertSlotForEventId(eventId: string): {
+/**
+ * Fallback home-artboard slots → converted to world % when camera snapshot
+ * is unavailable (tests / pre-mount). Not used for live viewport spawn.
+ */
+export const RADAR_ALERT_FALLBACK_HOME_SLOTS: readonly {
   leftPct: number;
   topPct: number;
-} {
+}[] = [
+  { leftPct: 68, topPct: 38 },
+  { leftPct: 78, topPct: 58 },
+  { leftPct: 58, topPct: 62 },
+  { leftPct: 74, topPct: 48 },
+] as const;
+
+/** @deprecated Prefer radarAlertSpawnWorldPct — kept for tests/fallback hash. */
+export const RADAR_ALERT_SLOTS = RADAR_ALERT_FALLBACK_HOME_SLOTS;
+
+export function radarAlertFallbackWorldPct(
+  eventId: string,
+  index: number = 0,
+): WorldPct {
   let hash = 0;
   for (let i = 0; i < eventId.length; i += 1) {
     hash = (hash * 31 + eventId.charCodeAt(i)) >>> 0;
   }
-  return RADAR_ALERT_SLOTS[hash % RADAR_ALERT_SLOTS.length]!;
+  const slot =
+    RADAR_ALERT_FALLBACK_HOME_SLOTS[
+      (hash + index) % RADAR_ALERT_FALLBACK_HOME_SLOTS.length
+    ]!;
+  return homePctToWorldPct(slot.leftPct, slot.topPct);
 }
+
+/** @deprecated Use radarAlertFallbackWorldPct (world %) or radarAlertSpawnWorldPct. */
+export function radarAlertSlotForEventId(eventId: string): WorldPct {
+  return radarAlertFallbackWorldPct(eventId, 0);
+}
+
+/**
+ * Safe viewport fractions for the alert *center* (card ~11.5rem × ~14rem,
+ * with -translate centering). Keeps the object clear of top chrome and the
+ * bottom dock / contract cluster.
+ */
+export function radarAlertViewportSafeBand(viewportWidth: number): {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  preferredX: number;
+  preferredY: number;
+} {
+  const narrow = viewportWidth < 640;
+  if (narrow) {
+    return {
+      left: 0.28,
+      right: 0.72,
+      top: 0.22,
+      bottom: 0.56,
+      preferredX: 0.64,
+      preferredY: 0.34,
+    };
+  }
+  return {
+    left: 0.22,
+    right: 0.82,
+    top: 0.18,
+    bottom: 0.66,
+    preferredX: 0.72,
+    preferredY: 0.36,
+  };
+}
+
+/**
+ * Viewport-relative spawn → world % via the same screen→world path as dock create.
+ * `index` staggers simultaneous alerts inside the safe band.
+ */
+export function radarAlertSpawnWorldPct(input: {
+  viewport: ViewportRect;
+  camera: CanvasCamera;
+  index?: number;
+}): WorldPct {
+  const index = Math.max(0, Math.trunc(input.index ?? 0));
+  const band = radarAlertViewportSafeBand(input.viewport.width);
+  let fx = band.preferredX - (index % 3) * 0.07;
+  let fy = band.preferredY + (index % 3) * 0.06 + Math.floor(index / 3) * 0.1;
+  fx = Math.min(band.right, Math.max(band.left, fx));
+  fy = Math.min(band.bottom, Math.max(band.top, fy));
+  return dockCreateWorldPct(input.viewport, input.camera, { x: fx, y: fy });
+}
+
+export type RadarAlertPositionResolver = (
+  eventId: string,
+  index: number,
+) => WorldPct;
 
 /**
  * Pure poll-diff on visible RADAR membership (tokens[]):
  * - First observation seeds seen eventIds → zero alerts
  * - Later unseen eventIds each emit one alert (tokens array order)
  * - Reorder / exit does not alert; seen ids are never removed (no re-entry alert)
+ * - Positions come from resolvePosition (viewport spawn) and are frozen on the alert
  */
 export function diffRadarVisibleTokens(input: {
   previousSeen: ReadonlySet<string>;
@@ -53,6 +138,7 @@ export function diffRadarVisibleTokens(input: {
   tokens: readonly RadarVisibleTokenInput[];
   nowMs: number;
   lifetimeMs?: number;
+  resolvePosition?: RadarAlertPositionResolver;
 }): {
   nextSeen: Set<string>;
   seeded: boolean;
@@ -61,6 +147,10 @@ export function diffRadarVisibleTokens(input: {
   const lifetimeMs = input.lifetimeMs ?? RADAR_ALERT_LIFETIME_MS;
   const nextSeen = new Set(input.previousSeen);
   const newAlerts: RadarAlert[] = [];
+  const resolve =
+    input.resolvePosition ??
+    ((eventId: string, index: number) =>
+      radarAlertFallbackWorldPct(eventId, index));
 
   if (!input.seeded) {
     for (const t of input.tokens) {
@@ -72,7 +162,8 @@ export function diffRadarVisibleTokens(input: {
   for (const t of input.tokens) {
     if (nextSeen.has(t.eventId)) continue;
     nextSeen.add(t.eventId);
-    const slot = radarAlertSlotForEventId(t.eventId);
+    const index = newAlerts.length;
+    const slot = resolve(t.eventId, index);
     newAlerts.push({
       eventId: t.eventId,
       tokenAddress: t.tokenAddress,

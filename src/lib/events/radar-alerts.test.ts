@@ -1,5 +1,5 @@
 /**
- * Live RADAR alert poll-diff — visible tokens[] membership semantics.
+ * Live RADAR alert poll-diff — visible tokens[] membership + viewport spawn.
  */
 
 import assert from "node:assert/strict";
@@ -8,8 +8,19 @@ import {
   RADAR_ALERT_LIFETIME_MS,
   diffRadarVisibleTokens,
   pruneExpiredRadarAlerts,
+  radarAlertFallbackWorldPct,
   radarAlertSlotForEventId,
+  radarAlertSpawnWorldPct,
+  radarAlertViewportSafeBand,
 } from "@/lib/events/radar-alerts";
+import {
+  WORLD_HEIGHT_PX,
+  WORLD_WIDTH_PX,
+  homePctToWorldPct,
+  visibleWorldSize,
+  type CanvasCamera,
+  type ViewportRect,
+} from "@/lib/canvas/world-camera";
 
 const ID_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const ID_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
@@ -40,6 +51,39 @@ const TOP5 = [
   tok(ID_D, TOKEN_D),
   tok(ID_E, TOKEN_E),
 ];
+
+function worldPctToPoint(pct: { leftPct: number; topPct: number }) {
+  return {
+    x: (pct.leftPct / 100) * WORLD_WIDTH_PX,
+    y: (pct.topPct / 100) * WORLD_HEIGHT_PX,
+  };
+}
+
+function assertInsideVisibleWorld(
+  pct: { leftPct: number; topPct: number },
+  camera: CanvasCamera,
+  viewport: ViewportRect,
+  padFrac = 0.02,
+) {
+  const { width, height } = visibleWorldSize(
+    viewport.width,
+    viewport.height,
+    camera.scale,
+  );
+  const point = worldPctToPoint(pct);
+  const padX = width * padFrac;
+  const padY = height * padFrac;
+  assert.ok(point.x >= camera.x - padX, `x ${point.x} >= cam ${camera.x}`);
+  assert.ok(
+    point.x <= camera.x + width + padX,
+    `x ${point.x} <= cam+w ${camera.x + width}`,
+  );
+  assert.ok(point.y >= camera.y - padY, `y ${point.y} >= cam ${camera.y}`);
+  assert.ok(
+    point.y <= camera.y + height + padY,
+    `y ${point.y} <= cam+h ${camera.y + height}`,
+  );
+}
 
 describe("radar alert detection (visible tokens[] membership)", () => {
   it("initial seed of tokens produces no alerts", () => {
@@ -216,7 +260,6 @@ describe("radar alert detection (visible tokens[] membership)", () => {
       tokens: TOP5,
       nowMs: 1,
     });
-    // H would appear in recentQualifications but tokens unchanged → no alert.
     const unchanged = diffRadarVisibleTokens({
       previousSeen: seeded.nextSeen,
       seeded: true,
@@ -270,11 +313,12 @@ describe("radar alert detection (visible tokens[] membership)", () => {
     assert.equal(remount.newAlerts.length, 0);
   });
 
-  it("expired alerts prune; slot is stable per eventId", () => {
+  it("expired alerts prune; fallback slot helper is stable", () => {
     const slot = radarAlertSlotForEventId(ID_A);
     assert.equal(typeof slot.leftPct, "number");
     assert.equal(typeof slot.topPct, "number");
     assert.deepEqual(radarAlertSlotForEventId(ID_A), slot);
+    assert.deepEqual(radarAlertFallbackWorldPct(ID_A, 0), slot);
 
     const alerts = [
       {
@@ -297,5 +341,175 @@ describe("radar alert detection (visible tokens[] membership)", () => {
     assert.equal(pruneExpiredRadarAlerts(alerts, 100).length, 1);
     assert.equal(pruneExpiredRadarAlerts(alerts, 100)[0]!.eventId, ID_B);
     assert.equal(pruneExpiredRadarAlerts(alerts, 201).length, 0);
+  });
+});
+
+describe("radar alert viewport spawn", () => {
+  const desktopViewport: ViewportRect = {
+    left: 0,
+    top: 0,
+    width: 1440,
+    height: 900,
+  };
+  const mobileViewport: ViewportRect = {
+    left: 0,
+    top: 0,
+    width: 390,
+    height: 844,
+  };
+
+  it("spawns inside current visible world bounds (home camera)", () => {
+    const camera: CanvasCamera = { x: 1680, y: 1150, scale: 1 };
+    const pct = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera,
+      index: 0,
+    });
+    assertInsideVisibleWorld(pct, camera, desktopViewport);
+  });
+
+  it("pan away from home still spawns inside the new viewport", () => {
+    const camera: CanvasCamera = { x: 2800, y: 1900, scale: 1 };
+    const homeish = homePctToWorldPct(68, 38);
+    const pct = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera,
+      index: 0,
+    });
+    assertInsideVisibleWorld(pct, camera, desktopViewport);
+    // Not the old fixed home-slot world position.
+    assert.ok(
+      Math.hypot(pct.leftPct - homeish.leftPct, pct.topPct - homeish.topPct) >
+        1,
+    );
+  });
+
+  it("accounts for camera scale when mapping viewport → world", () => {
+    const camera: CanvasCamera = { x: 1000, y: 800, scale: 0.5 };
+    const pct = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera,
+      index: 0,
+    });
+    assertInsideVisibleWorld(pct, camera, desktopViewport);
+    const vis = visibleWorldSize(
+      desktopViewport.width,
+      desktopViewport.height,
+      camera.scale,
+    );
+    assert.ok(vis.width > desktopViewport.width);
+  });
+
+  it("mobile ~390px keeps spawn inside safe viewport band", () => {
+    const camera: CanvasCamera = { x: 1700, y: 1200, scale: 1 };
+    const band = radarAlertViewportSafeBand(390);
+    assert.ok(band.left >= 0.2);
+    assert.ok(band.bottom <= 0.65);
+    const pct = radarAlertSpawnWorldPct({
+      viewport: mobileViewport,
+      camera,
+      index: 0,
+    });
+    assertInsideVisibleWorld(pct, camera, mobileViewport);
+  });
+
+  it("multiple alerts receive distinct staggered positions", () => {
+    const camera: CanvasCamera = { x: 1680, y: 1150, scale: 1 };
+    const a = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera,
+      index: 0,
+    });
+    const b = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera,
+      index: 1,
+    });
+    const c = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera,
+      index: 2,
+    });
+    assert.notDeepEqual(a, b);
+    assert.notDeepEqual(b, c);
+    assertInsideVisibleWorld(a, camera, desktopViewport);
+    assertInsideVisibleWorld(b, camera, desktopViewport);
+    assertInsideVisibleWorld(c, camera, desktopViewport);
+  });
+
+  it("spawn position is frozen on the alert and does not track later camera", () => {
+    const cameraA: CanvasCamera = { x: 1680, y: 1150, scale: 1 };
+    const cameraB: CanvasCamera = { x: 3000, y: 2000, scale: 1 };
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    const created = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: [
+        tok(ID_G, TOKEN_G),
+        tok(ID_A, TOKEN_A),
+        tok(ID_B, TOKEN_B),
+        tok(ID_C, TOKEN_C),
+        tok(ID_D, TOKEN_D),
+      ],
+      nowMs: 2,
+      resolvePosition: (_id, index) =>
+        radarAlertSpawnWorldPct({
+          viewport: desktopViewport,
+          camera: cameraA,
+          index,
+        }),
+    });
+    const frozen = {
+      leftPct: created.newAlerts[0]!.leftPct,
+      topPct: created.newAlerts[0]!.topPct,
+    };
+    const laterViewportSpawn = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera: cameraB,
+      index: 0,
+    });
+    assert.notDeepEqual(frozen, laterViewportSpawn);
+    assert.equal(created.newAlerts[0]!.leftPct, frozen.leftPct);
+    assert.equal(created.newAlerts[0]!.topPct, frozen.topPct);
+  });
+
+  it("diff resolvePosition wires viewport spawn into new alerts", () => {
+    const camera: CanvasCamera = { x: 2000, y: 1400, scale: 1 };
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: [tok(ID_A, TOKEN_A)],
+      nowMs: 1,
+    });
+    const expected = radarAlertSpawnWorldPct({
+      viewport: desktopViewport,
+      camera,
+      index: 0,
+    });
+    const next = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: [tok(ID_G, TOKEN_G), tok(ID_A, TOKEN_A)],
+      nowMs: 2,
+      resolvePosition: (_id, index) =>
+        radarAlertSpawnWorldPct({
+          viewport: desktopViewport,
+          camera,
+          index,
+        }),
+    });
+    assert.equal(next.newAlerts.length, 1);
+    assert.deepEqual(
+      {
+        leftPct: next.newAlerts[0]!.leftPct,
+        topPct: next.newAlerts[0]!.topPct,
+      },
+      expected,
+    );
   });
 });

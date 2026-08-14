@@ -157,7 +157,6 @@ export function CanvasSurface({
               Per-token live buying-activity objects remain unmounted.
             */}
             <MovablePonsMonitoringObject />
-            <RadarAlertLayer />
             <MovablePonsMonitorTerminal />
             <MovableLiveChatObject />
             <MovableLiveEventLayer
@@ -172,6 +171,8 @@ export function CanvasSurface({
             <ParticipantPresenceLayer />
           </div>
 
+          {/* World-% objects: TEXT/DRAW + viewport-spawned RADAR alerts */}
+          <RadarAlertLayer />
           <EphemeralTextLayer />
         </div>
       </div>

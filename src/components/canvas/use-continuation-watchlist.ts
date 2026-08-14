@@ -16,12 +16,15 @@ import {
 import {
   diffRadarVisibleTokens,
   pruneExpiredRadarAlerts,
+  radarAlertSpawnWorldPct,
+  radarAlertFallbackWorldPct,
   type RadarAlert,
 } from "@/lib/events/radar-alerts";
 import type {
   ContinuationWatchlistToken,
   RadarQualificationRef,
 } from "@/lib/events/continuation-watchlist";
+import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
 
 export const CONTINUATION_WATCHLIST_POLL_MS = 45_000 as const;
 
@@ -94,11 +97,20 @@ async function loadWatchlist(): Promise<void> {
         typeof t?.eventId === "string" &&
         typeof t?.tokenAddress === "string",
     );
+    const placement = getCanvasPlacementSnapshot();
     const diff = diffRadarVisibleTokens({
       previousSeen: seenIds,
       seeded,
       tokens: visibleTokens,
       nowMs,
+      resolvePosition: (_eventId, index) => {
+        if (!placement) return radarAlertFallbackWorldPct(_eventId, index);
+        return radarAlertSpawnWorldPct({
+          viewport: placement.viewport,
+          camera: placement.camera,
+          index,
+        });
+      },
     });
     seenIds.clear();
     for (const id of diff.nextSeen) seenIds.add(id);
