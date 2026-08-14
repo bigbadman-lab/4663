@@ -177,6 +177,7 @@ describe("pons monitor terminal presentation", () => {
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("MovablePonsMonitoringObject"));
     assert.ok(surface.includes("MovablePonsMonitorTerminal"));
+    assert.ok(surface.includes("MovableLiveChatObject"));
 
     const root = readSrc("src/components/canvas/canvas-root.tsx");
     assert.ok(root.includes("PonsMonitoringObject"));

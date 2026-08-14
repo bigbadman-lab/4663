@@ -22,6 +22,7 @@ function readSrc(rel: string): string {
 const WIPE_TABLES = [
   "canvas_pins",
   "canvas_marks",
+  "chat_messages",
   "events",
   "presence",
 ] as const;

@@ -9,6 +9,7 @@
 import { useEffect } from "react";
 import { CanvasControlPalette } from "@/components/canvas/canvas-control-palette";
 import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-layer";
+import { MovableLiveChatObject } from "@/components/canvas/movable-live-chat";
 import { MovablePonsMonitoringObject } from "@/components/canvas/movable-pons-monitoring-object";
 import { MovablePonsMonitorTerminal } from "@/components/canvas/movable-pons-monitor-terminal";
 import {
@@ -156,6 +157,7 @@ export function CanvasSurface({
             */}
             <MovablePonsMonitoringObject />
             <MovablePonsMonitorTerminal />
+            <MovableLiveChatObject />
             <MovableLiveEventLayer
               items={[]}
               isPinned={isPinned}

@@ -6,7 +6,7 @@
  * Outside PlayHTML / camera world — never movable.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BrandAnchors } from "@/components/canvas/brand-anchors";
 import { CanvasGuideNote } from "@/components/canvas/canvas-guide-note";
 import { CanvasGuideTrigger } from "@/components/canvas/canvas-guide-trigger";
@@ -21,6 +21,7 @@ import { ParticipationEnterTrigger } from "@/components/social/participation-ent
 import { ParticipationSessionControl } from "@/components/social/participation-session-control";
 import { PresenceStatus } from "@/components/presence-status";
 import { PARTICIPATION_CONTROL_DEFAULT_STYLE } from "@/lib/canvas/hero";
+import { OPEN_PARTICIPATION_ENTER_EVENT } from "@/lib/social/request-participation-enter";
 import { useParticipation } from "@/lib/social/use-participation";
 
 /** At most one information modal open (WHAT IS THIS? / WHAT CAN YOU DO?). */
@@ -36,6 +37,19 @@ export function CanvasChrome() {
   const openEnter = useCallback(() => setEnterOpen(true), []);
   const { self, isParticipating, enter, leave } = useParticipation();
   const officialToken = useOfficialToken();
+
+  useEffect(() => {
+    const onRequestEnter = () => {
+      if (!isParticipating) setEnterOpen(true);
+    };
+    window.addEventListener(OPEN_PARTICIPATION_ENTER_EVENT, onRequestEnter);
+    return () => {
+      window.removeEventListener(
+        OPEN_PARTICIPATION_ENTER_EVENT,
+        onRequestEnter,
+      );
+    };
+  }, [isParticipating]);
 
   return (
     <>

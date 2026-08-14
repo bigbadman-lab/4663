@@ -188,6 +188,20 @@ describe("IC3.6 control wiring + ownership contract", () => {
     assert.ok(text.includes("pointer-events-auto absolute z-[16]")); // owner
   });
 
+  it("live chat input/send/EVM copy use IC3.6 protection inside movable host", () => {
+    const chat = readSrc("src/components/canvas/live-chat-object.tsx");
+    assert.ok(chat.includes("useInteractiveControlProtection"));
+    assert.ok(chat.includes("stopPlayhtmlMoveStart"));
+    assert.ok(chat.includes("data-4663-live-chat-input"));
+    assert.ok(chat.includes("data-4663-live-chat-send"));
+    assert.ok(chat.includes("PonsAddressCopyControl"));
+    assert.ok(chat.includes('variant="inline"'));
+
+    const movable = readSrc("src/components/canvas/movable-live-chat.tsx");
+    assert.ok(movable.includes("CanMoveElement"));
+    assert.ok(movable.includes("LIVE_CHAT_ELEMENT_ID"));
+  });
+
   it("PONS body remains movable via CanMoveElement; empty canvas still pans", () => {
     assert.ok(
       readSrc(

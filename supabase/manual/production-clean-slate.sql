@@ -33,6 +33,8 @@ select 'canvas_pins' as table_name, count(*)::bigint as rows from public.canvas_
 union all
 select 'canvas_marks', count(*)::bigint from public.canvas_marks
 union all
+select 'chat_messages', count(*)::bigint from public.chat_messages
+union all
 select 'events', count(*)::bigint from public.events
 union all
 select 'presence', count(*)::bigint from public.presence
@@ -99,6 +101,7 @@ begin;
 -- public canvas state (durable social objects)
 delete from public.canvas_pins;
 delete from public.canvas_marks;
+delete from public.chat_messages;
 
 -- surfaced historical / test public events
 -- Clears pons_buying_activity + pons_buyer_continuation product history.
@@ -127,6 +130,8 @@ commit;
 select 'canvas_pins' as table_name, count(*)::bigint as rows from public.canvas_pins
 union all
 select 'canvas_marks', count(*)::bigint from public.canvas_marks
+union all
+select 'chat_messages', count(*)::bigint from public.chat_messages
 union all
 select 'events', count(*)::bigint from public.events
 union all
