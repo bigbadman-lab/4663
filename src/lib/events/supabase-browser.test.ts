@@ -97,6 +97,12 @@ describe("browser Supabase singleton", () => {
     assert.equal(PUBLIC_EVENTS_CHANNEL_NAME, "4663-public-events");
     assert.equal(PARTICIPATION_CHANNEL_NAME, "4663-participation");
     assert.equal(SOCIAL_BROADCAST_CHANNEL_NAME, "4663-social-broadcast");
+    assert.equal(
+      readSrc("src/lib/events/radar-realtime.ts").includes(
+        '4663-radar-continuation',
+      ),
+      true,
+    );
   });
 
   it("each consumer removes only its own channel; no removeAllChannels", () => {

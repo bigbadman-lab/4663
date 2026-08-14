@@ -171,12 +171,15 @@ describe("RADAR V1 canvas alert + explorers", () => {
       "src/components/canvas/use-continuation-watchlist.ts",
     );
     assert.ok(hook.includes("startVisibilityIntervalPolling"));
-    assert.ok(hook.includes("diffRadarVisibleTokens"));
+    assert.ok(hook.includes("applyRadarWatchlistSnapshot"));
     assert.ok(hook.includes("visibleTokens"));
     assert.equal(hook.includes("diffRadarQualifications"), false);
     assert.ok(hook.includes("recentQualifications"));
     assert.ok(hook.includes("getCanvasPlacementSnapshot"));
     assert.ok(hook.includes("radarAlertSpawnWorldPct"));
+    assert.ok(hook.includes("createRadarContinuationRealtimeClient"));
+    assert.ok(hook.includes("emitAlerts: isDocumentVisible()"));
+    assert.equal(CONTINUATION_WATCHLIST_POLL_MS, 45_000);
   });
 });
 
@@ -214,10 +217,13 @@ describe("RADAR alert trigger wiring (store → layer → open)", () => {
     const hook = readSrc(
       "src/components/canvas/use-continuation-watchlist.ts",
     );
-    assert.ok(hook.includes("diffRadarVisibleTokens"));
-    assert.ok(hook.includes("tokens: visibleTokens"));
+    assert.ok(hook.includes("diffRadarVisibleTokens") || hook.includes("applyRadarWatchlistSnapshot"));
+    assert.ok(hook.includes("tokens: visibleTokens") || hook.includes("tokens: visibleTokens") || hook.includes("visibleTokens"));
     assert.ok(hook.includes("alerts"));
-    assert.ok(hook.includes("[...pruned, ...diff.newAlerts]"));
+    assert.ok(
+      hook.includes("applied.alerts") ||
+        hook.includes("[...pruned, ...diff.newAlerts]"),
+    );
 
     const layer = readSrc("src/components/canvas/radar-alert-layer.tsx");
     assert.ok(layer.includes("export function RadarAlertLayer"));

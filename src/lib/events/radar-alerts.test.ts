@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   RADAR_ALERT_LIFETIME_MS,
+  applyRadarWatchlistSnapshot,
   diffRadarVisibleTokens,
   pruneExpiredRadarAlerts,
   radarAlertFallbackWorldPct,
@@ -511,5 +512,121 @@ describe("radar alert viewport spawn", () => {
       },
       expected,
     );
+  });
+});
+
+describe("radar alert client lifetime (independent of qualification age)", () => {
+  it("delayed qualification still gets full 4 minutes from client creation", () => {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    // Qualification occurred ~3m30s ago — irrelevant to lifetime.
+    const createAt = 10_000_000;
+    const created = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: [
+        tok(ID_G, TOKEN_G),
+        tok(ID_A, TOKEN_A),
+        tok(ID_B, TOKEN_B),
+        tok(ID_C, TOKEN_C),
+        tok(ID_D, TOKEN_D),
+      ],
+      nowMs: createAt,
+    });
+    assert.equal(created.newAlerts.length, 1);
+    assert.equal(created.newAlerts[0]!.createdAtMs, createAt);
+    assert.equal(
+      created.newAlerts[0]!.expiresAtMs,
+      createAt + RADAR_ALERT_LIFETIME_MS,
+    );
+    assert.equal(
+      pruneExpiredRadarAlerts(created.newAlerts, createAt + 3 * 60 * 1000 + 59_000)
+        .length,
+      1,
+    );
+    assert.equal(
+      pruneExpiredRadarAlerts(
+        created.newAlerts,
+        createAt + RADAR_ALERT_LIFETIME_MS,
+      ).length,
+      0,
+    );
+  });
+
+  it("hidden poll updates tokens without emitting alerts or advancing seen", () => {
+    const seeded = applyRadarWatchlistSnapshot({
+      previousSeen: new Set(),
+      seeded: false,
+      previousAlerts: [],
+      tokens: TOP5,
+      nowMs: 1,
+      emitAlerts: true,
+    });
+    assert.equal(seeded.alerts.length, 0);
+
+    const hidden = applyRadarWatchlistSnapshot({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      previousAlerts: [],
+      tokens: [
+        tok(ID_G, TOKEN_G),
+        tok(ID_A, TOKEN_A),
+        tok(ID_B, TOKEN_B),
+        tok(ID_C, TOKEN_C),
+        tok(ID_D, TOKEN_D),
+      ],
+      nowMs: 2,
+      emitAlerts: false,
+    });
+    assert.equal(hidden.alerts.length, 0);
+    assert.equal(hidden.nextSeen.has(ID_G), false);
+
+    const visibleAt = 50_000;
+    const visible = applyRadarWatchlistSnapshot({
+      previousSeen: hidden.nextSeen,
+      seeded: true,
+      previousAlerts: [],
+      tokens: [
+        tok(ID_G, TOKEN_G),
+        tok(ID_A, TOKEN_A),
+        tok(ID_B, TOKEN_B),
+        tok(ID_C, TOKEN_C),
+        tok(ID_D, TOKEN_D),
+      ],
+      nowMs: visibleAt,
+      emitAlerts: true,
+    });
+    assert.equal(visible.alerts.length, 1);
+    assert.equal(visible.alerts[0]!.eventId, ID_G);
+    assert.equal(visible.alerts[0]!.createdAtMs, visibleAt);
+    assert.equal(
+      visible.alerts[0]!.expiresAtMs,
+      visibleAt + RADAR_ALERT_LIFETIME_MS,
+    );
+  });
+
+  it("realtime wake without top-5 membership creates no alert after refresh diff", () => {
+    const seeded = applyRadarWatchlistSnapshot({
+      previousSeen: new Set(),
+      seeded: false,
+      previousAlerts: [],
+      tokens: TOP5,
+      nowMs: 1,
+      emitAlerts: true,
+    });
+    // H qualified (realtime wake) but tokens unchanged → no alert.
+    const same = applyRadarWatchlistSnapshot({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      previousAlerts: [],
+      tokens: TOP5,
+      nowMs: 2,
+      emitAlerts: true,
+    });
+    assert.equal(same.alerts.length, 0);
   });
 });

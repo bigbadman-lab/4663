@@ -183,3 +183,70 @@ export function pruneExpiredRadarAlerts(
 ): RadarAlert[] {
   return alerts.filter((a) => a.expiresAtMs > nowMs);
 }
+
+/**
+ * Apply a watchlist poll result to alert/seen state.
+ *
+ * While the document is hidden: update tokens only — do not advance seenIds or
+ * create alerts, so the 4-minute timer cannot burn before the user can see them.
+ * On the next visible poll, new membership alerts with full client lifetime.
+ */
+export function applyRadarWatchlistSnapshot(input: {
+  previousSeen: ReadonlySet<string>;
+  seeded: boolean;
+  previousAlerts: readonly RadarAlert[];
+  tokens: readonly RadarVisibleTokenInput[];
+  nowMs: number;
+  /** When false, skip membership alert emission and leave seenIds unchanged. */
+  emitAlerts: boolean;
+  lifetimeMs?: number;
+  resolvePosition?: RadarAlertPositionResolver;
+}): {
+  nextSeen: Set<string>;
+  seeded: boolean;
+  alerts: RadarAlert[];
+} {
+  const pruned = pruneExpiredRadarAlerts(input.previousAlerts, input.nowMs);
+
+  if (!input.seeded) {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: input.previousSeen,
+      seeded: false,
+      tokens: input.tokens,
+      nowMs: input.nowMs,
+      lifetimeMs: input.lifetimeMs,
+      resolvePosition: input.resolvePosition,
+    });
+    return {
+      nextSeen: seeded.nextSeen,
+      seeded: true,
+      alerts: pruned,
+    };
+  }
+
+  if (!input.emitAlerts) {
+    return {
+      nextSeen: new Set(input.previousSeen),
+      seeded: true,
+      alerts: pruned,
+    };
+  }
+
+  const diff = diffRadarVisibleTokens({
+    previousSeen: input.previousSeen,
+    seeded: true,
+    tokens: input.tokens,
+    nowMs: input.nowMs,
+    lifetimeMs: input.lifetimeMs,
+    resolvePosition: input.resolvePosition,
+  });
+  const alerts =
+    diff.newAlerts.length === 0
+      ? pruned
+      : [...pruned, ...diff.newAlerts];
+  return {
+    nextSeen: diff.nextSeen,
+    seeded: true,
+    alerts,
+  };
+}

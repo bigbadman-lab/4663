@@ -4,8 +4,9 @@
  * Shared client poll for today's RADAR / continuation watchlist.
  * Health 1: pauses while document is hidden; resumes with an immediate fetch.
  * Live RADAR alerts follow visible tokens[] membership (ON OUR RADAR top-5).
+ * Realtime continuation INSERT is a wake-up → immediate refresh (not a data source).
  *
- * Module singleton — one poller for monitoring card + alert layer.
+ * Module singleton — one poller + one Realtime channel for monitoring + alerts.
  */
 
 import { useCallback, useSyncExternalStore } from "react";
@@ -13,8 +14,9 @@ import {
   browserVisibilityIntervalDeps,
   startVisibilityIntervalPolling,
 } from "@/lib/browser/visibility-interval-poll";
+import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
 import {
-  diffRadarVisibleTokens,
+  applyRadarWatchlistSnapshot,
   pruneExpiredRadarAlerts,
   radarAlertSpawnWorldPct,
   radarAlertFallbackWorldPct,
@@ -24,7 +26,11 @@ import type {
   ContinuationWatchlistToken,
   RadarQualificationRef,
 } from "@/lib/events/continuation-watchlist";
-import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
+import {
+  createRadarContinuationRealtimeClient,
+  type RadarContinuationRealtimeClient,
+} from "@/lib/events/radar-realtime";
+import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 
 export const CONTINUATION_WATCHLIST_POLL_MS = 45_000 as const;
 
@@ -54,10 +60,18 @@ let store: StoreState = {
 };
 
 const seenIds = new Set<string>();
+/** Dedupes Realtime wake deliveries for the same continuation event id. */
+const realtimeWakeIds = new Set<string>();
 let seeded = false;
 let started = false;
 let stopPoller: (() => void) | null = null;
+let stopRealtime: (() => void) | null = null;
 let expiryTimer: number | null = null;
+let inFlight = false;
+let pendingRefresh = false;
+
+/** Injectable Realtime factory for tests. */
+let realtimeFactory: (() => RadarContinuationRealtimeClient) | null = null;
 
 function emit(): void {
   for (const listener of listeners) listener();
@@ -66,6 +80,11 @@ function emit(): void {
 function setStore(partial: Partial<StoreState>): void {
   store = { ...store, ...partial };
   emit();
+}
+
+function isDocumentVisible(): boolean {
+  if (typeof document === "undefined") return true;
+  return document.visibilityState === "visible";
 }
 
 async function loadWatchlist(): Promise<void> {
@@ -98,11 +117,13 @@ async function loadWatchlist(): Promise<void> {
         typeof t?.tokenAddress === "string",
     );
     const placement = getCanvasPlacementSnapshot();
-    const diff = diffRadarVisibleTokens({
+    const applied = applyRadarWatchlistSnapshot({
       previousSeen: seenIds,
       seeded,
+      previousAlerts: store.alerts,
       tokens: visibleTokens,
       nowMs,
+      emitAlerts: isDocumentVisible(),
       resolvePosition: (_eventId, index) => {
         if (!placement) return radarAlertFallbackWorldPct(_eventId, index);
         return radarAlertSpawnWorldPct({
@@ -113,14 +134,8 @@ async function loadWatchlist(): Promise<void> {
       },
     });
     seenIds.clear();
-    for (const id of diff.nextSeen) seenIds.add(id);
-    seeded = diff.seeded;
-
-    const pruned = pruneExpiredRadarAlerts(store.alerts, nowMs);
-    const alerts =
-      diff.newAlerts.length === 0
-        ? pruned
-        : [...pruned, ...diff.newAlerts];
+    for (const id of applied.nextSeen) seenIds.add(id);
+    seeded = applied.seeded;
 
     setStore({
       tokens: nextTokens,
@@ -128,10 +143,55 @@ async function loadWatchlist(): Promise<void> {
       generatedAt:
         typeof body.generatedAt === "string" ? body.generatedAt : null,
       status: "ready",
-      alerts,
+      alerts: applied.alerts,
     });
   } catch {
     setStore({ status: "error" });
+  }
+}
+
+async function requestWatchlistRefresh(): Promise<void> {
+  if (inFlight) {
+    pendingRefresh = true;
+    return;
+  }
+  inFlight = true;
+  try {
+    do {
+      pendingRefresh = false;
+      await loadWatchlist();
+    } while (pendingRefresh);
+  } finally {
+    inFlight = false;
+  }
+}
+
+function ensureRadarRealtime(): void {
+  if (stopRealtime || typeof window === "undefined") return;
+  try {
+    const client =
+      realtimeFactory?.() ??
+      createRadarContinuationRealtimeClient(getBrowserSupabaseClient());
+    const sub = client.subscribeInserts({
+      onInsert: (wake) => {
+        if (realtimeWakeIds.has(wake.eventId)) return;
+        realtimeWakeIds.add(wake.eventId);
+        // Hidden: do not refresh for alert creation yet — visibility resume
+        // already triggers an immediate poll. Avoid burning work/timer.
+        if (!isDocumentVisible()) return;
+        void requestWatchlistRefresh();
+      },
+      onStatus: (status) => {
+        // Reconnect convergence: refresh without clearing seen ids.
+        if (status === "SUBSCRIBED" && isDocumentVisible()) {
+          void requestWatchlistRefresh();
+        }
+      },
+    });
+    stopRealtime = () => sub.unsubscribe();
+  } catch {
+    // Missing env / SSR — poll-only fallback remains.
+    stopRealtime = null;
   }
 }
 
@@ -139,23 +199,14 @@ function ensureWatchlistPolling(): void {
   if (started || typeof window === "undefined") return;
   started = true;
 
-  let inFlight = false;
-  const tick = async () => {
-    if (inFlight) return;
-    inFlight = true;
-    try {
-      await loadWatchlist();
-    } finally {
-      inFlight = false;
-    }
-  };
-
   const poller = startVisibilityIntervalPolling({
     ...browserVisibilityIntervalDeps(),
     intervalMs: CONTINUATION_WATCHLIST_POLL_MS,
-    tick,
+    tick: () => requestWatchlistRefresh(),
   });
   stopPoller = () => poller.stop();
+
+  ensureRadarRealtime();
 
   expiryTimer = window.setInterval(() => {
     const pruned = pruneExpiredRadarAlerts(store.alerts, Date.now());
@@ -217,13 +268,19 @@ export function useContinuationWatchlist(): UseContinuationWatchlistResult {
 export function resetContinuationWatchlistStoreForTests(): void {
   stopPoller?.();
   stopPoller = null;
+  stopRealtime?.();
+  stopRealtime = null;
   if (expiryTimer !== null) {
     window.clearInterval(expiryTimer);
     expiryTimer = null;
   }
   started = false;
   seeded = false;
+  inFlight = false;
+  pendingRefresh = false;
   seenIds.clear();
+  realtimeWakeIds.clear();
+  realtimeFactory = null;
   store = {
     tokens: [],
     recentQualifications: [],
@@ -232,4 +289,16 @@ export function resetContinuationWatchlistStoreForTests(): void {
     alerts: [],
   };
   emit();
+}
+
+/** Test helper — inject Realtime client before the store starts. */
+export function setRadarContinuationRealtimeFactoryForTests(
+  factory: (() => RadarContinuationRealtimeClient) | null,
+): void {
+  realtimeFactory = factory;
+}
+
+/** Test helper — expose coalesced refresh for unit tests. */
+export function requestContinuationWatchlistRefreshForTests(): Promise<void> {
+  return requestWatchlistRefresh();
 }
