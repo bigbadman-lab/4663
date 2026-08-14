@@ -1,14 +1,15 @@
 /**
- * Live RADAR alert detection from watchlist recentQualifications (poll-diff).
- * First successful feed seeds seen ids — no historical alerts.
+ * Live RADAR alert detection from visible watchlist tokens[] (poll-diff).
+ * First successful visible set seeds seen ids — no historical alerts.
+ * Alerts mean: newly appeared ON OUR RADAR (top-5 membership) this session.
  */
 
 export const RADAR_ALERT_LIFETIME_MS = 4 * 60 * 1000;
 
-export type RadarQualificationInput = {
+/** Visible RADAR row used for membership-based alert detection. */
+export type RadarVisibleTokenInput = {
   eventId: string;
   tokenAddress: string;
-  occurredAt: string;
 };
 
 export type RadarAlert = {
@@ -41,12 +42,15 @@ export function radarAlertSlotForEventId(eventId: string): {
 }
 
 /**
- * Pure poll-diff: seed on first observation; emit one alert per new eventId.
+ * Pure poll-diff on visible RADAR membership (tokens[]):
+ * - First observation seeds seen eventIds → zero alerts
+ * - Later unseen eventIds each emit one alert (tokens array order)
+ * - Reorder / exit does not alert; seen ids are never removed (no re-entry alert)
  */
-export function diffRadarQualifications(input: {
+export function diffRadarVisibleTokens(input: {
   previousSeen: ReadonlySet<string>;
   seeded: boolean;
-  qualifications: readonly RadarQualificationInput[];
+  tokens: readonly RadarVisibleTokenInput[];
   nowMs: number;
   lifetimeMs?: number;
 }): {
@@ -59,19 +63,19 @@ export function diffRadarQualifications(input: {
   const newAlerts: RadarAlert[] = [];
 
   if (!input.seeded) {
-    for (const q of input.qualifications) {
-      nextSeen.add(q.eventId);
+    for (const t of input.tokens) {
+      nextSeen.add(t.eventId);
     }
     return { nextSeen, seeded: true, newAlerts };
   }
 
-  for (const q of input.qualifications) {
-    if (nextSeen.has(q.eventId)) continue;
-    nextSeen.add(q.eventId);
-    const slot = radarAlertSlotForEventId(q.eventId);
+  for (const t of input.tokens) {
+    if (nextSeen.has(t.eventId)) continue;
+    nextSeen.add(t.eventId);
+    const slot = radarAlertSlotForEventId(t.eventId);
     newAlerts.push({
-      eventId: q.eventId,
-      tokenAddress: q.tokenAddress,
+      eventId: t.eventId,
+      tokenAddress: t.tokenAddress,
       createdAtMs: input.nowMs,
       expiresAtMs: input.nowMs + lifetimeMs,
       leftPct: slot.leftPct,

@@ -3,7 +3,7 @@
 /**
  * Shared client poll for today's RADAR / continuation watchlist.
  * Health 1: pauses while document is hidden; resumes with an immediate fetch.
- * Also drives live RADAR alert detection via recentQualifications.
+ * Live RADAR alerts follow visible tokens[] membership (ON OUR RADAR top-5).
  *
  * Module singleton — one poller for monitoring card + alert layer.
  */
@@ -14,7 +14,7 @@ import {
   startVisibilityIntervalPolling,
 } from "@/lib/browser/visibility-interval-poll";
 import {
-  diffRadarQualifications,
+  diffRadarVisibleTokens,
   pruneExpiredRadarAlerts,
   type RadarAlert,
 } from "@/lib/events/radar-alerts";
@@ -89,14 +89,15 @@ async function loadWatchlist(): Promise<void> {
       : [];
 
     const nowMs = Date.now();
-    const diff = diffRadarQualifications({
+    const visibleTokens = nextTokens.filter(
+      (t) =>
+        typeof t?.eventId === "string" &&
+        typeof t?.tokenAddress === "string",
+    );
+    const diff = diffRadarVisibleTokens({
       previousSeen: seenIds,
       seeded,
-      qualifications: nextRecent.filter(
-        (q) =>
-          typeof q?.eventId === "string" &&
-          typeof q?.tokenAddress === "string",
-      ),
+      tokens: visibleTokens,
       nowMs,
     });
     seenIds.clear();

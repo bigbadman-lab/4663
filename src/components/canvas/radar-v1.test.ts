@@ -53,7 +53,7 @@ describe("RADAR V1 naming + watchlist UX", () => {
     assert.equal(panel.includes("CRYPTO"), false);
   });
 
-  it("watchlist DTO exposes eventId; recentQualifications for alerts", () => {
+  it("watchlist DTO exposes eventId; recentQualifications retained (not alert trigger)", () => {
     const loader = readSrc("src/lib/events/continuation-watchlist.ts");
     assert.ok(loader.includes("eventId: string"));
     assert.ok(loader.includes("recentQualifications"));
@@ -124,13 +124,50 @@ describe("RADAR V1 canvas alert + explorers", () => {
     );
   });
 
-  it("Health 1: 45s visible poll preserved", () => {
+  it("Health 1: 45s visible poll; alerts driven by tokens[] membership", () => {
     assert.equal(CONTINUATION_WATCHLIST_POLL_MS, 45_000);
     const hook = readSrc(
       "src/components/canvas/use-continuation-watchlist.ts",
     );
     assert.ok(hook.includes("startVisibilityIntervalPolling"));
-    assert.ok(hook.includes("diffRadarQualifications"));
+    assert.ok(hook.includes("diffRadarVisibleTokens"));
+    assert.ok(hook.includes("visibleTokens"));
+    assert.equal(hook.includes("diffRadarQualifications"), false);
     assert.ok(hook.includes("recentQualifications"));
+  });
+});
+
+describe("RADAR alert trigger wiring (store → layer → open)", () => {
+  it("production hook diffs tokens[]; layer mounts alerts; click opens token", () => {
+    const hook = readSrc(
+      "src/components/canvas/use-continuation-watchlist.ts",
+    );
+    assert.ok(hook.includes("diffRadarVisibleTokens"));
+    assert.ok(hook.includes("tokens: visibleTokens"));
+    assert.ok(hook.includes("alerts"));
+    assert.ok(hook.includes("[...pruned, ...diff.newAlerts]"));
+
+    const monitoring = readSrc(
+      "src/components/canvas/pons-monitoring-object.tsx",
+    );
+    assert.ok(monitoring.includes("export function RadarAlertLayer"));
+    assert.ok(monitoring.includes("useContinuationWatchlist()"));
+    assert.ok(monitoring.includes("alerts.map"));
+    assert.ok(monitoring.includes("RadarAlertObject"));
+    assert.ok(monitoring.includes("onOpen={openToToken}"));
+    assert.ok(monitoring.includes("onDismiss={dismissAlert}"));
+
+    const surface = readSrc("src/components/canvas/canvas-surface.tsx");
+    assert.ok(surface.includes("<RadarAlertLayer />"));
+
+    const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
+    assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(alert.includes("onDismiss(alert.eventId)"));
+
+    const state = readSrc(
+      "src/components/canvas/pons-monitoring-panel-state.ts",
+    );
+    assert.ok(state.includes("openRadarToToken"));
+    assert.ok(state.includes("selectedTokenAddress"));
   });
 });

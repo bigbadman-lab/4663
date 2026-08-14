@@ -1,12 +1,12 @@
 /**
- * Live RADAR alert poll-diff semantics.
+ * Live RADAR alert poll-diff — visible tokens[] membership semantics.
  */
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   RADAR_ALERT_LIFETIME_MS,
-  diffRadarQualifications,
+  diffRadarVisibleTokens,
   pruneExpiredRadarAlerts,
   radarAlertSlotForEventId,
 } from "@/lib/events/radar-alerts";
@@ -14,96 +14,256 @@ import {
 const ID_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const ID_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const ID_C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+const ID_D = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+const ID_E = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+const ID_F = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+const ID_G = "11111111-1111-1111-1111-111111111111";
+const ID_H = "22222222-2222-2222-2222-222222222222";
+
 const TOKEN_A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TOKEN_B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const TOKEN_C = "0xcccccccccccccccccccccccccccccccccccccccc";
+const TOKEN_D = "0xdddddddddddddddddddddddddddddddddddddddd";
+const TOKEN_E = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const TOKEN_F = "0xffffffffffffffffffffffffffffffffffffffff";
+const TOKEN_G = "0x1111111111111111111111111111111111111111";
+const TOKEN_H = "0x2222222222222222222222222222222222222222";
 
-describe("radar alert detection", () => {
-  it("first fetch seeds seen ids and produces no alerts", () => {
-    const result = diffRadarQualifications({
+function tok(eventId: string, tokenAddress: string) {
+  return { eventId, tokenAddress };
+}
+
+const TOP5 = [
+  tok(ID_A, TOKEN_A),
+  tok(ID_B, TOKEN_B),
+  tok(ID_C, TOKEN_C),
+  tok(ID_D, TOKEN_D),
+  tok(ID_E, TOKEN_E),
+];
+
+describe("radar alert detection (visible tokens[] membership)", () => {
+  it("initial seed of tokens produces no alerts", () => {
+    const result = diffRadarVisibleTokens({
       previousSeen: new Set(),
       seeded: false,
-      qualifications: [
-        { eventId: ID_A, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:00:00.000Z" },
-        { eventId: ID_B, tokenAddress: TOKEN_B, occurredAt: "2026-08-14T12:01:00.000Z" },
-      ],
+      tokens: TOP5,
       nowMs: 1_000_000,
     });
     assert.equal(result.seeded, true);
     assert.equal(result.newAlerts.length, 0);
-    assert.ok(result.nextSeen.has(ID_A));
-    assert.ok(result.nextSeen.has(ID_B));
+    for (const t of TOP5) assert.ok(result.nextSeen.has(t.eventId));
   });
 
-  it("later unseen eventId produces one alert; repeat does not duplicate", () => {
-    const seeded = diffRadarQualifications({
+  it("new token entering visible RADAR produces exactly one alert", () => {
+    const seeded = diffRadarVisibleTokens({
       previousSeen: new Set(),
       seeded: false,
-      qualifications: [
-        { eventId: ID_A, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:00:00.000Z" },
-      ],
+      tokens: TOP5,
       nowMs: 1_000_000,
     });
 
-    const first = diffRadarQualifications({
+    const next = [
+      tok(ID_G, TOKEN_G),
+      tok(ID_A, TOKEN_A),
+      tok(ID_B, TOKEN_B),
+      tok(ID_C, TOKEN_C),
+      tok(ID_D, TOKEN_D),
+    ];
+    const first = diffRadarVisibleTokens({
       previousSeen: seeded.nextSeen,
       seeded: true,
-      qualifications: [
-        { eventId: ID_A, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:00:00.000Z" },
-        { eventId: ID_B, tokenAddress: TOKEN_B, occurredAt: "2026-08-14T12:05:00.000Z" },
-      ],
+      tokens: next,
       nowMs: 1_100_000,
     });
     assert.equal(first.newAlerts.length, 1);
-    assert.equal(first.newAlerts[0]!.eventId, ID_B);
-    assert.equal(first.newAlerts[0]!.tokenAddress, TOKEN_B);
+    assert.equal(first.newAlerts[0]!.eventId, ID_G);
+    assert.equal(first.newAlerts[0]!.tokenAddress, TOKEN_G);
     assert.equal(
       first.newAlerts[0]!.expiresAtMs,
       1_100_000 + RADAR_ALERT_LIFETIME_MS,
     );
+    assert.ok(first.nextSeen.has(ID_E), "E remains seen after leaving top-5");
+  });
 
-    const repeat = diffRadarQualifications({
+  it("same subsequent response does not duplicate", () => {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    const withG = [
+      tok(ID_G, TOKEN_G),
+      tok(ID_A, TOKEN_A),
+      tok(ID_B, TOKEN_B),
+      tok(ID_C, TOKEN_C),
+      tok(ID_D, TOKEN_D),
+    ];
+    const first = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: withG,
+      nowMs: 2,
+    });
+    const repeat = diffRadarVisibleTokens({
       previousSeen: first.nextSeen,
       seeded: true,
-      qualifications: [
-        { eventId: ID_A, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:00:00.000Z" },
-        { eventId: ID_B, tokenAddress: TOKEN_B, occurredAt: "2026-08-14T12:05:00.000Z" },
-      ],
-      nowMs: 1_200_000,
+      tokens: withG,
+      nowMs: 3,
     });
+    assert.equal(first.newAlerts.length, 1);
     assert.equal(repeat.newAlerts.length, 0);
   });
 
-  it("multiple new ids behave deterministically; remount seed avoids historical alerts", () => {
-    const afterSeed = diffRadarQualifications({
+  it("reorder of same membership produces no alert", () => {
+    const seeded = diffRadarVisibleTokens({
       previousSeen: new Set(),
       seeded: false,
-      qualifications: [
-        { eventId: ID_A, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:00:00.000Z" },
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    const reordered = [
+      tok(ID_B, TOKEN_B),
+      tok(ID_A, TOKEN_A),
+      tok(ID_C, TOKEN_C),
+      tok(ID_D, TOKEN_D),
+      tok(ID_E, TOKEN_E),
+    ];
+    const result = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: reordered,
+      nowMs: 2,
+    });
+    assert.equal(result.newAlerts.length, 0);
+  });
+
+  it("token exit is silent; replacement F alerts once", () => {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    const replaced = [
+      tok(ID_A, TOKEN_A),
+      tok(ID_B, TOKEN_B),
+      tok(ID_C, TOKEN_C),
+      tok(ID_D, TOKEN_D),
+      tok(ID_F, TOKEN_F),
+    ];
+    const first = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: replaced,
+      nowMs: 2,
+    });
+    assert.equal(first.newAlerts.length, 1);
+    assert.equal(first.newAlerts[0]!.eventId, ID_F);
+    assert.ok(first.nextSeen.has(ID_E));
+  });
+
+  it("leave and re-enter does not alert again in the same session", () => {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    const withF = [
+      tok(ID_F, TOKEN_F),
+      tok(ID_A, TOKEN_A),
+      tok(ID_B, TOKEN_B),
+      tok(ID_C, TOKEN_C),
+      tok(ID_D, TOKEN_D),
+    ];
+    const enter = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: withF,
+      nowMs: 2,
+    });
+    assert.equal(enter.newAlerts.length, 1);
+
+    const withoutF = [
+      tok(ID_A, TOKEN_A),
+      tok(ID_B, TOKEN_B),
+      tok(ID_C, TOKEN_C),
+      tok(ID_D, TOKEN_D),
+      tok(ID_E, TOKEN_E),
+    ];
+    const left = diffRadarVisibleTokens({
+      previousSeen: enter.nextSeen,
+      seeded: true,
+      tokens: withoutF,
+      nowMs: 3,
+    });
+    assert.equal(left.newAlerts.length, 0);
+
+    const reenter = diffRadarVisibleTokens({
+      previousSeen: left.nextSeen,
+      seeded: true,
+      tokens: withF,
+      nowMs: 4,
+    });
+    assert.equal(reenter.newAlerts.length, 0);
+  });
+
+  it("qualification outside tokens does not affect alerts (caller uses tokens only)", () => {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    // H would appear in recentQualifications but tokens unchanged → no alert.
+    const unchanged = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: TOP5,
+      nowMs: 2,
+    });
+    assert.equal(unchanged.newAlerts.length, 0);
+    assert.equal(unchanged.nextSeen.has(ID_H), false);
+  });
+
+  it("multiple new visible ids emit one alert each in tokens order", () => {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: [
+        tok(ID_A, TOKEN_A),
+        tok(ID_B, TOKEN_B),
+        tok(ID_C, TOKEN_C),
       ],
       nowMs: 1,
     });
-    const multi = diffRadarQualifications({
-      previousSeen: afterSeed.nextSeen,
+    const multi = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
       seeded: true,
-      qualifications: [
-        { eventId: ID_B, tokenAddress: TOKEN_B, occurredAt: "2026-08-14T12:01:00.000Z" },
-        { eventId: ID_C, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:02:00.000Z" },
+      tokens: [
+        tok(ID_G, TOKEN_G),
+        tok(ID_H, TOKEN_H),
+        tok(ID_A, TOKEN_A),
+        tok(ID_B, TOKEN_B),
+        tok(ID_C, TOKEN_C),
       ],
       nowMs: 2,
     });
     assert.deepEqual(
       multi.newAlerts.map((a) => a.eventId),
-      [ID_B, ID_C],
+      [ID_G, ID_H],
     );
+  });
 
-    // Fresh session (remount): seed again — no fake historical alerts.
-    const remount = diffRadarQualifications({
+  it("fresh session seed avoids historical alerts", () => {
+    const remount = diffRadarVisibleTokens({
       previousSeen: new Set(),
       seeded: false,
-      qualifications: [
-        { eventId: ID_A, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:00:00.000Z" },
-        { eventId: ID_B, tokenAddress: TOKEN_B, occurredAt: "2026-08-14T12:01:00.000Z" },
-        { eventId: ID_C, tokenAddress: TOKEN_A, occurredAt: "2026-08-14T12:02:00.000Z" },
+      tokens: [
+        tok(ID_A, TOKEN_A),
+        tok(ID_B, TOKEN_B),
+        tok(ID_C, TOKEN_C),
       ],
       nowMs: 3,
     });
