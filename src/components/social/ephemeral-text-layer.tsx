@@ -2,11 +2,12 @@
 
 /**
  * Social 2A published TEXT + Social 2B live typing + Social 3A ephemeral DRAW
- * + Social 6 MARK create entry (durable marks rendered here; not session-ephemeral).
+ * + Social 3B world BRUSH + Social 6 MARK create entry (durable marks; not session-ephemeral).
  *
  * Published TEXT: PlayHTML usePageData("4663-ephemeral-texts")
  * Published DRAW: PlayHTML usePageData("4663-ephemeral-drawings")
- * Live drafts (text + drawing): Supabase Broadcast on 4663-social-broadcast
+ * Published BRUSH: PlayHTML usePageData("4663-ephemeral-brush-strokes")
+ * Live drafts (text + drawing + brush): Supabase Broadcast on 4663-social-broadcast
  * MARK: Postgres via /api/social/marks (survives LEAVE/RESET/Presence loss)
  */
 
@@ -16,18 +17,38 @@ import {
   useRef,
   useState,
 } from "react";
+import { BrushSessionOverlay } from "@/components/social/brush-session-overlay";
 import { CanvasCreateMenu } from "@/components/social/canvas-create-menu";
+import { CanvasDrawModeChooser } from "@/components/social/canvas-draw-mode-chooser";
 import { CanvasMarkObject } from "@/components/social/canvas-mark-object";
 import { DrawingSessionEditor } from "@/components/social/drawing-session-editor";
+import { EphemeralBrushLayer } from "@/components/social/ephemeral-brush-layer";
 import { EphemeralDrawingObjectView } from "@/components/social/ephemeral-drawing-object";
 import { EphemeralTextComposer } from "@/components/social/ephemeral-text-composer";
 import { EphemeralTextObjectView } from "@/components/social/ephemeral-text-object";
+import { LiveBrushDraftView } from "@/components/social/live-brush-draft";
 import { LiveDrawingDraftView } from "@/components/social/live-drawing-draft";
 import { LiveTextDraftView } from "@/components/social/live-text-draft";
 import { MarkComposer } from "@/components/social/mark-composer";
 import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 import { validateMarkBody, MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { useCanvasMarks } from "@/lib/social/use-canvas-marks";
+import {
+  brushDraftCanPublish,
+  brushDraftsForRemoteView,
+  BRUSH_DRAFT_STALE_MS,
+  BRUSH_DRAFT_THROTTLE_MS,
+  buildBrushDraft,
+  createBrushDraftId,
+  normalizeBrushDraft,
+  normalizeBrushDraftCleared,
+  pruneStaleBrushDrafts,
+  removeBrushDraft,
+  removeBrushDraftsByOwner,
+  retainBrushDraftsForPresentOwners,
+  upsertBrushDraft,
+  type BrushDraft,
+} from "@/lib/social/brush-draft";
 import {
   createDrawingDraftId,
   createThrottledSender,
@@ -44,6 +65,16 @@ import {
   upsertDrawingDraft,
   type DrawingDraft,
 } from "@/lib/social/drawing-draft";
+import {
+  EMPTY_EPHEMERAL_BRUSH_PAGE_DATA,
+  EPHEMERAL_BRUSH_PAGE_DATA_NAME,
+  normalizeEphemeralBrushPageData,
+  removeEphemeralBrushDocumentsByOwner,
+  retainEphemeralBrushDocumentsForPresentOwners,
+  upsertBrushStrokesForOwner,
+  type BrushStroke,
+  type EphemeralBrushPageData,
+} from "@/lib/social/ephemeral-brush";
 import {
   createEphemeralDrawingObject,
   drawingZoneOriginFromClick,
@@ -114,6 +145,12 @@ type CreateUi =
       draftId: string;
     }
   | {
+      /** DRAW → OBJECT / BRUSH chooser (dock + empty-canvas DRAW). */
+      mode: "draw-chooser";
+      leftPct: number;
+      topPct: number;
+    }
+  | {
       mode: "draw";
       draftDrawingId: string;
       leftPct: number;
@@ -121,6 +158,12 @@ type CreateUi =
       widthPct: number;
       heightPct: number;
       aspectRatio: number;
+    }
+  | {
+      mode: "brush";
+      draftBrushId: string;
+      toolsLeftPct: number;
+      toolsTopPct: number;
     }
   | {
       mode: "mark";
@@ -144,11 +187,18 @@ export function EphemeralTextLayer() {
       EPHEMERAL_DRAWINGS_PAGE_DATA_NAME,
       EMPTY_EPHEMERAL_DRAWINGS_PAGE_DATA,
     );
+  const [brushPageData, setBrushPageData] = usePageData<EphemeralBrushPageData>(
+    EPHEMERAL_BRUSH_PAGE_DATA_NAME,
+    EMPTY_EPHEMERAL_BRUSH_PAGE_DATA,
+  );
   const [createUi, setCreateUi] = useState<CreateUi>(null);
   const [remoteDrafts, setRemoteDrafts] = useState<TextDraft[]>([]);
   const [remoteDrawingDrafts, setRemoteDrawingDrafts] = useState<
     DrawingDraft[]
   >([]);
+  const [remoteBrushDrafts, setRemoteBrushDrafts] = useState<BrushDraft[]>(
+    [],
+  );
 
   const pageDataRef = useRef(pageData);
   const setPageDataRef = useRef(setPageData);
@@ -159,6 +209,15 @@ export function EphemeralTextLayer() {
   const setDrawingsPageDataRef = useRef(setDrawingsPageData);
   drawingsPageDataRef.current = drawingsPageData;
   setDrawingsPageDataRef.current = setDrawingsPageData;
+
+  const brushPageDataRef = useRef(brushPageData);
+  const setBrushPageDataRef = useRef(setBrushPageData);
+
+  // Sync BRUSH page-data refs after render (avoids react-hooks/refs during render).
+  useEffect(() => {
+    brushPageDataRef.current = brushPageData;
+    setBrushPageDataRef.current = setBrushPageData;
+  }, [brushPageData, setBrushPageData]);
 
   const createUiRef = useRef(createUi);
   createUiRef.current = createUi;
@@ -175,8 +234,17 @@ export function EphemeralTextLayer() {
     typeof createThrottledSender<DrawingDraft>
   > | null>(null);
 
+  const brushThrottleRef = useRef<ReturnType<
+    typeof createThrottledSender<BrushDraft>
+  > | null>(null);
+
+  /** Latest local BRUSH strokes (for dock DRAW toggle-exit finalize). */
+  const brushStrokesRef = useRef<BrushStroke[]>([]);
+
   const texts = normalizeEphemeralTextsPageData(pageData).texts;
   const drawings = normalizeEphemeralDrawingsPageData(drawingsPageData).drawings;
+  const brushDocuments =
+    normalizeEphemeralBrushPageData(brushPageData).documents;
 
   const writePageData = (next: EphemeralTextsPageData) => {
     setPageDataRef.current(normalizeEphemeralTextsPageData(next));
@@ -184,6 +252,10 @@ export function EphemeralTextLayer() {
 
   const writeDrawingsPageData = (next: EphemeralDrawingsPageData) => {
     setDrawingsPageDataRef.current(normalizeEphemeralDrawingsPageData(next));
+  };
+
+  const writeBrushPageData = (next: EphemeralBrushPageData) => {
+    setBrushPageDataRef.current(normalizeEphemeralBrushPageData(next));
   };
 
   const clearLocalDraftBroadcast = (draftId: string, ownerSessionId: string) => {
@@ -207,7 +279,19 @@ export function EphemeralTextLayer() {
       .catch(() => {});
   };
 
-  // Broadcast channel — one subscription for text + drawing drafts.
+  const clearLocalBrushDraftBroadcast = (
+    draftBrushId: string,
+    ownerSessionId: string,
+  ) => {
+    brushThrottleRef.current?.cancel();
+    const sub = broadcastRef.current;
+    if (!sub) return;
+    void sub
+      .sendBrushDraftCleared({ draftBrushId, ownerSessionId })
+      .catch(() => {});
+  };
+
+  // Broadcast channel — one subscription for text + drawing + brush drafts.
   useEffect(() => {
     let sub: ReturnType<
       ReturnType<typeof createSocialBroadcastClient>["connect"]
@@ -239,6 +323,18 @@ export function EphemeralTextLayer() {
             removeDrawingDraft(prev, cleared.draftDrawingId),
           );
         },
+        onBrushDraftUpdated: (payload) => {
+          const draft = normalizeBrushDraft(payload);
+          if (!draft) return;
+          setRemoteBrushDrafts((prev) => upsertBrushDraft(prev, draft));
+        },
+        onBrushDraftCleared: (payload) => {
+          const cleared = normalizeBrushDraftCleared(payload);
+          if (!cleared) return;
+          setRemoteBrushDrafts((prev) =>
+            removeBrushDraft(prev, cleared.draftBrushId),
+          );
+        },
         onStatus: () => {},
       });
       broadcastRef.current = sub;
@@ -252,10 +348,17 @@ export function EphemeralTextLayer() {
           ?.sendDrawingDraftUpdated(draft)
           .catch(() => {});
       }, DRAWING_DRAFT_THROTTLE_MS);
+
+      brushThrottleRef.current = createThrottledSender((draft) => {
+        void broadcastRef.current
+          ?.sendBrushDraftUpdated(draft)
+          .catch(() => {});
+      }, BRUSH_DRAFT_THROTTLE_MS);
     } catch {
       broadcastRef.current = null;
       throttleRef.current = null;
       drawingThrottleRef.current = null;
+      brushThrottleRef.current = null;
     }
 
     return () => {
@@ -263,12 +366,14 @@ export function EphemeralTextLayer() {
       throttleRef.current = null;
       drawingThrottleRef.current?.cancel();
       drawingThrottleRef.current = null;
+      brushThrottleRef.current?.cancel();
+      brushThrottleRef.current = null;
       sub?.disconnect();
       broadcastRef.current = null;
     };
   }, []);
 
-  // Explicit LEAVE / RESET → clear composer/draw + owned published objects.
+  // Explicit LEAVE / RESET → clear composer/draw/brush + owned published objects.
   useEffect(() => {
     const clearOwned = (sessionId: string) => {
       const ui = createUiRef.current;
@@ -277,6 +382,9 @@ export function EphemeralTextLayer() {
       }
       if (ui?.mode === "draw") {
         clearLocalDrawingDraftBroadcast(ui.draftDrawingId, sessionId);
+      }
+      if (ui?.mode === "brush") {
+        clearLocalBrushDraftBroadcast(ui.draftBrushId, sessionId);
       }
       setCreateUi(null);
       writePageData(
@@ -291,9 +399,18 @@ export function EphemeralTextLayer() {
           sessionId,
         ),
       );
+      writeBrushPageData(
+        removeEphemeralBrushDocumentsByOwner(
+          normalizeEphemeralBrushPageData(brushPageDataRef.current),
+          sessionId,
+        ),
+      );
       setRemoteDrafts((prev) => removeTextDraftsByOwner(prev, sessionId));
       setRemoteDrawingDrafts((prev) =>
         removeDrawingDraftsByOwner(prev, sessionId),
+      );
+      setRemoteBrushDrafts((prev) =>
+        removeBrushDraftsByOwner(prev, sessionId),
       );
     };
 
@@ -309,7 +426,7 @@ export function EphemeralTextLayer() {
     };
   }, []);
 
-  // Presence-loss: published texts/drawings + remote drafts.
+  // Presence-loss: published texts/drawings/brush + remote drafts.
   useEffect(() => {
     if (status === "connecting" || status === "error") return;
 
@@ -337,6 +454,19 @@ export function EphemeralTextLayer() {
       }
     }
 
+    const currentBrush = normalizeEphemeralBrushPageData(
+      brushPageDataRef.current,
+    );
+    if (currentBrush.documents.length > 0) {
+      const next = retainEphemeralBrushDocumentsForPresentOwners(
+        currentBrush,
+        present,
+      );
+      if (next.documents.length !== currentBrush.documents.length) {
+        writeBrushPageData(next);
+      }
+    }
+
     setRemoteDrafts((prev) => {
       if (prev.length === 0) return prev;
       const next = retainTextDraftsForPresentOwners(prev, present);
@@ -348,9 +478,15 @@ export function EphemeralTextLayer() {
       const next = retainDrawingDraftsForPresentOwners(prev, present);
       return next.length === prev.length ? prev : next;
     });
+
+    setRemoteBrushDrafts((prev) => {
+      if (prev.length === 0) return prev;
+      const next = retainBrushDraftsForPresentOwners(prev, present);
+      return next.length === prev.length ? prev : next;
+    });
   }, [participants, self, status]);
 
-  // Stale remote draft prune (text + drawing).
+  // Stale remote draft prune (text + drawing + brush).
   useEffect(() => {
     const id = window.setInterval(() => {
       const now = Date.now();
@@ -368,6 +504,11 @@ export function EphemeralTextLayer() {
         );
         return next.length === prev.length ? prev : next;
       });
+      setRemoteBrushDrafts((prev) => {
+        if (prev.length === 0) return prev;
+        const next = pruneStaleBrushDrafts(prev, now, BRUSH_DRAFT_STALE_MS);
+        return next.length === prev.length ? prev : next;
+      });
     }, 2_000);
     return () => window.clearInterval(id);
   }, []);
@@ -379,6 +520,10 @@ export function EphemeralTextLayer() {
     }
     if (ui?.mode === "draw" && self) {
       clearLocalDrawingDraftBroadcast(ui.draftDrawingId, self.sessionId);
+    }
+    if (ui?.mode === "brush" && self) {
+      clearLocalBrushDraftBroadcast(ui.draftBrushId, self.sessionId);
+      brushStrokesRef.current = [];
     }
     setCreateUi(null);
   };
@@ -533,6 +678,67 @@ export function EphemeralTextLayer() {
     setCreateUi(null);
   };
 
+  const onBrushStrokesChange = (strokes: BrushStroke[]) => {
+    if (!self) return;
+    const ui = createUiRef.current;
+    if (ui?.mode !== "brush") return;
+    brushStrokesRef.current = strokes;
+    const draft = buildBrushDraft({
+      draftBrushId: ui.draftBrushId,
+      ownerSessionId: self.sessionId,
+      strokes,
+    });
+    if (!draft) return;
+    if (strokes.length === 0) {
+      brushThrottleRef.current?.cancel();
+      void broadcastRef.current
+        ?.sendBrushDraftCleared({
+          draftBrushId: draft.draftBrushId,
+          ownerSessionId: draft.ownerSessionId,
+        })
+        .catch(() => {});
+      return;
+    }
+    brushThrottleRef.current?.push(draft);
+  };
+
+  const publishBrush = (strokes: BrushStroke[]) => {
+    if (!self) return;
+    const ui = createUiRef.current;
+    if (ui?.mode !== "brush") return;
+
+    if (!brushDraftCanPublish(strokes)) {
+      clearLocalBrushDraftBroadcast(ui.draftBrushId, self.sessionId);
+      brushStrokesRef.current = [];
+      setCreateUi(null);
+      return;
+    }
+
+    const next = upsertBrushStrokesForOwner(
+      normalizeEphemeralBrushPageData(brushPageDataRef.current),
+      {
+        ownerSessionId: self.sessionId,
+        documentId: ui.draftBrushId,
+        strokes,
+      },
+    );
+    if (!next) return;
+
+    brushThrottleRef.current?.cancel();
+    clearLocalBrushDraftBroadcast(ui.draftBrushId, self.sessionId);
+    brushStrokesRef.current = [];
+    writeBrushPageData(next);
+    setCreateUi(null);
+  };
+
+  const exitBrushWithFinalize = (strokes: BrushStroke[]) => {
+    if (brushDraftCanPublish(strokes)) {
+      publishBrush(strokes);
+      return;
+    }
+    abandonCreate();
+  };
+
   const onDeleteText = (textId: string) => {
     if (!self) return;
     const current = normalizeEphemeralTextsPageData(pageDataRef.current);
@@ -590,6 +796,7 @@ export function EphemeralTextLayer() {
   hasMarkForSessionRef.current = hasMarkForSession;
 
   // IC2 — dock TEXT/DRAW use current camera/viewport → world %; MARK keeps HOME cue.
+  // DRAW opens OBJECT/BRUSH chooser; OBJECT keeps prior zone editor.
   // Empty-canvas path: screenPointToWorldPct → menu. Register once; refs avoid loops.
   useEffect(() => {
     const abandonLocalDrafts = () => {
@@ -604,19 +811,17 @@ export function EphemeralTextLayer() {
           currentSelf.sessionId,
         );
       }
+      if (ui?.mode === "brush" && currentSelf) {
+        clearLocalBrushDraftBroadcast(ui.draftBrushId, currentSelf.sessionId);
+        brushStrokesRef.current = [];
+      }
     };
 
-    const openDrawAt = (leftPct: number, topPct: number) => {
-      const zone = drawingZoneOriginFromClick(leftPct, topPct);
-      const aspectRatio = drawingZoneWorldAspectRatio(
-        zone.widthPct,
-        zone.heightPct,
-      );
+    const openDrawChooserAt = (leftPct: number, topPct: number) => {
       setCreateUi({
-        mode: "draw",
-        draftDrawingId: createDrawingDraftId(),
-        ...zone,
-        aspectRatio,
+        mode: "draw-chooser",
+        leftPct,
+        topPct,
       });
     };
 
@@ -654,9 +859,40 @@ export function EphemeralTextLayer() {
       },
       openDraw: () => {
         if (!isParticipatingRef.current || !selfRef.current) return;
+        const ui = createUiRef.current;
+        const currentSelf = selfRef.current;
+        // Dock DRAW while BRUSH armed → finalize if possible, else abandon.
+        if (ui?.mode === "brush" && currentSelf) {
+          const strokes = brushStrokesRef.current;
+          if (brushDraftCanPublish(strokes)) {
+            const next = upsertBrushStrokesForOwner(
+              normalizeEphemeralBrushPageData(brushPageDataRef.current),
+              {
+                ownerSessionId: currentSelf.sessionId,
+                documentId: ui.draftBrushId,
+                strokes,
+              },
+            );
+            if (next) {
+              brushThrottleRef.current?.cancel();
+              clearLocalBrushDraftBroadcast(
+                ui.draftBrushId,
+                currentSelf.sessionId,
+              );
+              brushStrokesRef.current = [];
+              writeBrushPageData(next);
+              setCreateUi(null);
+              return;
+            }
+          }
+          clearLocalBrushDraftBroadcast(ui.draftBrushId, currentSelf.sessionId);
+          brushStrokesRef.current = [];
+          setCreateUi(null);
+          return;
+        }
         abandonLocalDrafts();
         const origin = dockWorldOrigin();
-        openDrawAt(origin.leftPct, origin.topPct);
+        openDrawChooserAt(origin.leftPct, origin.topPct);
       },
       openMark: () => {
         if (!MARK_ENABLED) return;
@@ -685,6 +921,29 @@ export function EphemeralTextLayer() {
     remoteDrawingDrafts,
     self?.sessionId ?? null,
   );
+  const visibleRemoteBrushDrafts = brushDraftsForRemoteView(
+    remoteBrushDrafts,
+    self?.sessionId ?? null,
+  );
+
+  const openObjectFromChooser = (leftPct: number, topPct: number) => {
+    const zone = drawingZoneOriginFromClick(leftPct, topPct);
+    setCreateUi({
+      mode: "draw",
+      draftDrawingId: createDrawingDraftId(),
+      ...zone,
+      aspectRatio: drawingZoneWorldAspectRatio(zone.widthPct, zone.heightPct),
+    });
+  };
+
+  const openBrushFromChooser = (leftPct: number, topPct: number) => {
+    setCreateUi({
+      mode: "brush",
+      draftBrushId: createBrushDraftId(),
+      toolsLeftPct: leftPct,
+      toolsTopPct: topPct,
+    });
+  };
 
   return (
     <div
@@ -696,6 +955,8 @@ export function EphemeralTextLayer() {
             <CanvasMarkObject key={mark.id} mark={mark} />
           ))
         : null}
+
+      <EphemeralBrushLayer documents={brushDocuments} />
 
       {texts.map((text) => (
         <EphemeralTextObjectView
@@ -726,6 +987,10 @@ export function EphemeralTextLayer() {
         />
       ))}
 
+      {visibleRemoteBrushDrafts.map((draft) => (
+        <LiveBrushDraftView key={draft.draftBrushId} draft={draft} />
+      ))}
+
       {createUi?.mode === "menu" ? (
         <div className="pointer-events-auto">
           <CanvasCreateMenu
@@ -741,18 +1006,10 @@ export function EphemeralTextLayer() {
               })
             }
             onChooseDraw={() => {
-              const zone = drawingZoneOriginFromClick(
-                createUi.leftPct,
-                createUi.topPct,
-              );
               setCreateUi({
-                mode: "draw",
-                draftDrawingId: createDrawingDraftId(),
-                ...zone,
-                aspectRatio: drawingZoneWorldAspectRatio(
-                  zone.widthPct,
-                  zone.heightPct,
-                ),
+                mode: "draw-chooser",
+                leftPct: createUi.leftPct,
+                topPct: createUi.topPct,
               });
             }}
             onChooseMark={() => {
@@ -763,6 +1020,22 @@ export function EphemeralTextLayer() {
                 topPct: createUi.topPct,
               });
             }}
+            onCancel={() => setCreateUi(null)}
+          />
+        </div>
+      ) : null}
+
+      {createUi?.mode === "draw-chooser" ? (
+        <div className="pointer-events-auto">
+          <CanvasDrawModeChooser
+            leftPct={createUi.leftPct}
+            topPct={createUi.topPct}
+            onChooseObject={() =>
+              openObjectFromChooser(createUi.leftPct, createUi.topPct)
+            }
+            onChooseBrush={() =>
+              openBrushFromChooser(createUi.leftPct, createUi.topPct)
+            }
             onCancel={() => setCreateUi(null)}
           />
         </div>
@@ -803,6 +1076,18 @@ export function EphemeralTextLayer() {
           onStrokesChange={onDrawingStrokesChange}
           onDone={publishDrawing}
           onCancel={abandonCreate}
+        />
+      ) : null}
+
+      {createUi?.mode === "brush" && self ? (
+        <BrushSessionOverlay
+          draftBrushId={createUi.draftBrushId}
+          toolsLeftPct={createUi.toolsLeftPct}
+          toolsTopPct={createUi.toolsTopPct}
+          onStrokesChange={onBrushStrokesChange}
+          onDone={publishBrush}
+          onCancel={abandonCreate}
+          onToggleExit={exitBrushWithFinalize}
         />
       ) : null}
     </div>

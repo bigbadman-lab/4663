@@ -1,10 +1,16 @@
 /**
  * Injectable Supabase Realtime Broadcast client for social draft events.
- * Shared channel: text drafts (2B) + drawing drafts (3A).
+ * Shared channel: text drafts (2B) + drawing drafts (3A) + brush drafts (3B).
  */
 
 import type { BrowserSupabase } from "@/lib/events/supabase-browser";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import {
+  BRUSH_DRAFT_CLEARED_EVENT,
+  BRUSH_DRAFT_UPDATED_EVENT,
+  type BrushDraft,
+  type BrushDraftCleared,
+} from "@/lib/social/brush-draft";
 import {
   DRAWING_DRAFT_CLEARED_EVENT,
   DRAWING_DRAFT_UPDATED_EVENT,
@@ -31,6 +37,8 @@ export type SocialBroadcastHandlers = {
   onDraftCleared: (cleared: unknown) => void;
   onDrawingDraftUpdated?: (draft: unknown) => void;
   onDrawingDraftCleared?: (cleared: unknown) => void;
+  onBrushDraftUpdated?: (draft: unknown) => void;
+  onBrushDraftCleared?: (cleared: unknown) => void;
   onStatus: (status: SocialBroadcastStatus) => void;
 };
 
@@ -40,6 +48,8 @@ export type SocialBroadcastSubscription = {
   sendDraftCleared: (cleared: TextDraftCleared) => Promise<void>;
   sendDrawingDraftUpdated: (draft: DrawingDraft) => Promise<void>;
   sendDrawingDraftCleared: (cleared: DrawingDraftCleared) => Promise<void>;
+  sendBrushDraftUpdated: (draft: BrushDraft) => Promise<void>;
+  sendBrushDraftCleared: (cleared: BrushDraftCleared) => Promise<void>;
 };
 
 export type SocialBroadcastClient = {
@@ -89,6 +99,20 @@ export function createSocialBroadcastClient(
             handlers.onDrawingDraftCleared?.(payload);
           },
         )
+        .on(
+          "broadcast",
+          { event: BRUSH_DRAFT_UPDATED_EVENT },
+          ({ payload }) => {
+            handlers.onBrushDraftUpdated?.(payload);
+          },
+        )
+        .on(
+          "broadcast",
+          { event: BRUSH_DRAFT_CLEARED_EVENT },
+          ({ payload }) => {
+            handlers.onBrushDraftCleared?.(payload);
+          },
+        )
         .subscribe((status) => {
           handlers.onStatus(status);
         });
@@ -122,6 +146,20 @@ export function createSocialBroadcastClient(
           await channel.send({
             type: "broadcast",
             event: DRAWING_DRAFT_CLEARED_EVENT,
+            payload: cleared,
+          });
+        },
+        sendBrushDraftUpdated: async (draft) => {
+          await channel.send({
+            type: "broadcast",
+            event: BRUSH_DRAFT_UPDATED_EVENT,
+            payload: draft,
+          });
+        },
+        sendBrushDraftCleared: async (cleared) => {
+          await channel.send({
+            type: "broadcast",
+            event: BRUSH_DRAFT_CLEARED_EVENT,
             payload: cleared,
           });
         },
