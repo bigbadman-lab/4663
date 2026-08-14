@@ -2,9 +2,14 @@
 
 /**
  * Client poll for live PONS monitoring terminal snapshot.
+ * Health 1: pauses while document is hidden; resumes with an immediate fetch.
  */
 
 import { useEffect, useState } from "react";
+import {
+  browserVisibilityIntervalDeps,
+  startVisibilityIntervalPolling,
+} from "@/lib/browser/visibility-interval-poll";
 import type {
   PonsMonitorItem,
   PonsMonitorResponse,
@@ -56,7 +61,6 @@ export function usePonsMonitor(): UsePonsMonitorResult {
   useEffect(() => {
     let cancelled = false;
     let inFlight = false;
-    let timer: number | null = null;
     let lastGood: PonsMonitorResponse | null = null;
 
     const apply = (body: PonsMonitorResponse) => {
@@ -103,14 +107,15 @@ export function usePonsMonitor(): UsePonsMonitorResult {
       }
     };
 
-    void load();
-    timer = window.setInterval(() => {
-      void load();
-    }, PONS_MONITOR_POLL_MS);
+    const poller = startVisibilityIntervalPolling({
+      ...browserVisibilityIntervalDeps(),
+      intervalMs: PONS_MONITOR_POLL_MS,
+      tick: load,
+    });
 
     return () => {
       cancelled = true;
-      if (timer != null) window.clearInterval(timer);
+      poller.stop();
     };
   }, []);
 

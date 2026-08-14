@@ -2,9 +2,14 @@
 
 /**
  * Client poll for today's continuation monitoring watchlist.
+ * Health 1: pauses while document is hidden; resumes with an immediate fetch.
  */
 
 import { useEffect, useState } from "react";
+import {
+  browserVisibilityIntervalDeps,
+  startVisibilityIntervalPolling,
+} from "@/lib/browser/visibility-interval-poll";
 import type { ContinuationWatchlistToken } from "@/lib/events/continuation-watchlist";
 
 export const CONTINUATION_WATCHLIST_POLL_MS = 45_000 as const;
@@ -23,9 +28,11 @@ export function useContinuationWatchlist(): UseContinuationWatchlistResult {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: number | null = null;
+    let inFlight = false;
 
     const load = async () => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
       try {
         const response = await fetch("/api/events/continuation-watchlist", {
           method: "GET",
@@ -51,17 +58,20 @@ export function useContinuationWatchlist(): UseContinuationWatchlistResult {
         }
       } catch {
         if (!cancelled) setStatus("error");
+      } finally {
+        inFlight = false;
       }
     };
 
-    void load();
-    timer = window.setInterval(() => {
-      void load();
-    }, CONTINUATION_WATCHLIST_POLL_MS);
+    const poller = startVisibilityIntervalPolling({
+      ...browserVisibilityIntervalDeps(),
+      intervalMs: CONTINUATION_WATCHLIST_POLL_MS,
+      tick: load,
+    });
 
     return () => {
       cancelled = true;
-      if (timer != null) window.clearInterval(timer);
+      poller.stop();
     };
   }, []);
 

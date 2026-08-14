@@ -80,9 +80,12 @@ describe("LAUNCH1 OFFICIAL CONTRACT UI", () => {
     assert.ok(guide.includes("[ WHAT CAN YOU DO? ]"));
 
     const hook = readSrc("src/components/canvas/use-official-token.ts");
-    assert.ok(hook.includes("/api/token/official"));
-    assert.ok(hook.includes("OFFICIAL_TOKEN_POLL_INACTIVE_MS"));
-    assert.ok(hook.includes("stop polling") || hook.includes("immutable"));
+    assert.ok(hook.includes("startOfficialTokenPolling"));
+    assert.ok(hook.includes("fetchOfficialTokenJson"));
+    const poll = readSrc("src/lib/token/official-token-poll.ts");
+    assert.ok(poll.includes("/api/token/official"));
+    assert.ok(poll.includes("OFFICIAL_TOKEN_POLL_INACTIVE_MS"));
+    assert.ok(poll.includes("immutable") || poll.includes("heldActive"));
   });
 
   it("polling + package scripts present", () => {

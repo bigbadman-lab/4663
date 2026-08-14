@@ -150,12 +150,76 @@ describe("formatPresencePlaces / aggregation", () => {
   });
 });
 
+function createPresenceVisibilityEnv(opts?: {
+  visibility?: DocumentVisibilityState;
+}) {
+  let visibility: DocumentVisibilityState = opts?.visibility ?? "visible";
+  const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+  const timers = new Map<number, () => void>();
+  let nextId = 1;
+  let intervalMsSeen: number | null = null;
+
+  return {
+    get visibility() {
+      return visibility;
+    },
+    get timerCount() {
+      return timers.size;
+    },
+    get intervalMsSeen() {
+      return intervalMsSeen;
+    },
+    getVisibilityState: () => visibility,
+    setIntervalFn: (fn: () => void, ms: number) => {
+      intervalMsSeen = ms;
+      const id = nextId++;
+      timers.set(id, fn);
+      return id;
+    },
+    clearIntervalFn: (id: unknown) => {
+      timers.delete(id as number);
+    },
+    addEventListener: (
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+    ) => {
+      let set = listeners.get(type);
+      if (!set) {
+        set = new Set();
+        listeners.set(type, set);
+      }
+      set.add(listener);
+    },
+    removeEventListener: (
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+    ) => {
+      listeners.get(type)?.delete(listener);
+    },
+    fireInterval() {
+      const tick = [...timers.values()][0];
+      tick?.();
+    },
+    setVisibility(next: DocumentVisibilityState) {
+      visibility = next;
+      const set = listeners.get("visibilitychange");
+      if (!set) return;
+      for (const l of set) {
+        if (typeof l === "function") l(new Event("visibilitychange"));
+        else l.handleEvent(new Event("visibilitychange"));
+      }
+    },
+    get listenerCount() {
+      return listeners.get("visibilitychange")?.size ?? 0;
+    },
+  };
+}
+
 describe("startPresenceSummaryPolling", () => {
   it("8. failed poll retains last good snapshot", async () => {
     const updates: (PresenceSummaryResponse | null)[] = [];
     let calls = 0;
-    const timers = new Map<number, () => void>();
-    let nextId = 1;
+    const env = createPresenceVisibilityEnv();
 
     const poller = startPresenceSummaryPolling({
       fetchSummary: async () => {
@@ -170,14 +234,11 @@ describe("startPresenceSummaryPolling", () => {
         }
         throw new Error("network");
       },
-      setIntervalFn: (fn) => {
-        const id = nextId++;
-        timers.set(id, fn);
-        return id;
-      },
-      clearIntervalFn: (id) => {
-        timers.delete(id as number);
-      },
+      setIntervalFn: env.setIntervalFn,
+      clearIntervalFn: env.clearIntervalFn,
+      getVisibilityState: env.getVisibilityState,
+      addEventListener: env.addEventListener,
+      removeEventListener: env.removeEventListener,
       intervalMs: 1000,
       onUpdate: (s) => updates.push(s),
     });
@@ -186,8 +247,7 @@ describe("startPresenceSummaryPolling", () => {
     await Promise.resolve();
     assert.equal(updates.at(-1)?.liveUsers, 2);
 
-    const tick = [...timers.values()][0]!;
-    tick();
+    env.fireInterval();
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(updates.at(-1)?.liveUsers, 2);
@@ -198,8 +258,7 @@ describe("startPresenceSummaryPolling", () => {
     let inFlight = 0;
     let maxInFlight = 0;
     const releases: Array<() => void> = [];
-    const timers = new Map<number, () => void>();
-    let nextId = 1;
+    const env = createPresenceVisibilityEnv();
 
     const poller = startPresenceSummaryPolling({
       fetchSummary: async () => {
@@ -218,22 +277,18 @@ describe("startPresenceSummaryPolling", () => {
           totalLocations: 0,
         };
       },
-      setIntervalFn: (fn) => {
-        const id = nextId++;
-        timers.set(id, fn);
-        return id;
-      },
-      clearIntervalFn: (id) => {
-        timers.delete(id as number);
-      },
+      setIntervalFn: env.setIntervalFn,
+      clearIntervalFn: env.clearIntervalFn,
+      getVisibilityState: env.getVisibilityState,
+      addEventListener: env.addEventListener,
+      removeEventListener: env.removeEventListener,
       intervalMs: 1000,
       onUpdate: () => {},
     });
 
     await Promise.resolve();
-    const tick = [...timers.values()][0]!;
-    tick();
-    tick();
+    env.fireInterval();
+    env.fireInterval();
     assert.equal(maxInFlight, 1);
     assert.equal(releases.length, 1);
     releases[0]!();
@@ -242,8 +297,7 @@ describe("startPresenceSummaryPolling", () => {
   });
 
   it("10. unmount clears polling interval", () => {
-    const timers = new Map<number, () => void>();
-    let nextId = 1;
+    const env = createPresenceVisibilityEnv();
     const poller = startPresenceSummaryPolling({
       fetchSummary: async () => ({
         liveUsers: 0,
@@ -253,17 +307,66 @@ describe("startPresenceSummaryPolling", () => {
       }),
       setIntervalFn: (fn, ms) => {
         assert.equal(ms, PRESENCE_SUMMARY_POLL_MS);
-        const id = nextId++;
-        timers.set(id, fn);
-        return id;
+        return env.setIntervalFn(fn, ms);
       },
-      clearIntervalFn: (id) => {
-        timers.delete(id as number);
-      },
+      clearIntervalFn: env.clearIntervalFn,
+      getVisibilityState: env.getVisibilityState,
+      addEventListener: env.addEventListener,
+      removeEventListener: env.removeEventListener,
       onUpdate: () => {},
     });
-    assert.equal(timers.size, 1);
+    assert.equal(env.timerCount, 1);
     poller.stop();
-    assert.equal(timers.size, 0);
+    assert.equal(env.timerCount, 0);
+    assert.equal(env.listenerCount, 0);
+  });
+
+  it("11. Health 1 — hidden pauses; visible resume fetches immediately", async () => {
+    let calls = 0;
+    const updates: (PresenceSummaryResponse | null)[] = [];
+    const env = createPresenceVisibilityEnv();
+
+    const poller = startPresenceSummaryPolling({
+      fetchSummary: async () => {
+        calls += 1;
+        return {
+          liveUsers: calls,
+          byCountry: {},
+          byCity: [],
+          totalLocations: 0,
+        };
+      },
+      setIntervalFn: env.setIntervalFn,
+      clearIntervalFn: env.clearIntervalFn,
+      getVisibilityState: env.getVisibilityState,
+      addEventListener: env.addEventListener,
+      removeEventListener: env.removeEventListener,
+      intervalMs: 1000,
+      onUpdate: (s) => updates.push(s),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(calls, 1);
+    assert.equal(env.timerCount, 1);
+    assert.equal(updates.at(-1)?.liveUsers, 1);
+
+    env.setVisibility("hidden");
+    assert.equal(env.timerCount, 0);
+    assert.equal(calls, 1);
+    assert.equal(updates.at(-1)?.liveUsers, 1);
+
+    env.setVisibility("visible");
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(calls, 2);
+    assert.equal(env.timerCount, 1);
+    assert.equal(updates.at(-1)?.liveUsers, 2);
+
+    env.fireInterval();
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(calls, 3);
+    poller.stop();
   });
 });

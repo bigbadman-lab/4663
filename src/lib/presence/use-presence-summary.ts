@@ -1,7 +1,12 @@
 /**
  * Browser poll of GET /api/presence/summary (injectable for tests).
+ * Health 1: pauses while document is hidden; resumes with an immediate fetch.
  */
 
+import {
+  browserVisibilityIntervalDeps,
+  startVisibilityIntervalPolling,
+} from "@/lib/browser/visibility-interval-poll";
 import {
   parsePresenceSummaryJson,
   PRESENCE_SUMMARY_POLL_MS,
@@ -14,10 +19,22 @@ export type PresenceSummaryPollerDeps = {
   clearIntervalFn: (id: unknown) => void;
   intervalMs?: number;
   onUpdate: (summary: PresenceSummaryResponse | null) => void;
+  getVisibilityState?: () => DocumentVisibilityState;
+  addEventListener?: (
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ) => void;
+  removeEventListener?: (
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | EventListenerOptions,
+  ) => void;
 };
 
 /**
- * Starts immediate fetch + interval. Retains last good snapshot on failure.
+ * Starts immediate fetch + interval while visible.
+ * Retains last good snapshot on failure / while hidden.
  * Skips overlapping in-flight requests. Call stop() on unmount.
  */
 export function startPresenceSummaryPolling(
@@ -27,6 +44,7 @@ export function startPresenceSummaryPolling(
   let inFlight = false;
   let lastGood: PresenceSummaryResponse | null = null;
   const intervalMs = deps.intervalMs ?? PRESENCE_SUMMARY_POLL_MS;
+  const browser = browserVisibilityIntervalDeps();
 
   const tick = async () => {
     if (stopped || inFlight) return;
@@ -47,15 +65,22 @@ export function startPresenceSummaryPolling(
     }
   };
 
-  void tick();
-  const timer = deps.setIntervalFn(() => {
-    void tick();
-  }, intervalMs);
+  const poller = startVisibilityIntervalPolling({
+    intervalMs,
+    tick,
+    getVisibilityState:
+      deps.getVisibilityState ?? browser.getVisibilityState,
+    setIntervalFn: deps.setIntervalFn,
+    clearIntervalFn: deps.clearIntervalFn,
+    addEventListener: deps.addEventListener ?? browser.addEventListener,
+    removeEventListener:
+      deps.removeEventListener ?? browser.removeEventListener,
+  });
 
   return {
     stop: () => {
       stopped = true;
-      deps.clearIntervalFn(timer);
+      poller.stop();
     },
   };
 }
