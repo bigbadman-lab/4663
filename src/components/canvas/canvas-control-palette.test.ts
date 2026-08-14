@@ -31,7 +31,7 @@ function readSrc(rel: string): string {
 }
 
 describe("Social 8A responsive bottom control dock", () => {
-  it("1–3. live dock TEXT→DRAW→HOME→CRYPTO→RESET; MARK dormant but canonical list intact", () => {
+  it("1–3. live dock TEXT→DRAW→HOME→RADAR→RESET; MARK dormant but canonical list intact", () => {
     assert.equal(CONTROL_DOCK_ITEMS.length, 6);
     assert.deepEqual(
       CONTROL_DOCK_ITEMS.map((i) => i.id),
@@ -44,7 +44,7 @@ describe("Social 8A responsive bottom control dock", () => {
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.label),
-      ["TEXT", "DRAW", "HOME", "CRYPTO", "RESET"],
+      ["TEXT", "DRAW", "HOME", "RADAR", "RESET"],
     );
     assert.deepEqual(
       getLiveControlDockItems().map((i) => i.iconSrc),
@@ -101,7 +101,7 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.equal(palette.includes("CanMoveElement"), false);
   });
 
-  it("10–14. TEXT/DRAW/CRYPTO/RESET wiring + MARK dormant gates", () => {
+  it("10–14. TEXT/DRAW/RADAR/RESET wiring + MARK dormant gates", () => {
     const palette = readSrc(
       "src/components/canvas/canvas-control-palette.tsx",
     );
@@ -118,7 +118,7 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.equal(palette.includes("isSummonDockDisabled"), false);
     assert.ok(palette.includes("canMark"));
     assert.ok(palette.includes("canReset"));
-    // CRYPTO dock is never disabled for summon participation gates.
+    // RADAR dock is never disabled for summon participation gates.
     assert.ok(
       /case "summon":[\s\S]*?return false;/.test(palette),
     );

@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * Single persistent Robinhood Chain monitoring object (public presentation).
- * Backed by today's pons_buyer_continuation watchlist — not one object per token.
+ * Single persistent RADAR object (continuation watchlist).
  */
 
 import Image from "next/image";
 import { PonsMonitoringPanel } from "@/components/canvas/pons-monitoring-panel";
 import { usePonsMonitoringPanelOpen } from "@/components/canvas/pons-monitoring-panel-state";
+import { RadarAlertObject } from "@/components/canvas/radar-alert-object";
 import { useContinuationWatchlist } from "@/components/canvas/use-continuation-watchlist";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
@@ -34,20 +34,23 @@ export function ponsMonitoringHostClassName(movableChrome: boolean): string {
 
 export function PonsMonitoringContent() {
   const { tokens } = useContinuationWatchlist();
-  const { open, setOpen, openPanel } = usePonsMonitoringPanelOpen();
+  const {
+    open,
+    selectedTokenAddress,
+    setOpen,
+    openPanel,
+    clearSelectedToken,
+  } = usePonsMonitoringPanelOpen();
   const openRef = useInteractiveControlProtection<HTMLButtonElement>();
   const count = tokens.length;
-  const statusLabel = count === 0 ? "SCANNING" : `${count} ACTIVE`;
+  const statusLabel = count === 0 ? "SCANNING" : `${count} ON RADAR`;
 
   return (
     <>
-      {/*
-        Card body is the PlayHTML drag surface (host receives move-start).
-        Only the OPEN control is IC3.6-protected so taps open without blocking drag.
-      */}
       <article
         className="flex min-w-[11rem] max-w-[13rem] flex-col items-stretch gap-2 border border-neutral-300 bg-white px-2.5 py-2"
         data-4663-pons-monitoring-card
+        data-4663-radar-card
       >
         <Image
           src="/pons.png"
@@ -61,7 +64,7 @@ export function PonsMonitoringContent() {
         <span className="pointer-events-none font-mono text-[10px] leading-snug tracking-wide text-neutral-800 sm:text-[11px]">
           ROBINHOOD CHAIN
           <br />
-          TOKENS WE&apos;RE MONITORING
+          ON OUR RADAR
         </span>
         <span
           className="pointer-events-none font-mono text-[10px] tracking-wide text-neutral-500"
@@ -75,7 +78,7 @@ export function PonsMonitoringContent() {
           type="button"
           className="inline-flex min-h-11 w-full items-center justify-center font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
           data-4663-pons-monitoring-open
-          aria-label="Open tokens we're monitoring"
+          aria-label="Open RADAR"
           onClick={(event) => {
             event.stopPropagation();
             openPanel();
@@ -89,9 +92,37 @@ export function PonsMonitoringContent() {
       </article>
 
       {open ? (
-        <PonsMonitoringPanel tokens={tokens} onClose={() => setOpen(false)} />
+        <PonsMonitoringPanel
+          tokens={tokens}
+          initialTokenAddress={selectedTokenAddress}
+          onClearSelection={clearSelectedToken}
+          onClose={() => setOpen(false)}
+        />
       ) : null}
     </>
+  );
+}
+
+/**
+ * RADAR alerts sit in the home region (world), not inside the movable card.
+ */
+export function RadarAlertLayer() {
+  const { alerts, dismissAlert } = useContinuationWatchlist();
+  const { openToToken } = usePonsMonitoringPanelOpen();
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[16]" data-4663-radar-alerts>
+      {alerts.map((alert) => (
+        <RadarAlertObject
+          key={alert.eventId}
+          alert={alert}
+          onOpen={openToToken}
+          onDismiss={dismissAlert}
+        />
+      ))}
+    </div>
   );
 }
 

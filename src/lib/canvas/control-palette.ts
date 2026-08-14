@@ -1,6 +1,6 @@
 /**
- * Social 8A — bottom control dock definitions (TEXT / DRAW / MARK / CRYPTO / RESET).
- * Dock id remains `summon` for wiring stability; label/action are CRYPTO → watchlist.
+ * Social 8A — bottom control dock definitions (TEXT / DRAW / MARK / RADAR / RESET).
+ * Dock id remains `summon` for wiring stability; label/action are RADAR → watchlist.
  */
 
 import { PONS_BUYER_COUNT_COLOR } from "@/lib/canvas/pons-visual";
@@ -27,7 +27,7 @@ export const CONTROL_DOCK_ITEMS: readonly ControlDockItem[] = [
   { id: "draw", label: "DRAW", iconSrc: "/draw.png" },
   { id: "mark", label: "MARK", iconSrc: "/mark.png" },
   { id: "home", label: "HOME", iconSrc: "/home.png" },
-  { id: "summon", label: "CRYPTO", iconSrc: "/summon.png" },
+  { id: "summon", label: "RADAR", iconSrc: "/summon.png" },
   { id: "reset", label: "RESET", iconSrc: "/reset.png" },
 ] as const;
 
@@ -65,13 +65,13 @@ export function isSummonDockDisabled(input: {
   return !input.canSummon;
 }
 
-/** Accessible / title copy for CRYPTO dock (opens continuation watchlist). */
+/** Accessible / title copy for RADAR dock (opens continuation watchlist). */
 export const SUMMON_DOCK_A11Y = {
-  idle: "CRYPTO — tokens we're monitoring",
-  clear: "CRYPTO — tokens we're monitoring",
-  inFlight: "CRYPTO — tokens we're monitoring",
-  coolingDown: "CRYPTO — tokens we're monitoring",
-  activeOther: "CRYPTO — tokens we're monitoring",
+  idle: "RADAR — tokens on our radar",
+  clear: "RADAR — tokens on our radar",
+  inFlight: "RADAR — tokens on our radar",
+  coolingDown: "RADAR — tokens on our radar",
+  activeOther: "RADAR — tokens on our radar",
 } as const;
 
 export function getSummonDockA11yLabel(_input: {

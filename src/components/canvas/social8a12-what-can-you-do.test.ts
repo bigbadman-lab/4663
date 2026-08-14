@@ -21,7 +21,7 @@ const REQUIRED_HEADINGS = [
   "EXPLORE THE CANVAS",
   "BE HERE WITH EVERYONE",
   "WATCH ROBINHOOD CHAIN",
-  "EXPLORE CRYPTO",
+  "EXPLORE RADAR",
   "BUILD WITH US",
 ] as const;
 
@@ -96,8 +96,10 @@ describe("Stage 8A.12 WHAT CAN YOU DO modal", () => {
     }
     assert.ok(note.includes("ENTER"));
     assert.ok(note.includes("GLOBAL CHAT"));
-    assert.ok(note.includes("CRYPTO"));
-    assert.ok(note.includes("last 5"));
+    assert.ok(note.includes("RADAR"));
+    assert.ok(note.includes("on our radar"));
+    assert.equal(note.includes("CRYPTO"), false);
+    assert.equal(note.includes("last 5"), false);
     assert.equal(note.includes("SUMMON"), false);
     assert.ok(
       note.includes(

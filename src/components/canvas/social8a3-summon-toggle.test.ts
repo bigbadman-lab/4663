@@ -221,13 +221,13 @@ describe("Stage 8A.3 Summon toggle", () => {
   });
 });
 
-describe("Stage 8A.3.1 CRYPTO dock opens watchlist", () => {
-  it("1–3. CRYPTO label; dock stays idle (no summon active accent)", () => {
+describe("Stage 8A.3.1 RADAR dock opens watchlist", () => {
+  it("1–3. RADAR label; dock stays idle (no summon active accent)", () => {
     assert.equal(SUMMON_DOCK_ACTIVE_COLOR, PONS_BUYER_COUNT_COLOR);
     assert.equal(SUMMON_DOCK_ACTIVE_COLOR, "#8FAE00");
 
     const defs = readSrc("src/lib/canvas/control-palette.ts");
-    assert.ok(defs.includes('label: "CRYPTO"'));
+    assert.ok(defs.includes('label: "RADAR"'));
 
     const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
     assert.ok(palette.includes("DOCK_BUTTON_IDLE"));
@@ -239,7 +239,7 @@ describe("Stage 8A.3.1 CRYPTO dock opens watchlist", () => {
     assert.equal(palette.includes("useState"), false);
   });
 
-  it("4–6. CRYPTO always enabled; opens watchlist; summon dismiss logic stays in controller", () => {
+  it("4–6. RADAR always enabled; opens watchlist; summon dismiss logic stays in controller", () => {
     assert.equal(
       isSummonDockDisabled({
         canSummon: false,
@@ -255,7 +255,7 @@ describe("Stage 8A.3.1 CRYPTO dock opens watchlist", () => {
     assert.equal(palette.includes("aria-pressed"), false);
     assert.ok(
       readSrc("src/lib/canvas/control-palette.ts").includes(
-        "CRYPTO — tokens we're monitoring",
+        "RADAR — tokens on our radar",
       ),
     );
     assert.equal(palette.includes("[ DISMISS ]"), false);

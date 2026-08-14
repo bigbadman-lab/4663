@@ -23,10 +23,15 @@ export const CONTINUATION_WATCHLIST_LIMIT = 5 as const;
  */
 export const CONTINUATION_WATCHLIST_FETCH_MULTIPLIER = 4 as const;
 
+/** Bound for today's qualification feed used by live RADAR alerts. */
+export const RADAR_RECENT_QUALIFICATIONS_LIMIT = 50 as const;
+
 const SELECT_COLUMNS =
   "id, event_type, token_address, market_address, occurred_at, new_buyers, payload" as const;
 
 export type ContinuationWatchlistToken = {
+  /** Durable events.id for RADAR-entry detection. */
+  eventId: string;
   tokenAddress: string;
   marketAddress: string | null;
   launchTimestamp: string | null;
@@ -37,11 +42,23 @@ export type ContinuationWatchlistToken = {
   continuationFirstBuyers: number | null;
 };
 
+/** Lightweight today's qualification for live RADAR alerts (not the ranked top-5). */
+export type RadarQualificationRef = {
+  eventId: string;
+  tokenAddress: string;
+  occurredAt: string;
+};
+
 export type ContinuationWatchlistResponse = {
   generatedAt: string;
   /** UTC day start used for the query (ISO). */
   dayStartUtc: string;
   tokens: ContinuationWatchlistToken[];
+  /**
+   * Today's continuation qualifications (newest first, bounded).
+   * Used for live RADAR alerts — independent of top-5 strength ranking.
+   */
+  recentQualifications: RadarQualificationRef[];
 };
 
 export type LoadContinuationWatchlistResult =
@@ -166,6 +183,7 @@ type RawContinuationRow = {
 };
 
 type NormalizedContinuationRow = {
+  eventId: string;
   tokenAddress: string;
   marketAddress: string | null;
   continuationTimestamp: string;
@@ -209,6 +227,15 @@ export function normalizeContinuationWatchlistRow(
   if (typeof row !== "object" || Array.isArray(row)) return null;
   const r = row as RawContinuationRow;
   if (r.event_type !== EVENT_TYPE_PONS_BUYER_CONTINUATION) return null;
+  if (typeof r.id !== "string") return null;
+  const eventId = r.id.trim().toLowerCase();
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      eventId,
+    )
+  ) {
+    return null;
+  }
   if (typeof r.token_address !== "string") return null;
   const tokenAddress = r.token_address.trim().toLowerCase();
   if (!ADDRESS_RE.test(tokenAddress)) return null;
@@ -221,6 +248,7 @@ export function normalizeContinuationWatchlistRow(
 
   const counts = payloadBuyerCounts(r.payload);
   return {
+    eventId,
     tokenAddress,
     marketAddress: normalizeMarketAddress(r.market_address),
     continuationTimestamp,
@@ -310,6 +338,38 @@ export async function loadContinuationWatchlist(
   ranked.sort(compareContinuationWatchlistRows);
   const top = ranked.slice(0, safeLimit);
 
+  // Separate newest-first feed for live alerts (independent of strength ranking).
+  const { data: recentRows, error: recentError } = await supabase
+    .from("events")
+    .select("id, event_type, token_address, market_address, occurred_at, new_buyers, payload")
+    .eq("chain_id", CHAIN_ID)
+    .eq("event_type", EVENT_TYPE_PONS_BUYER_CONTINUATION)
+    .eq("source", EVENT_SOURCE_PONS)
+    .gte("occurred_at", startIso)
+    .lt("occurred_at", endIso)
+    .order("occurred_at", { ascending: false })
+    .order("token_address", { ascending: true })
+    .limit(RADAR_RECENT_QUALIFICATIONS_LIMIT);
+
+  if (recentError) {
+    return { ok: false, error: "events_unavailable" };
+  }
+
+  const recentQualifications: RadarQualificationRef[] = [];
+  for (const row of recentRows ?? []) {
+    const normalized = normalizeContinuationWatchlistRow(row);
+    if (!normalized) continue;
+    if (!isProductionLaunchBlock(normalized.payload, productionStartBlock)) {
+      continue;
+    }
+    if (safeLaunchBlockFromPayload(normalized.payload) === null) continue;
+    recentQualifications.push({
+      eventId: normalized.eventId,
+      tokenAddress: normalized.tokenAddress,
+      occurredAt: normalized.continuationTimestamp,
+    });
+  }
+
   const launchByToken = new Map<string, string>();
   if (top.length > 0) {
     const tokens = top.map((row) => row.tokenAddress);
@@ -335,6 +395,7 @@ export async function loadContinuationWatchlist(
   }
 
   const tokens: ContinuationWatchlistToken[] = top.map((row) => ({
+    eventId: row.eventId,
     tokenAddress: row.tokenAddress,
     marketAddress: row.marketAddress,
     launchTimestamp: launchByToken.get(row.tokenAddress) ?? null,
@@ -350,6 +411,7 @@ export async function loadContinuationWatchlist(
       generatedAt,
       dayStartUtc: startIso,
       tokens,
+      recentQualifications,
     },
   };
 }

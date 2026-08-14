@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Social 8A — responsive bottom control dock (TEXT / DRAW / MARK / CRYPTO / RESET).
+ * Social 8A — responsive bottom control dock (TEXT / DRAW / MARK / RADAR / RESET).
  * Fixed viewport-bottom tray; not PlayHTML-movable. Pointer-events only on the dock shell.
- * CRYPTO opens the PONS continuation watchlist (same panel as the monitoring object).
+ * RADAR (dock id `summon`) opens the continuation watchlist (same panel as the monitoring object).
  */
 
 import {
@@ -71,7 +71,7 @@ function isDisabled(
       if (!MARK_ENABLED) return true;
       return !(props.canMark ?? false);
     case "summon":
-      // CRYPTO opens the local watchlist — never gated on summon participation.
+      // RADAR opens the local watchlist — never gated on summon participation.
       return false;
     case "reset":
       return !(props.canReset ?? false);

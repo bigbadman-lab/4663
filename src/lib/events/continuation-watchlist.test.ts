@@ -33,9 +33,12 @@ const TOKEN_A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TOKEN_B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const TOKEN_C = "0xcccccccccccccccccccccccccccccccccccccccc";
 
+const EVENT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
 describe("continuation watchlist read-model", () => {
   it("1. only pons_buyer_continuation rows normalize", () => {
     const ok = normalizeContinuationWatchlistRow({
+      id: EVENT_ID,
       event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
       token_address: TOKEN_A,
       market_address: "0x1111111111111111111111111111111111111111",
@@ -48,16 +51,29 @@ describe("continuation watchlist read-model", () => {
       },
     });
     assert.ok(ok);
+    assert.equal(ok!.eventId, EVENT_ID);
     assert.equal(ok!.continuationBuyerCount, 3);
     assert.equal(ok!.pre3mFirstBuyers, 2);
     assert.equal(ok!.continuationFirstBuyers, 3);
 
     assert.equal(
       normalizeContinuationWatchlistRow({
+        id: EVENT_ID,
         event_type: "pons_buying_activity",
         token_address: TOKEN_A,
         occurred_at: "2026-08-13T12:00:00.000Z",
         new_buyers: 5,
+        payload: { launch_block_number: 34002670 },
+      }),
+      null,
+    );
+
+    assert.equal(
+      normalizeContinuationWatchlistRow({
+        event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
+        token_address: TOKEN_A,
+        occurred_at: "2026-08-13T12:00:00.000Z",
+        new_buyers: 3,
         payload: { launch_block_number: 34002670 },
       }),
       null,
@@ -143,6 +159,7 @@ describe("public PONS monitoring presentation", () => {
   it("8. one watchlist monitoring object; live terminal is separate; live layer empty", () => {
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("MovablePonsMonitoringObject"));
+    assert.ok(surface.includes("RadarAlertLayer"));
     assert.ok(surface.includes("MovablePonsMonitorTerminal"));
     assert.ok(surface.includes("items={[]}"));
     assert.equal(
@@ -159,9 +176,9 @@ describe("public PONS monitoring presentation", () => {
     );
     assert.ok(monitoring.includes("/pons.png"));
     assert.ok(monitoring.includes("ROBINHOOD CHAIN"));
-    assert.ok(monitoring.includes("TOKENS WE'RE MONITORING") || monitoring.includes("TOKENS WE&apos;RE MONITORING"));
+    assert.ok(monitoring.includes("ON OUR RADAR"));
     assert.ok(monitoring.includes("SCANNING"));
-    assert.ok(monitoring.includes("ACTIVE"));
+    assert.ok(monitoring.includes("ON RADAR"));
     assert.ok(monitoring.includes("min-h-11"));
     assert.ok(monitoring.includes("touch-manipulation"));
     assert.ok(monitoring.includes('type="button"'));
@@ -170,6 +187,7 @@ describe("public PONS monitoring presentation", () => {
     assert.ok(monitoring.includes("PonsMonitoringPanel"));
     assert.ok(monitoring.includes("stopPlayhtmlMoveStart"));
     assert.ok(monitoring.includes("useInteractiveControlProtection"));
+    assert.ok(monitoring.includes("RadarAlertLayer"));
 
     const root = readSrc("src/components/canvas/canvas-root.tsx");
     assert.ok(root.includes("PonsMonitoringObject"));
@@ -179,9 +197,11 @@ describe("public PONS monitoring presentation", () => {
   it("9. click/tap opens list panel; empty copy present", () => {
     const panel = readSrc("src/components/canvas/pons-monitoring-panel.tsx");
     assert.ok(panel.includes("data-4663-pons-monitoring-panel"));
-    assert.ok(panel.includes("Nothing has crossed our continuation signal today yet."));
+    assert.ok(panel.includes("Nothing has crossed our radar today yet."));
+    assert.ok(panel.includes("ON OUR RADAR"));
     assert.ok(panel.includes("WHY IT"));
     assert.ok(panel.includes("createPortal"));
+    assert.equal(panel.includes("last 5"), false);
 
     const monitoring = readSrc(
       "src/components/canvas/pons-monitoring-object.tsx",
@@ -195,7 +215,7 @@ describe("public PONS monitoring presentation", () => {
     );
     assert.ok(palette.includes("openPonsMonitoringPanel"));
     assert.ok(
-      readSrc("src/lib/canvas/control-palette.ts").includes('label: "CRYPTO"'),
+      readSrc("src/lib/canvas/control-palette.ts").includes('label: "RADAR"'),
     );
   });
 

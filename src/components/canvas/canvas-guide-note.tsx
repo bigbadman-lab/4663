@@ -36,9 +36,9 @@ const GUIDE_ACTIONS = [
     ],
   },
   {
-    heading: "EXPLORE CRYPTO",
+    heading: "EXPLORE RADAR",
     paragraphs: [
-      "Click CRYPTO to see the last 5 Robinhood Chain tokens we've identified as potentially worth investigating.",
+      "Click RADAR to see tokens currently on our radar — Robinhood Chain launches our PONS continuation model has flagged as potentially worth investigating.",
       "These are surfaced from the live PONS activity 4663 monitors — not signals to buy, but tokens we think deserve a closer look.",
     ],
   },

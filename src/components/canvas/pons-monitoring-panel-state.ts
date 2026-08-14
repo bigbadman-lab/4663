@@ -1,13 +1,19 @@
 "use client";
 
 /**
- * Shared open state for the PONS monitoring watchlist panel.
- * Lets the dock CRYPTO control open the same panel as the monitoring object.
+ * Shared open + selected-token state for the RADAR (continuation watchlist) panel.
+ * Dock control and monitoring object share this store.
  */
 
 import { useCallback, useSyncExternalStore } from "react";
 
-let panelOpen = false;
+type PanelState = {
+  open: boolean;
+  /** When set, panel opens directly to token detail. */
+  selectedTokenAddress: string | null;
+};
+
+let state: PanelState = { open: false, selectedTokenAddress: null };
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -21,33 +27,56 @@ function subscribe(onStoreChange: () => void): () => void {
   };
 }
 
-function getSnapshot(): boolean {
-  return panelOpen;
+function getSnapshot(): PanelState {
+  return state;
 }
 
-function getServerSnapshot(): boolean {
-  return false;
+function getServerSnapshot(): PanelState {
+  return { open: false, selectedTokenAddress: null };
 }
 
-export function openPonsMonitoringPanel(): void {
-  if (panelOpen) return;
-  panelOpen = true;
+function setState(next: PanelState): void {
+  if (
+    state.open === next.open &&
+    state.selectedTokenAddress === next.selectedTokenAddress
+  ) {
+    return;
+  }
+  state = next;
   emit();
+}
+
+/** Open RADAR list (clears any prior selection). */
+export function openPonsMonitoringPanel(): void {
+  setState({ open: true, selectedTokenAddress: null });
+}
+
+/** Open RADAR focused on a token (live alert / deep link). */
+export function openRadarToToken(tokenAddress: string): void {
+  const normalized = tokenAddress.trim().toLowerCase();
+  if (!normalized) return;
+  setState({ open: true, selectedTokenAddress: normalized });
 }
 
 export function closePonsMonitoringPanel(): void {
-  if (!panelOpen) return;
-  panelOpen = false;
-  emit();
+  setState({ open: false, selectedTokenAddress: null });
+}
+
+export function clearRadarSelectedToken(): void {
+  if (state.selectedTokenAddress === null) return;
+  setState({ ...state, selectedTokenAddress: null });
 }
 
 export function usePonsMonitoringPanelOpen(): {
   open: boolean;
+  selectedTokenAddress: string | null;
   setOpen: (next: boolean) => void;
   openPanel: () => void;
+  openToToken: (tokenAddress: string) => void;
   closePanel: () => void;
+  clearSelectedToken: () => void;
 } {
-  const open = useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     subscribe,
     getSnapshot,
     getServerSnapshot,
@@ -59,15 +88,18 @@ export function usePonsMonitoringPanelOpen(): {
   }, []);
 
   return {
-    open,
+    open: snapshot.open,
+    selectedTokenAddress: snapshot.selectedTokenAddress,
     setOpen,
     openPanel: openPonsMonitoringPanel,
+    openToToken: openRadarToToken,
     closePanel: closePonsMonitoringPanel,
+    clearSelectedToken: clearRadarSelectedToken,
   };
 }
 
 /** Test helper. */
 export function resetPonsMonitoringPanelOpenForTests(): void {
-  panelOpen = false;
+  state = { open: false, selectedTokenAddress: null };
   emit();
 }
