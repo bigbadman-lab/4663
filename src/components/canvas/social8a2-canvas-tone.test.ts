@@ -18,7 +18,7 @@ function readSrc(rel: string): string {
 }
 
 describe("Social 8A.2 canvas tone chrome placement", () => {
-  it("top-right stack is CANVAS above WHAT IS THIS above WHAT CAN YOU DO", () => {
+  it("top-right stack is CANVAS above WHAT IS THIS above WHAT CAN YOU DO above LEGAL", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     const block = chrome.slice(
       chrome.indexOf("data-4663-chrome-top-right"),
@@ -27,18 +27,17 @@ describe("Social 8A.2 canvas tone chrome placement", () => {
     assert.ok(block.includes("CanvasToneControl"));
     assert.ok(block.includes("CanvasIntroTrigger"));
     assert.ok(block.includes("CanvasGuideTrigger"));
+    assert.ok(block.includes("CanvasLegalTrigger"));
     assert.ok(
       block.indexOf("CanvasToneControl") < block.indexOf("CanvasIntroTrigger"),
     );
     assert.ok(
       block.indexOf("CanvasIntroTrigger") < block.indexOf("CanvasGuideTrigger"),
     );
-    // OFFICIAL CONTRACT mounts after guide when active (LAUNCH1).
-    assert.ok(block.includes("OfficialContractControl"));
     assert.ok(
-      block.indexOf("CanvasGuideTrigger") <
-        block.indexOf("OfficialContractControl"),
+      block.indexOf("CanvasGuideTrigger") < block.indexOf("CanvasLegalTrigger"),
     );
+    assert.equal(block.includes("OfficialContractControl"), false);
   });
 
   it("hero uses canvas fg/muted vars for tone readability", () => {

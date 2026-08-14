@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LAUNCH1 — fixed top-right OFFICIAL CONTRACT copy control.
+ * Official $4663 contract copy control — bottom-right utility chrome.
  * Viewport chrome only — not PlayHTML, not world, not draggable.
  */
 
@@ -39,11 +39,18 @@ export function OfficialContractControl({
       onPointerDown={stopPlayhtmlMoveStart}
       onMouseDown={stopPlayhtmlMoveStart}
       onTouchStart={stopPlayhtmlMoveStart}
-      className="font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
-      aria-label="Copy official 4663 token contract"
+      className="inline-flex min-h-11 max-w-full items-center justify-end font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:min-h-0 sm:text-[11px]"
+      aria-label="Copy official $4663 token contract"
       data-4663-official-contract
     >
-      {copied ? "[ COPIED ]" : "[ OFFICIAL CONTRACT ]"}
+      {copied ? (
+        "[ COPIED ]"
+      ) : (
+        <>
+          <span className="sm:hidden">[ $4663 ]</span>
+          <span className="hidden sm:inline">[ $4663 CONTRACT ]</span>
+        </>
+      )}
     </button>
   );
 }

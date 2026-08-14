@@ -120,17 +120,14 @@ describe("Stage 8A.12 WHAT CAN YOU DO modal", () => {
 
   it("10–11. modal can close; only one info modal at a time", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
-    assert.ok(chrome.includes('type InfoModal = null | "intro" | "guide"'));
+    assert.ok(
+      chrome.includes('type InfoModal = null | "intro" | "guide" | "legal"'),
+    );
     assert.ok(chrome.includes('infoModal === "intro"'));
     assert.ok(chrome.includes('infoModal === "guide"'));
-    // Mutual exclusion: both cannot render together.
-    assert.equal(
-      chrome.includes('infoModal === "intro"') &&
-        chrome.includes('infoModal === "guide"'),
-      true,
-    );
+    assert.ok(chrome.includes('infoModal === "legal"'));
     assert.ok(chrome.includes("closeInfo"));
-    assert.equal((chrome.match(/infoModal ===/g) ?? []).length, 2);
+    assert.equal((chrome.match(/infoModal ===/g) ?? []).length, 3);
 
     const note = readSrc("src/components/canvas/canvas-guide-note.tsx");
     assert.ok(note.includes("Escape"));

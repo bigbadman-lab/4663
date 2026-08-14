@@ -18,23 +18,27 @@ function readSrc(rel: string): string {
 }
 
 describe("LAUNCH1 OFFICIAL CONTRACT UI", () => {
-  it("13–15. hidden until active; below WHAT CAN YOU DO; chrome order", () => {
+  it("13–15. hidden until active; bottom-right with clock; not top-right", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("useOfficialToken"));
     assert.ok(chrome.includes("OfficialContractControl"));
     assert.ok(chrome.includes("officialToken?.active"));
+    assert.ok(chrome.includes("data-4663-chrome-bottom-right"));
 
-    const block = chrome.slice(
+    const top = chrome.slice(
       chrome.indexOf("data-4663-chrome-top-right"),
       chrome.indexOf("data-4663-chrome-presence"),
     );
-    assert.ok(block.includes("CanvasToneControl"));
-    assert.ok(block.includes("CanvasIntroTrigger"));
-    assert.ok(block.includes("CanvasGuideTrigger"));
-    assert.ok(block.includes("OfficialContractControl"));
+    assert.equal(top.includes("OfficialContractControl"), false);
+    assert.ok(top.includes("CanvasLegalTrigger"));
+
     assert.ok(
-      block.indexOf("CanvasGuideTrigger") <
-        block.indexOf("OfficialContractControl"),
+      chrome.indexOf("<OfficialContractControl") >
+        chrome.indexOf("data-4663-chrome-bottom-right"),
+    );
+    assert.ok(
+      chrome.indexOf("<OfficialContractControl") <
+        chrome.indexOf("<CanvasLiveClock"),
     );
   });
 
@@ -58,12 +62,14 @@ describe("LAUNCH1 OFFICIAL CONTRACT UI", () => {
       "src/components/canvas/official-contract-control.tsx",
     );
     assert.ok(control.includes("copyTextQuiet(contractAddress)"));
-    assert.ok(control.includes("[ OFFICIAL CONTRACT ]"));
+    assert.ok(control.includes("[ $4663 CONTRACT ]"));
+    assert.ok(control.includes("[ $4663 ]"));
+    assert.equal(control.includes("[ OFFICIAL CONTRACT ]"), false);
     assert.ok(control.includes("[ COPIED ]"));
     assert.ok(control.includes("if (!ok) return"));
     assert.ok(control.includes("OFFICIAL_CONTRACT_COPIED_MS"));
     assert.ok(
-      control.includes('aria-label="Copy official 4663 token contract"'),
+      control.includes('aria-label="Copy official $4663 token contract"'),
     );
   });
 

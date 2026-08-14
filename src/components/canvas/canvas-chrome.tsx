@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Fixed canvas chrome: brand anchors + intro/guide (top-right),
- * hero-area participation, presence + clock footer.
+ * Fixed canvas chrome: brand anchors + intro/guide/legal (top-right),
+ * hero-area participation, presence + bottom-right utilities (contract + clock).
  * Outside PlayHTML / camera world — never movable.
  */
 
@@ -12,6 +12,8 @@ import { CanvasGuideNote } from "@/components/canvas/canvas-guide-note";
 import { CanvasGuideTrigger } from "@/components/canvas/canvas-guide-trigger";
 import { CanvasIntroNote } from "@/components/canvas/canvas-intro-note";
 import { CanvasIntroTrigger } from "@/components/canvas/canvas-intro-trigger";
+import { CanvasLegalNote } from "@/components/canvas/canvas-legal-note";
+import { CanvasLegalTrigger } from "@/components/canvas/canvas-legal-trigger";
 import { CanvasLiveClock } from "@/components/canvas/canvas-live-clock";
 import { CanvasToneControl } from "@/components/canvas/canvas-tone-control";
 import { OfficialContractControl } from "@/components/canvas/official-contract-control";
@@ -24,8 +26,8 @@ import { PARTICIPATION_CONTROL_DEFAULT_STYLE } from "@/lib/canvas/hero";
 import { OPEN_PARTICIPATION_ENTER_EVENT } from "@/lib/social/request-participation-enter";
 import { useParticipation } from "@/lib/social/use-participation";
 
-/** At most one information modal open (WHAT IS THIS? / WHAT CAN YOU DO?). */
-type InfoModal = null | "intro" | "guide";
+/** At most one information modal open (WHAT IS THIS? / WHAT CAN YOU DO? / LEGAL). */
+type InfoModal = null | "intro" | "guide" | "legal";
 
 export function CanvasChrome() {
   const [infoModal, setInfoModal] = useState<InfoModal>(null);
@@ -33,6 +35,7 @@ export function CanvasChrome() {
   const closeInfo = useCallback(() => setInfoModal(null), []);
   const openIntro = useCallback(() => setInfoModal("intro"), []);
   const openGuide = useCallback(() => setInfoModal("guide"), []);
+  const openLegal = useCallback(() => setInfoModal("legal"), []);
   const closeEnter = useCallback(() => setEnterOpen(false), []);
   const openEnter = useCallback(() => setEnterOpen(true), []);
   const { self, isParticipating, enter, leave } = useParticipation();
@@ -82,11 +85,7 @@ export function CanvasChrome() {
           <CanvasToneControl />
           <CanvasIntroTrigger onOpen={openIntro} />
           <CanvasGuideTrigger onOpen={openGuide} />
-          {officialToken?.active ? (
-            <OfficialContractControl
-              contractAddress={officialToken.contractAddress}
-            />
-          ) : null}
+          <CanvasLegalTrigger onOpen={openLegal} />
         </div>
 
         <div
@@ -97,15 +96,22 @@ export function CanvasChrome() {
         </div>
 
         <div
-          className="pointer-events-auto absolute bottom-5 right-5 max-w-[min(14rem,calc(50%-0.75rem))] text-right sm:bottom-6 sm:right-6"
+          className="pointer-events-auto absolute bottom-5 right-5 flex max-w-[min(11.5rem,calc(50%-0.75rem))] flex-col items-end gap-1 sm:bottom-6 sm:right-6 sm:max-w-[min(18rem,calc(50%-0.75rem))]"
+          data-4663-chrome-bottom-right
           data-4663-chrome-clock
         >
+          {officialToken?.active ? (
+            <OfficialContractControl
+              contractAddress={officialToken.contractAddress}
+            />
+          ) : null}
           <CanvasLiveClock />
         </div>
       </div>
 
       {infoModal === "intro" ? <CanvasIntroNote onClose={closeInfo} /> : null}
       {infoModal === "guide" ? <CanvasGuideNote onClose={closeInfo} /> : null}
+      {infoModal === "legal" ? <CanvasLegalNote onClose={closeInfo} /> : null}
       {enterOpen && !isParticipating ? (
         <ParticipationEnterForm onClose={closeEnter} onEnter={enter} />
       ) : null}
