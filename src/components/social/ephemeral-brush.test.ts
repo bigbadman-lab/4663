@@ -101,7 +101,7 @@ describe("Social 3B BRUSH UI wiring", () => {
     assert.equal(EPHEMERAL_BRUSH_PAGE_DATA_NAME, "4663-ephemeral-brush-strokes");
     assert.ok(layer.includes("EPHEMERAL_BRUSH_PAGE_DATA_NAME"));
     assert.ok(layer.includes("usePageData<EphemeralBrushPageData>"));
-    assert.ok(layer.includes("upsertBrushStrokesForOwner"));
+    assert.ok(layer.includes("commitBrushPublish"));
     assert.ok(layer.includes("removeEphemeralBrushDocumentsByOwner"));
     assert.ok(layer.includes("retainEphemeralBrushDocumentsForPresentOwners"));
     assert.ok(layer.includes("removeBrushDraftsByOwner"));
@@ -149,5 +149,61 @@ describe("Social 3B BRUSH UI wiring", () => {
     const menu = readSrc("src/components/social/canvas-create-menu.tsx");
     assert.ok(menu.includes("[ DRAW ]"));
     assert.ok(menu.includes("onChooseDraw"));
+  });
+});
+
+describe("Social 3B BRUSH DONE does not silently delete", () => {
+  it("empty DONE does not cancel; overlay stays until successful publish", () => {
+    const overlay = readSrc("src/components/social/brush-session-overlay.tsx");
+    const doneFn = overlay.slice(
+      overlay.indexOf("const done = () => {"),
+      overlay.indexOf("useEffect(() => {"),
+    );
+    assert.ok(doneFn.includes("resolveBrushDoneIntent(finalStrokes)"));
+    assert.equal(doneFn.includes("onCancel()"), false);
+    assert.ok(doneFn.includes("onDone(finalStrokes)"));
+
+    const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
+    assert.ok(layer.includes("if (publishBrush(strokes)) setCreateUi(null)"));
+    assert.ok(layer.includes("commitBrushPublish"));
+    assert.ok(layer.includes("isBrushPageDataWritable"));
+    assert.ok(layer.includes("usePlayContext"));
+    assert.equal(layer.includes("if (!committed.ok) return false"), true);
+  });
+
+  it("BRUSH page-data refs stay current during render like TEXT/OBJECT", () => {
+    const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
+    assert.ok(layer.includes("brushPageDataRef.current = brushPageData"));
+    assert.ok(layer.includes("setBrushPageDataRef.current = setBrushPageData"));
+    assert.equal(
+      layer.includes("avoids react-hooks/refs during render"),
+      false,
+    );
+  });
+
+  it("explicit cancel still discards; persisted layer still renders documents", () => {
+    const overlay = readSrc("src/components/social/brush-session-overlay.tsx");
+    assert.ok(overlay.includes("onCancel"));
+    const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
+    assert.ok(layer.includes("onCancel={abandonCreate}"));
+    const published = readSrc(
+      "src/components/social/ephemeral-brush-layer.tsx",
+    );
+    assert.ok(published.includes("documents.map"));
+    assert.ok(published.includes("<BrushStrokesSvg strokes={doc.strokes} />"));
+  });
+
+  it("OBJECT DRAW empty DONE still returns without cancel", () => {
+    const editor = readSrc("src/components/social/drawing-session-editor.tsx");
+    const doneFn = editor.slice(
+      editor.indexOf("const done = () => {"),
+      editor.indexOf("useEffect(() => {"),
+    );
+    assert.ok(doneFn.includes("if (!drawingDraftCanPublish(finalStrokes)) return"));
+    assert.equal(doneFn.includes("onCancel()"), false);
+    const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
+    assert.ok(layer.includes("onDone={publishDrawing}"));
+    assert.ok(layer.includes("createEphemeralDrawingObject"));
+    assert.ok(layer.includes("EPHEMERAL_DRAWINGS_PAGE_DATA_NAME"));
   });
 });

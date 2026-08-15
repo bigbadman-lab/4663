@@ -256,6 +256,57 @@ export function createEphemeralBrushDocument(
   };
 }
 
+/** PlayHTML `usePageData().setData` no-ops while loading or without a provider. */
+export function isBrushPageDataWritable(input: {
+  isLoading: boolean;
+  isProviderMissing: boolean;
+}): boolean {
+  return !input.isLoading && !input.isProviderMissing;
+}
+
+export type BrushDoneIntent = "publish" | "keep-editing";
+
+/** Empty DONE must not cancel; only meaningful strokes attempt publish. */
+export function resolveBrushDoneIntent(
+  strokes: readonly BrushStroke[],
+): BrushDoneIntent {
+  return hasMeaningfulBrushStrokes(strokes) ? "publish" : "keep-editing";
+}
+
+export type CommitBrushPublishResult =
+  | { ok: true; pageData: EphemeralBrushPageData }
+  | { ok: false; reason: "empty" | "not-ready" | "rejected" };
+
+/**
+ * Commit BRUSH strokes into page data. Does not close the editor.
+ * Callers must keep the overlay open when `ok` is false.
+ */
+export function commitBrushPublish(input: {
+  previous: EphemeralBrushPageData;
+  ownerSessionId: string;
+  documentId: string;
+  strokes: BrushStroke[];
+  ready: boolean;
+  now?: () => Date;
+}): CommitBrushPublishResult {
+  if (!hasMeaningfulBrushStrokes(input.strokes)) {
+    return { ok: false, reason: "empty" };
+  }
+  if (!input.ready) {
+    return { ok: false, reason: "not-ready" };
+  }
+  const pageData = upsertBrushStrokesForOwner(input.previous, {
+    ownerSessionId: input.ownerSessionId,
+    documentId: input.documentId,
+    strokes: input.strokes,
+    now: input.now,
+  });
+  if (!pageData) {
+    return { ok: false, reason: "rejected" };
+  }
+  return { ok: true, pageData };
+}
+
 /**
  * Append strokes into the owner's existing document, or create one.
  * Enforces session caps on the merged result.

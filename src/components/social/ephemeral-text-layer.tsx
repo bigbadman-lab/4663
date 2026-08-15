@@ -11,7 +11,7 @@
  * MARK: Postgres via /api/social/marks (survives LEAVE/RESET/Presence loss)
  */
 
-import { usePageData } from "@playhtml/react";
+import { usePageData, usePlayContext } from "@playhtml/react";
 import {
   useEffect,
   useRef,
@@ -66,12 +66,13 @@ import {
   type DrawingDraft,
 } from "@/lib/social/drawing-draft";
 import {
+  commitBrushPublish,
   EMPTY_EPHEMERAL_BRUSH_PAGE_DATA,
   EPHEMERAL_BRUSH_PAGE_DATA_NAME,
+  isBrushPageDataWritable,
   normalizeEphemeralBrushPageData,
   removeEphemeralBrushDocumentsByOwner,
   retainEphemeralBrushDocumentsForPresentOwners,
-  upsertBrushStrokesForOwner,
   type BrushStroke,
   type EphemeralBrushPageData,
 } from "@/lib/social/ephemeral-brush";
@@ -191,6 +192,7 @@ export function EphemeralTextLayer() {
     EPHEMERAL_BRUSH_PAGE_DATA_NAME,
     EMPTY_EPHEMERAL_BRUSH_PAGE_DATA,
   );
+  const { isLoading: playhtmlLoading, isProviderMissing } = usePlayContext();
   const [createUi, setCreateUi] = useState<CreateUi>(null);
   const [remoteDrafts, setRemoteDrafts] = useState<TextDraft[]>([]);
   const [remoteDrawingDrafts, setRemoteDrawingDrafts] = useState<
@@ -212,12 +214,14 @@ export function EphemeralTextLayer() {
 
   const brushPageDataRef = useRef(brushPageData);
   const setBrushPageDataRef = useRef(setBrushPageData);
+  brushPageDataRef.current = brushPageData;
+  setBrushPageDataRef.current = setBrushPageData;
 
-  // Sync BRUSH page-data refs after render (avoids react-hooks/refs during render).
-  useEffect(() => {
-    brushPageDataRef.current = brushPageData;
-    setBrushPageDataRef.current = setBrushPageData;
-  }, [brushPageData, setBrushPageData]);
+  const brushPageDataReadyRef = useRef(false);
+  brushPageDataReadyRef.current = isBrushPageDataWritable({
+    isLoading: playhtmlLoading,
+    isProviderMissing,
+  });
 
   const createUiRef = useRef(createUi);
   createUiRef.current = createUi;
@@ -240,6 +244,9 @@ export function EphemeralTextLayer() {
 
   /** Latest local BRUSH strokes (for dock DRAW toggle-exit finalize). */
   const brushStrokesRef = useRef<BrushStroke[]>([]);
+  const publishBrushRef = useRef<(strokes: BrushStroke[]) => boolean>(
+    () => false,
+  );
 
   const texts = normalizeEphemeralTextsPageData(pageData).texts;
   const drawings = normalizeEphemeralDrawingsPageData(drawingsPageData).drawings;
@@ -702,38 +709,31 @@ export function EphemeralTextLayer() {
     brushThrottleRef.current?.push(draft);
   };
 
-  const publishBrush = (strokes: BrushStroke[]) => {
-    if (!self) return;
+  const publishBrush = (strokes: BrushStroke[]): boolean => {
+    if (!self) return false;
     const ui = createUiRef.current;
-    if (ui?.mode !== "brush") return;
+    if (ui?.mode !== "brush") return false;
 
-    if (!brushDraftCanPublish(strokes)) {
-      clearLocalBrushDraftBroadcast(ui.draftBrushId, self.sessionId);
-      brushStrokesRef.current = [];
-      setCreateUi(null);
-      return;
-    }
-
-    const next = upsertBrushStrokesForOwner(
-      normalizeEphemeralBrushPageData(brushPageDataRef.current),
-      {
-        ownerSessionId: self.sessionId,
-        documentId: ui.draftBrushId,
-        strokes,
-      },
-    );
-    if (!next) return;
+    const committed = commitBrushPublish({
+      previous: normalizeEphemeralBrushPageData(brushPageDataRef.current),
+      ownerSessionId: self.sessionId,
+      documentId: ui.draftBrushId,
+      strokes,
+      ready: brushPageDataReadyRef.current,
+    });
+    if (!committed.ok) return false;
 
     brushThrottleRef.current?.cancel();
     clearLocalBrushDraftBroadcast(ui.draftBrushId, self.sessionId);
     brushStrokesRef.current = [];
-    writeBrushPageData(next);
-    setCreateUi(null);
+    writeBrushPageData(committed.pageData);
+    return true;
   };
+  publishBrushRef.current = publishBrush;
 
   const exitBrushWithFinalize = (strokes: BrushStroke[]) => {
     if (brushDraftCanPublish(strokes)) {
-      publishBrush(strokes);
+      if (publishBrush(strokes)) setCreateUi(null);
       return;
     }
     abandonCreate();
@@ -865,25 +865,8 @@ export function EphemeralTextLayer() {
         if (ui?.mode === "brush" && currentSelf) {
           const strokes = brushStrokesRef.current;
           if (brushDraftCanPublish(strokes)) {
-            const next = upsertBrushStrokesForOwner(
-              normalizeEphemeralBrushPageData(brushPageDataRef.current),
-              {
-                ownerSessionId: currentSelf.sessionId,
-                documentId: ui.draftBrushId,
-                strokes,
-              },
-            );
-            if (next) {
-              brushThrottleRef.current?.cancel();
-              clearLocalBrushDraftBroadcast(
-                ui.draftBrushId,
-                currentSelf.sessionId,
-              );
-              brushStrokesRef.current = [];
-              writeBrushPageData(next);
-              setCreateUi(null);
-              return;
-            }
+            if (publishBrushRef.current(strokes)) setCreateUi(null);
+            return;
           }
           clearLocalBrushDraftBroadcast(ui.draftBrushId, currentSelf.sessionId);
           brushStrokesRef.current = [];
@@ -1085,7 +1068,9 @@ export function EphemeralTextLayer() {
           toolsLeftPct={createUi.toolsLeftPct}
           toolsTopPct={createUi.toolsTopPct}
           onStrokesChange={onBrushStrokesChange}
-          onDone={publishBrush}
+          onDone={(strokes) => {
+            if (publishBrush(strokes)) setCreateUi(null);
+          }}
           onCancel={abandonCreate}
           onToggleExit={exitBrushWithFinalize}
         />

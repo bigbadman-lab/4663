@@ -20,6 +20,7 @@ import {
   BRUSH_MAX_POINTS_PER_STROKE,
   BRUSH_MAX_STROKES,
   clientPointToBrushWorldPct,
+  resolveBrushDoneIntent,
   shouldAppendBrushPoint,
   type BrushColour,
   type BrushPoint,
@@ -157,10 +158,7 @@ export function BrushSessionOverlay({
     drawingRef.current = false;
     activePointsRef.current = [];
     const finalStrokes = strokesRef.current;
-    if (!brushDraftCanPublish(finalStrokes)) {
-      onCancel();
-      return;
-    }
+    if (resolveBrushDoneIntent(finalStrokes) !== "publish") return;
     onDone(finalStrokes);
   };
 

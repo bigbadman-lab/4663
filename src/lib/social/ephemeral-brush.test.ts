@@ -28,19 +28,23 @@ import {
   BRUSH_POINT_MIN_DELTA_WORLD_PCT,
   BRUSH_STROKE_WIDTH_WORLD_PX,
   clientPointToBrushWorldPct,
+  commitBrushPublish,
   countBrushPoints,
   createEphemeralBrushDocument,
   EPHEMERAL_BRUSH_PAGE_DATA_NAME,
+  isBrushPageDataWritable,
   normalizeBrushPoint,
   normalizeBrushStroke,
   normalizeBrushStrokes,
   normalizeEphemeralBrushPageData,
   removeEphemeralBrushDocumentsByOwner,
+  resolveBrushDoneIntent,
   retainEphemeralBrushDocumentsForPresentOwners,
   shouldAppendBrushPoint,
   trimBrushStrokesToCaps,
   upsertBrushStrokesForOwner,
   type BrushStroke,
+  type EphemeralBrushPageData,
 } from "@/lib/social/ephemeral-brush";
 import {
   DRAWING_BRUSH_SIZE,
@@ -290,5 +294,81 @@ describe("Social 3B BRUSH drafts / broadcast helpers", () => {
       retainBrushDraftsForPresentOwners(drafts, new Set([OWNER_B])).length,
       0,
     );
+  });
+});
+
+describe("Social 3B BRUSH DONE publish (no silent delete)", () => {
+  const strokes = [stroke([{ x: 12, y: 40 }, { x: 18, y: 46 }])];
+
+  it("empty DONE keeps editing; non-empty DONE intends publish", () => {
+    assert.equal(resolveBrushDoneIntent([]), "keep-editing");
+    assert.equal(resolveBrushDoneIntent(strokes), "publish");
+  });
+
+  it("PlayHTML loading or missing provider is not writable", () => {
+    assert.equal(
+      isBrushPageDataWritable({ isLoading: false, isProviderMissing: false }),
+      true,
+    );
+    assert.equal(
+      isBrushPageDataWritable({ isLoading: true, isProviderMissing: false }),
+      false,
+    );
+    assert.equal(
+      isBrushPageDataWritable({ isLoading: false, isProviderMissing: true }),
+      false,
+    );
+  });
+
+  it("ready + strokes writes non-empty documents; caller may close", () => {
+    const result = commitBrushPublish({
+      previous: { documents: [] },
+      ownerSessionId: OWNER_A,
+      documentId: DOC_A,
+      strokes,
+      ready: true,
+      now: () => new Date("2026-08-15T12:00:00.000Z"),
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.pageData.documents.length, 1);
+    assert.equal(result.pageData.documents[0]!.strokes.length, 1);
+    assert.deepEqual(result.pageData.documents[0]!.strokes[0]!.points, [
+      { x: 12, y: 40 },
+      { x: 18, y: 46 },
+    ]);
+    const roundTrip = normalizeEphemeralBrushPageData(result.pageData);
+    assert.equal(roundTrip.documents.length, 1);
+  });
+
+  it("not-ready / empty / rejected publish keeps prior page data unused", () => {
+    const previous: EphemeralBrushPageData = { documents: [] };
+
+    const empty = commitBrushPublish({
+      previous,
+      ownerSessionId: OWNER_A,
+      documentId: DOC_A,
+      strokes: [],
+      ready: true,
+    });
+    assert.deepEqual(empty, { ok: false, reason: "empty" });
+
+    const blocked = commitBrushPublish({
+      previous,
+      ownerSessionId: OWNER_A,
+      documentId: DOC_A,
+      strokes,
+      ready: false,
+    });
+    assert.deepEqual(blocked, { ok: false, reason: "not-ready" });
+
+    const rejected = commitBrushPublish({
+      previous,
+      ownerSessionId: "not-a-uuid",
+      documentId: DOC_A,
+      strokes,
+      ready: true,
+    });
+    assert.deepEqual(rejected, { ok: false, reason: "rejected" });
   });
 });
