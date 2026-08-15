@@ -66,6 +66,9 @@ describe("Social 3A ephemeral DRAW UI", () => {
     assert.ok(editor.includes("[ CLEAR ]"));
     assert.ok(editor.includes("[ DONE ]"));
     assert.ok(editor.includes("[ CANCEL ]"));
+    assert.ok(editor.includes("drawingCanAcceptAnotherPoint"));
+    assert.ok(editor.includes("DRAWING_TOTAL_POINTS_LIMIT_COPY"));
+    assert.ok(editor.includes("data-4663-drawing-point-limit"));
     assert.ok(editor.includes("Escape"));
     assert.ok(editor.includes("cursor-crosshair") || editor.includes("crosshair"));
     assert.equal(DRAWING_COLOUR_PALETTE.length, 20);

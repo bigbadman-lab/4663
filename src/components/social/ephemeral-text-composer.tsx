@@ -71,6 +71,7 @@ export function EphemeralTextComposer({
       }}
       data-4663-ephemeral-text-composer
       data-4663-composer-counter-scale={String(counterScale)}
+      data-4663-snapshot-exclude=""
       onPointerDown={(event) => event.stopPropagation()}
     >
       <textarea

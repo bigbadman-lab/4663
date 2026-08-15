@@ -52,7 +52,8 @@ export const DRAWING_ASPECT_RATIO_MAX = 10 as const;
 
 export const DRAWING_MAX_STROKES = 40 as const;
 export const DRAWING_MAX_POINTS_PER_STROKE = 200 as const;
-export const DRAWING_MAX_TOTAL_POINTS = 2_000 as const;
+export const DRAWING_MAX_TOTAL_POINTS = 2_500 as const;
+export const DRAWING_TOTAL_POINTS_LIMIT_COPY = "2,500 points max" as const;
 
 /** Minimum segment length in normalized 0–1 space before sampling a new point. */
 export const DRAWING_POINT_MIN_DELTA = 0.008 as const;
@@ -144,6 +145,12 @@ export function countDrawingPoints(
   strokes: readonly DrawingStroke[],
 ): number {
   return strokes.reduce((sum, stroke) => sum + stroke.points.length, 0);
+}
+
+export function drawingCanAcceptAnotherPoint(
+  strokes: readonly DrawingStroke[],
+): boolean {
+  return countDrawingPoints(strokes) < DRAWING_MAX_TOTAL_POINTS;
 }
 
 export function hasMeaningfulStrokes(

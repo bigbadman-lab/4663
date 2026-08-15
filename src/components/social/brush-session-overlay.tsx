@@ -187,6 +187,7 @@ export function BrushSessionOverlay({
       className="pointer-events-none absolute inset-0 z-[20]"
       data-4663-brush-session
       data-4663-brush-draft-id={draftBrushId}
+      data-4663-snapshot-exclude=""
     >
       <div
         className="pointer-events-auto absolute inset-0 touch-none"

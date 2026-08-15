@@ -28,6 +28,7 @@ export function CanvasCreateMenu({
       className="absolute z-[19] -translate-x-1/2 -translate-y-1/2"
       style={{ left: `${leftPct}%`, top: `${topPct}%` }}
       data-4663-canvas-create-menu
+      data-4663-snapshot-exclude=""
     >
       <div className="flex flex-col items-center gap-1 font-mono text-[11px] tracking-wide">
         <button

@@ -13,7 +13,13 @@ type PanelState = {
   selectedTokenAddress: string | null;
 };
 
-let state: PanelState = { open: false, selectedTokenAddress: null };
+/** Hydration snapshot — must be referentially stable across getServerSnapshot calls. */
+const SERVER_SNAPSHOT: PanelState = Object.freeze({
+  open: false,
+  selectedTokenAddress: null,
+});
+
+let state: PanelState = SERVER_SNAPSHOT;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -32,7 +38,7 @@ function getSnapshot(): PanelState {
 }
 
 function getServerSnapshot(): PanelState {
-  return { open: false, selectedTokenAddress: null };
+  return SERVER_SNAPSHOT;
 }
 
 function setState(next: PanelState): void {
@@ -100,6 +106,14 @@ export function usePonsMonitoringPanelOpen(): {
 
 /** Test helper. */
 export function resetPonsMonitoringPanelOpenForTests(): void {
-  state = { open: false, selectedTokenAddress: null };
+  state = SERVER_SNAPSHOT;
   emit();
+}
+
+/** Test helper — same getters React uses for useSyncExternalStore. */
+export function getPonsMonitoringPanelSnapshotsForTests(): {
+  getSnapshot: () => PanelState;
+  getServerSnapshot: () => PanelState;
+} {
+  return { getSnapshot, getServerSnapshot };
 }

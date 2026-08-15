@@ -59,6 +59,7 @@ export function CanvasChrome() {
       <div
         className="pointer-events-none absolute inset-0 z-20"
         data-4663-canvas-chrome
+        data-4663-snapshot-exclude=""
       >
         <BrandAnchors />
 

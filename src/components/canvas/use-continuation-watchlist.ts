@@ -51,14 +51,24 @@ type StoreState = {
   alerts: RadarAlert[];
 };
 
-const listeners = new Set<() => void>();
-let store: StoreState = {
-  tokens: [],
-  recentQualifications: [],
+const EMPTY_WATCHLIST_TOKENS: readonly ContinuationWatchlistToken[] =
+  Object.freeze([]);
+const EMPTY_WATCHLIST_QUALIFICATIONS: readonly RadarQualificationRef[] =
+  Object.freeze([]);
+const EMPTY_WATCHLIST_ALERTS: readonly RadarAlert[] = Object.freeze([]);
+
+/** Hydration snapshot — must be referentially stable across getServerSnapshot calls. */
+const SERVER_SNAPSHOT: ContinuationWatchlistStoreSnapshot = Object.freeze({
+  tokens: EMPTY_WATCHLIST_TOKENS,
+  recentQualifications: EMPTY_WATCHLIST_QUALIFICATIONS,
   status: "loading",
   generatedAt: null,
-  alerts: [],
-};
+  alerts: EMPTY_WATCHLIST_ALERTS,
+});
+
+const listeners = new Set<() => void>();
+/** Cached client snapshot; replaced only in setStore. */
+let store: StoreState = SERVER_SNAPSHOT as StoreState;
 
 const seenIds = new Set<string>();
 /** Dedupes Realtime wake deliveries for the same continuation event id. */
@@ -231,13 +241,7 @@ function getSnapshot(): ContinuationWatchlistStoreSnapshot {
 }
 
 function getServerSnapshot(): ContinuationWatchlistStoreSnapshot {
-  return {
-    tokens: [],
-    recentQualifications: [],
-    status: "loading",
-    generatedAt: null,
-    alerts: [],
-  };
+  return SERVER_SNAPSHOT;
 }
 
 export function useContinuationWatchlist(): ContinuationWatchlistStoreSnapshot {
@@ -261,14 +265,23 @@ export function resetContinuationWatchlistStoreForTests(): void {
   seenIds.clear();
   realtimeWakeIds.clear();
   realtimeFactory = null;
-  store = {
-    tokens: [],
-    recentQualifications: [],
-    status: "loading",
-    generatedAt: null,
-    alerts: [],
-  };
+  store = SERVER_SNAPSHOT as StoreState;
   emit();
+}
+
+/** Test helper — same getters React uses for useSyncExternalStore. */
+export function getContinuationWatchlistSnapshotsForTests(): {
+  getSnapshot: () => ContinuationWatchlistStoreSnapshot;
+  getServerSnapshot: () => ContinuationWatchlistStoreSnapshot;
+} {
+  return { getSnapshot, getServerSnapshot };
+}
+
+/** Test helper — apply a store update the same way production setStore does. */
+export function applyContinuationWatchlistStoreUpdateForTests(
+  partial: Partial<StoreState>,
+): void {
+  setStore(partial);
 }
 
 /** Test helper — inject Realtime client before the store starts. */

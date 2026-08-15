@@ -12,6 +12,7 @@ import { MovableLiveEventLayer } from "@/components/canvas/movable-live-event-la
 import { MovableLiveChatObject } from "@/components/canvas/movable-live-chat";
 import { MovablePonsMonitoringObject } from "@/components/canvas/movable-pons-monitoring-object";
 import { RadarAlertLayer } from "@/components/canvas/radar-alert-layer";
+import { CanvasSnapshotLayer } from "@/components/social/canvas-snapshot-layer";
 import { MovablePonsMonitorTerminal } from "@/components/canvas/movable-pons-monitor-terminal";
 import {
   PinnedPonsLayer,
@@ -174,6 +175,7 @@ export function CanvasSurface({
           {/* World-% objects: TEXT/DRAW + viewport-spawned RADAR alerts */}
           <RadarAlertLayer />
           <EphemeralTextLayer />
+          <CanvasSnapshotLayer />
         </div>
       </div>
 

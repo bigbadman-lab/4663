@@ -13,6 +13,9 @@ import {
   DRAWING_MAX_POINTS_PER_STROKE,
   DRAWING_MAX_STROKES,
   DRAWING_MAX_TOTAL_POINTS,
+  DRAWING_TOTAL_POINTS_LIMIT_COPY,
+  drawingCanAcceptAnotherPoint,
+  countDrawingPoints,
   DRAWING_ZONE_HEIGHT_PCT,
   DRAWING_ZONE_WIDTH_PCT,
   drawingZoneOriginFromClick,
@@ -81,7 +84,9 @@ describe("Social 3A ephemeral drawing helpers", () => {
   it("enforces stroke/point caps", () => {
     assert.equal(DRAWING_MAX_STROKES, 40);
     assert.equal(DRAWING_MAX_POINTS_PER_STROKE, 200);
-    assert.equal(DRAWING_MAX_TOTAL_POINTS, 2_000);
+    assert.equal(DRAWING_MAX_TOTAL_POINTS, 2_500);
+    assert.equal(DRAWING_TOTAL_POINTS_LIMIT_COPY, "2,500 points max");
+    assert.equal(drawingCanAcceptAnotherPoint([stroke]), true);
   });
 
   it("DONE requires at least one meaningful stroke", () => {
@@ -116,6 +121,45 @@ describe("Social 3A ephemeral drawing helpers", () => {
       ...baseGeom,
     });
     assert.equal(created.ok, false);
+  });
+
+  it("accepts 2,500 total points and rejects the 2,501st", () => {
+    const atCap: typeof stroke[] = Array.from({ length: 13 }, (_, s) => ({
+      colour: "#171717" as const,
+      points: Array.from({ length: s < 4 ? 193 : 192 }, () => ({
+        x: 0.2,
+        y: 0.3,
+      })),
+    }));
+    assert.equal(countDrawingPoints(atCap), 2_500);
+    assert.equal(drawingCanAcceptAnotherPoint(atCap), false);
+    const ok = createEphemeralDrawingObject({
+      drawingId: DRAW_A,
+      ownerSessionId: OWNER_A,
+      strokes: atCap,
+      ...baseGeom,
+    });
+    assert.equal(ok.ok, true);
+
+    const over = [
+      ...atCap.slice(0, -1),
+      {
+        colour: "#171717" as const,
+        points: [
+          ...atCap[atCap.length - 1]!.points,
+          { x: 0.4, y: 0.5 },
+        ],
+      },
+    ];
+    assert.equal(countDrawingPoints(over), 2_501);
+    const fail = createEphemeralDrawingObject({
+      drawingId: DRAW_A,
+      ownerSessionId: OWNER_A,
+      strokes: over,
+      ...baseGeom,
+    });
+    assert.equal(fail.ok, false);
+    if (!fail.ok) assert.equal(fail.error, "Drawing is too large.");
   });
 
   it("rejects invalid colour / oversized strokes in page data", () => {

@@ -75,6 +75,7 @@ export function MarkComposer({
       }}
       data-4663-mark-composer
       data-4663-composer-counter-scale={String(counterScale)}
+      data-4663-snapshot-exclude=""
       onPointerDown={(event) => event.stopPropagation()}
     >
       <p

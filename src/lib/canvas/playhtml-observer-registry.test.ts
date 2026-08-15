@@ -164,6 +164,7 @@ describe("playhtml durable patch", () => {
     assert.ok(patch.includes("unobserveDeep"));
     // Old order (unobserve then delete) should not remain as the sole teardown.
     assert.ok(patch.includes("Idempotent"));
+    assert.ok(patch.includes("unpkg.com/playhtml@latest/dist/style.css"));
   });
 
   it("@playhtml/react setup effect deps were not patched", () => {

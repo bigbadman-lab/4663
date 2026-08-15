@@ -18,6 +18,8 @@ import {
   DRAWING_BRUSH_SIZE,
   DRAWING_MAX_POINTS_PER_STROKE,
   DRAWING_MAX_STROKES,
+  DRAWING_TOTAL_POINTS_LIMIT_COPY,
+  drawingCanAcceptAnotherPoint,
   shouldAppendDrawingPoint,
   type DrawingColour,
   type DrawingPoint,
@@ -49,7 +51,6 @@ export function DrawingSessionEditor({
   const [colour, setColour] = useState<DrawingColour>(DEFAULT_DRAWING_COLOUR);
   const [strokes, setStrokes] = useState<DrawingStroke[]>([]);
   const strokesRef = useRef(strokes);
-  strokesRef.current = strokes;
 
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const drawingRef = useRef(false);
@@ -83,6 +84,7 @@ export function DrawingSessionEditor({
     const point = pointerToNormalized(event.clientX, event.clientY);
     if (!point) return;
     if (strokesRef.current.length >= DRAWING_MAX_STROKES) return;
+    if (!drawingCanAcceptAnotherPoint(strokesRef.current)) return;
 
     drawingRef.current = true;
     activePointsRef.current = [point];
@@ -108,6 +110,7 @@ export function DrawingSessionEditor({
     if (activePointsRef.current.length >= DRAWING_MAX_POINTS_PER_STROKE) {
       return;
     }
+    if (!drawingCanAcceptAnotherPoint(strokesRef.current)) return;
 
     activePointsRef.current = [...activePointsRef.current, point];
     const base = strokesRef.current.slice(0, -1);
@@ -181,7 +184,12 @@ export function DrawingSessionEditor({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onCancel]);
 
+  useEffect(() => {
+    strokesRef.current = strokes;
+  }, [strokes]);
+
   const canDone = drawingDraftCanPublish(strokes);
+  const atPointCap = !drawingCanAcceptAnotherPoint(strokes);
 
   return (
     <div
@@ -196,6 +204,7 @@ export function DrawingSessionEditor({
       data-4663-drawing-draft-id={draftDrawingId}
       data-4663-drawing-brush-size={DRAWING_BRUSH_SIZE}
       data-4663-drawing-aspect-ratio={aspectRatio}
+      data-4663-snapshot-exclude=""
     >
       <div className="relative h-full w-full">
         <div
@@ -248,6 +257,15 @@ export function DrawingSessionEditor({
               />
             ))}
           </div>
+          {atPointCap ? (
+            <p
+              className="text-neutral-400"
+              data-4663-drawing-point-limit
+              role="status"
+            >
+              [ {DRAWING_TOTAL_POINTS_LIMIT_COPY} ]
+            </p>
+          ) : null}
           <div className="flex items-center gap-2 text-neutral-500">
             <button
               type="button"

@@ -87,6 +87,7 @@ export function CanvasGuideNote({ onClose }: CanvasGuideNoteProps) {
     <div
       className="fixed inset-0 z-30 flex items-center justify-center overflow-y-auto overscroll-none bg-neutral-900/25 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] sm:p-6"
       data-4663-guide-backdrop
+      data-4663-snapshot-exclude=""
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

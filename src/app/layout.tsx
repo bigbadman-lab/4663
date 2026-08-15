@@ -4,6 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { PresenceHeartbeat } from "@/components/presence-heartbeat";
 import { CANVAS_TONE_BOOT_SCRIPT } from "@/lib/canvas/canvas-tone";
 import "./globals.css";
+/** playhtml@2.14.1 — same-origin CSS so SNAPSHOT can read cssRules. */
+import "playhtml/dist/style.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

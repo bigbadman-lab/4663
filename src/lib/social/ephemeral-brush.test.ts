@@ -76,10 +76,10 @@ describe("Social 3B BRUSH data model", () => {
     assert.equal(EPHEMERAL_BRUSH_PAGE_DATA_NAME, "4663-ephemeral-brush-strokes");
     assert.equal(BRUSH_MAX_STROKES, DRAWING_MAX_STROKES);
     assert.equal(BRUSH_MAX_POINTS_PER_STROKE, DRAWING_MAX_POINTS_PER_STROKE);
-    assert.equal(BRUSH_MAX_TOTAL_POINTS, DRAWING_MAX_TOTAL_POINTS);
     assert.equal(BRUSH_MAX_STROKES, 40);
     assert.equal(BRUSH_MAX_POINTS_PER_STROKE, 200);
     assert.equal(BRUSH_MAX_TOTAL_POINTS, 2_000);
+    assert.equal(DRAWING_MAX_TOTAL_POINTS, 2_500);
     assert.ok(BRUSH_STROKE_WIDTH_WORLD_PX > 0);
     assert.equal(typeof DRAWING_BRUSH_SIZE, "number");
   });

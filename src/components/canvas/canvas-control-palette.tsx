@@ -22,6 +22,8 @@ import { PLAYHTML_CONTROL_PALETTE_ID } from "@/lib/canvas/hero";
 import { useHeroPreferences } from "@/lib/canvas/use-hero-preferences";
 import { openPonsMonitoringPanel } from "@/components/canvas/pons-monitoring-panel-state";
 import { getCanvasCreateActions } from "@/lib/social/canvas-create-actions";
+import { getSnapshotActions } from "@/lib/canvas/snapshot-actions";
+import { SnapshotShortcutHint } from "@/components/canvas/snapshot-shortcut-hint";
 
 export type CanvasControlPaletteProps = {
   onSummon?: () => void;
@@ -146,6 +148,7 @@ export function CanvasControlPalette({
       className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"
       data-4663-control-dock
       data-4663-control-palette
+      data-4663-snapshot-exclude=""
     >
       <div
         id={PLAYHTML_CONTROL_PALETTE_ID}
@@ -174,6 +177,20 @@ export function CanvasControlPalette({
             [ SHOW HERO ]
           </button>
         ) : null}
+        <div className="relative mb-1.5 flex justify-center">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center px-3 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+            data-4663-snapshot-trigger
+            aria-label="Snapshot the visible canvas"
+            onClick={() => {
+              getSnapshotActions()?.startCapture();
+            }}
+          >
+            [ SNAPSHOT ]
+          </button>
+          <SnapshotShortcutHint />
+        </div>
         <div
           className="flex w-full items-stretch justify-between gap-1 rounded-2xl border border-neutral-300/90 bg-white/90 px-1.5 py-1.5 shadow-sm backdrop-blur-[2px] sm:gap-1.5 sm:px-2 sm:py-2"
           data-4663-control-dock-tray
