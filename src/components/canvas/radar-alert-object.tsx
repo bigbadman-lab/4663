@@ -8,7 +8,9 @@
 import { CanMoveElement } from "@playhtml/react";
 import Lottie from "lottie-react";
 import { useEffect, useState } from "react";
+import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
+import { usePlayhtmlMoveForeground } from "@/components/canvas/use-playhtml-move-foreground";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import type { RadarAlert } from "@/lib/events/radar-alerts";
@@ -70,6 +72,7 @@ export function RadarAlertObject({
   const reducedMotion = usePrefersReducedMotion();
   const animationData = useRadarAnimationData();
   const ctaRef = useInteractiveControlProtection<HTMLButtonElement>();
+  const move = usePlayhtmlMoveForeground<HTMLDivElement>();
 
   return (
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
@@ -79,10 +82,14 @@ export function RadarAlertObject({
         style={{ left: `${alert.leftPct}%`, top: `${alert.topPct}%` }}
         data-4663-radar-alert
         data-4663-radar-alert-event={alert.eventId}
+        onPointerDown={move.onPointerDown}
+        onPointerUp={move.onPointerUp}
+        onPointerCancel={move.onPointerCancel}
       >
-        <article className="-translate-x-1/2 -translate-y-1/2 flex w-[10.5rem] flex-col items-stretch gap-1.5 border border-neutral-300 bg-white px-2 py-2 shadow-sm sm:w-[11.5rem]">
+        <article className="relative -translate-x-1/2 -translate-y-1/2 flex w-[10.5rem] flex-col items-stretch gap-1.5 border border-neutral-300 bg-white px-2 py-2 shadow-sm sm:w-[11.5rem]">
+          <PlayhtmlMoveHitFill />
           <div
-            className="pointer-events-none mx-auto h-[5.5rem] w-[5.5rem] sm:h-[6.5rem] sm:w-[6.5rem]"
+            className="pointer-events-none relative mx-auto h-[5.5rem] w-[5.5rem] sm:h-[6.5rem] sm:w-[6.5rem]"
             data-4663-radar-lottie
             aria-hidden
           >
@@ -100,16 +107,16 @@ export function RadarAlertObject({
               </div>
             )}
           </div>
-          <span className="pointer-events-none font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
+          <span className="pointer-events-none relative font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
             {RADAR_ALERT_COPY.title}
           </span>
-          <span className="pointer-events-none font-mono text-[10px] leading-snug tracking-wide text-neutral-600">
+          <span className="pointer-events-none relative font-mono text-[10px] leading-snug tracking-wide text-neutral-600">
             {RADAR_ALERT_COPY.body}
           </span>
           <button
             ref={ctaRef}
             type="button"
-            className="inline-flex min-h-11 w-full items-center justify-center touch-manipulation font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+            className="relative z-[1] inline-flex min-h-11 w-full items-center justify-center touch-manipulation font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
             aria-label="JUST HIT OUR RADAR — take a look"
             data-4663-radar-alert-open
             onClick={(event) => {

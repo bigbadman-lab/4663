@@ -5,6 +5,7 @@
  * Separate from the curated continuation watchlist object.
  */
 
+import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { usePonsMonitor } from "@/components/canvas/use-pons-monitor";
 import { formatShortAddress } from "@/lib/canvas/format-address";
 import { CHAIN_ID } from "@/lib/pons/constants";
@@ -54,10 +55,11 @@ export function PonsMonitorTerminalContent() {
 
   return (
     <section
-      className="pointer-events-none flex h-[13.5rem] w-[20rem] flex-col overflow-hidden rounded-md border border-neutral-700/80 bg-neutral-950/90 px-3 py-2.5 font-mono text-[10px] leading-relaxed text-neutral-200 shadow-sm backdrop-blur-[1px] sm:h-[14rem] sm:w-[21rem] sm:text-[11px]"
+      className="relative pointer-events-none flex h-[13.5rem] w-[20rem] flex-col overflow-hidden rounded-md border border-neutral-700/80 bg-neutral-950/90 px-3 py-2.5 font-mono text-[10px] leading-relaxed text-neutral-200 shadow-sm backdrop-blur-[1px] sm:h-[14rem] sm:w-[21rem] sm:text-[11px]"
       data-4663-pons-monitor-terminal
       aria-label="4663 PONS live monitor"
     >
+      <PlayhtmlMoveHitFill />
       <header className="flex shrink-0 items-baseline justify-between gap-2 border-b border-neutral-800 pb-1.5 tracking-wide">
         <span className="text-neutral-100" data-4663-pons-monitor-title>
           4663 / PONS MONITOR

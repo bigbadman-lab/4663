@@ -5,6 +5,7 @@
  */
 
 import Image from "next/image";
+import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { PonsMonitoringPanel } from "@/components/canvas/pons-monitoring-panel";
 import { usePonsMonitoringPanelOpen } from "@/components/canvas/pons-monitoring-panel-state";
 import { useContinuationWatchlist } from "@/components/canvas/use-continuation-watchlist";
@@ -47,26 +48,27 @@ export function PonsMonitoringContent() {
   return (
     <>
       <article
-        className="flex min-w-[11rem] max-w-[13rem] flex-col items-stretch gap-2 border border-neutral-300 bg-white px-2.5 py-2"
+        className="relative flex min-w-[11rem] max-w-[13rem] flex-col items-stretch gap-2 border border-neutral-300 bg-white px-2.5 py-2"
         data-4663-pons-monitoring-card
         data-4663-radar-card
       >
+        <PlayhtmlMoveHitFill />
         <Image
           src="/pons.png"
           alt=""
           width={160}
           height={80}
-          className="pointer-events-none h-auto w-full object-contain"
+          className="pointer-events-none relative h-auto w-full object-contain"
           draggable={false}
           priority
         />
-        <span className="pointer-events-none font-mono text-[10px] leading-snug tracking-wide text-neutral-800 sm:text-[11px]">
+        <span className="pointer-events-none relative font-mono text-[10px] leading-snug tracking-wide text-neutral-800 sm:text-[11px]">
           ROBINHOOD CHAIN
           <br />
           ON OUR RADAR
         </span>
         <span
-          className="pointer-events-none font-mono text-[10px] tracking-wide text-neutral-500"
+          className="pointer-events-none relative font-mono text-[10px] tracking-wide text-neutral-500"
           data-4663-pons-monitoring-status
           data-4663-pons-monitoring-count={count}
         >
@@ -75,7 +77,7 @@ export function PonsMonitoringContent() {
         <button
           ref={openRef}
           type="button"
-          className="inline-flex min-h-11 w-full items-center justify-center font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+          className="relative z-[1] inline-flex min-h-11 w-full items-center justify-center font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
           data-4663-pons-monitoring-open
           aria-label="Open RADAR"
           onClick={(event) => {
