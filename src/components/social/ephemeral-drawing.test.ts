@@ -54,21 +54,21 @@ describe("Social 3A ephemeral DRAW UI", () => {
     assert.ok(layer.includes("abandonCreate"));
   });
 
-  it("drawing editor uses pointer events, one brush, fixed palette, undo/clear/done/cancel", () => {
+  it("drawing editor uses pointer events, one brush, shared palette, undo/clear/done/cancel", () => {
     const editor = readSrc("src/components/social/drawing-session-editor.tsx");
     assert.ok(editor.includes("onPointerDown"));
     assert.ok(editor.includes("onPointerMove"));
     assert.ok(editor.includes("onPointerUp"));
     assert.ok(editor.includes("setPointerCapture"));
     assert.ok(editor.includes("DRAWING_BRUSH_SIZE"));
-    assert.ok(editor.includes("DRAWING_COLOUR_PALETTE"));
+    assert.ok(editor.includes("DRAW_COLOURS"));
     assert.ok(editor.includes("[ UNDO ]"));
     assert.ok(editor.includes("[ CLEAR ]"));
     assert.ok(editor.includes("[ DONE ]"));
     assert.ok(editor.includes("[ CANCEL ]"));
     assert.ok(editor.includes("Escape"));
     assert.ok(editor.includes("cursor-crosshair") || editor.includes("crosshair"));
-    assert.equal(DRAWING_COLOUR_PALETTE.length, 6);
+    assert.equal(DRAWING_COLOUR_PALETTE.length, 20);
     assert.equal(typeof DRAWING_BRUSH_SIZE, "number");
   });
 

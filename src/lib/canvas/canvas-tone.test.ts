@@ -139,8 +139,11 @@ describe("Social 8A.2 canvas tone UI + invariants", () => {
     assert.ok(model.includes("localStorage") || model.includes("Storage"));
     assert.ok(hook.includes("localStorage") || hook.includes("writeCanvasTone"));
 
+    const drawColours = readSrc("src/lib/social/draw-colours.ts");
+    assert.ok(drawColours.includes('"#171717"'));
+    assert.equal(drawColours.includes("canvas-tone"), false);
+
     const drawing = readSrc("src/lib/social/ephemeral-drawing.ts");
-    assert.ok(drawing.includes('"#171717"'));
     assert.equal(drawing.includes("canvas-tone"), false);
 
     const colour = readSrc("src/lib/social/colour.ts");

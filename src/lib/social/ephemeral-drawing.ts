@@ -10,6 +10,13 @@ import {
   drawingZoneAspectFromWorldPct,
   drawingZoneOriginFromWorldPct,
 } from "@/lib/canvas/world-camera";
+import {
+  DEFAULT_DRAWING_COLOUR,
+  DRAW_COLOURS,
+  DRAWING_COLOUR_PALETTE,
+  isDrawingColour,
+  type DrawingColour,
+} from "@/lib/social/draw-colours";
 import { clampCanvasPct } from "@/lib/social/ephemeral-text";
 import {
   isUuid,
@@ -50,16 +57,13 @@ export const DRAWING_MAX_TOTAL_POINTS = 2_000 as const;
 /** Minimum segment length in normalized 0–1 space before sampling a new point. */
 export const DRAWING_POINT_MIN_DELTA = 0.008 as const;
 
-export const DRAWING_COLOUR_PALETTE = [
-  "#171717",
-  "#8FAE00",
-  "#3B82F6",
-  "#E11D48",
-  "#F59E0B",
-  "#0D9488",
-] as const;
-
-export type DrawingColour = (typeof DRAWING_COLOUR_PALETTE)[number];
+export {
+  DEFAULT_DRAWING_COLOUR,
+  DRAW_COLOURS,
+  DRAWING_COLOUR_PALETTE,
+  isDrawingColour,
+  type DrawingColour,
+};
 
 export type DrawingPoint = {
   /** Normalized 0–1 within the drawing bounding box. */
@@ -98,13 +102,6 @@ export const EMPTY_EPHEMERAL_DRAWINGS_PAGE_DATA: EphemeralDrawingsPageData = {
 
 export function playhtmlDrawingElementId(drawingId: string): string {
   return `4663-drawing-${drawingId}`;
-}
-
-export function isDrawingColour(value: unknown): value is DrawingColour {
-  return (
-    typeof value === "string" &&
-    (DRAWING_COLOUR_PALETTE as readonly string[]).includes(value)
-  );
 }
 
 function isFiniteNumber(value: unknown): value is number {

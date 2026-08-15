@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Local DRAW session editor — compact zone, one brush, fixed palette.
+ * Local DRAW session editor — compact zone, one brush, shared colour palette.
  * Broadcasts live strokes; publishes finished drawing on DONE.
  */
 
@@ -13,8 +13,9 @@ import {
 } from "react";
 import { DrawingStrokesSvg } from "@/components/social/drawing-strokes-svg";
 import {
+  DEFAULT_DRAWING_COLOUR,
+  DRAW_COLOURS,
   DRAWING_BRUSH_SIZE,
-  DRAWING_COLOUR_PALETTE,
   DRAWING_MAX_POINTS_PER_STROKE,
   DRAWING_MAX_STROKES,
   shouldAppendDrawingPoint,
@@ -45,9 +46,7 @@ export function DrawingSessionEditor({
   onDone,
   onCancel,
 }: DrawingSessionEditorProps) {
-  const [colour, setColour] = useState<DrawingColour>(
-    DRAWING_COLOUR_PALETTE[0]!,
-  );
+  const [colour, setColour] = useState<DrawingColour>(DEFAULT_DRAWING_COLOUR);
   const [strokes, setStrokes] = useState<DrawingStroke[]>([]);
   const strokesRef = useRef(strokes);
   strokesRef.current = strokes;
@@ -218,29 +217,34 @@ export function DrawingSessionEditor({
         </div>
 
         <div
-          className="absolute top-full left-1/2 z-[21] mt-1 flex -translate-x-1/2 flex-col items-center gap-1 font-mono text-[10px] tracking-wide"
+          className="absolute top-full left-1/2 z-[21] mt-1 flex -translate-x-1/2 flex-col items-center gap-1.5 font-mono text-[10px] tracking-wide"
           data-4663-drawing-tools
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <div className="flex items-center gap-1" data-4663-drawing-colours>
-            {DRAWING_COLOUR_PALETTE.map((swatch) => (
+          <div
+            className="flex max-w-[min(calc(100vw-1.5rem),12.5rem)] flex-wrap items-center justify-center gap-x-1 gap-y-1.5 overflow-x-hidden"
+            data-4663-drawing-colours
+          >
+            {DRAW_COLOURS.map((swatch) => (
               <button
-                key={swatch}
+                key={swatch.value}
                 type="button"
-                aria-label={`Colour ${swatch}`}
-                data-4663-drawing-colour={swatch}
+                aria-label={`Colour ${swatch.label}`}
+                data-4663-drawing-colour={swatch.value}
                 data-4663-drawing-colour-active={
-                  colour === swatch ? "true" : "false"
+                  colour === swatch.value ? "true" : "false"
                 }
-                className="h-3.5 w-3.5 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400"
+                className="h-3.5 w-3.5 shrink-0 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400"
                 style={{
-                  backgroundColor: swatch,
+                  backgroundColor: swatch.value,
                   outline:
-                    colour === swatch ? "2px solid #404040" : "1px solid #d4d4d4",
-                  outlineOffset: colour === swatch ? "1px" : "0",
+                    colour === swatch.value
+                      ? "2px solid #404040"
+                      : "1px solid #d4d4d4",
+                  outlineOffset: colour === swatch.value ? "1px" : "0",
                 }}
-                onClick={() => setColour(swatch)}
+                onClick={() => setColour(swatch.value)}
               />
             ))}
           </div>

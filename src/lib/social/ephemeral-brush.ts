@@ -5,6 +5,8 @@
  */
 
 import {
+  DEFAULT_DRAWING_COLOUR,
+  DRAW_COLOURS,
   DRAWING_BRUSH_SIZE,
   DRAWING_COLOUR_PALETTE,
   isDrawingColour,
@@ -43,7 +45,11 @@ export const BRUSH_STROKE_WIDTH_WORLD_PX =
   (DRAWING_ZONE_WIDTH_WORLD_PCT / 100) *
   WORLD_WIDTH_PX;
 
-export { DRAWING_COLOUR_PALETTE as BRUSH_COLOUR_PALETTE };
+export {
+  DRAW_COLOURS as BRUSH_COLOURS,
+  DRAWING_COLOUR_PALETTE as BRUSH_COLOUR_PALETTE,
+  DEFAULT_DRAWING_COLOUR as DEFAULT_BRUSH_COLOUR,
+};
 export type BrushColour = DrawingColour;
 
 /** World percentage point (0–100), same axis as leftPct / topPct. */

@@ -16,9 +16,10 @@ import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camer
 import { screenPointToWorldPct } from "@/lib/canvas/world-camera";
 import { brushDraftCanPublish } from "@/lib/social/brush-draft";
 import {
-  BRUSH_COLOUR_PALETTE,
+  BRUSH_COLOURS,
   BRUSH_MAX_POINTS_PER_STROKE,
   BRUSH_MAX_STROKES,
+  DEFAULT_BRUSH_COLOUR,
   clientPointToBrushWorldPct,
   resolveBrushDoneIntent,
   shouldAppendBrushPoint,
@@ -48,7 +49,7 @@ export function BrushSessionOverlay({
   onCancel,
   onToggleExit,
 }: BrushSessionOverlayProps) {
-  const [colour, setColour] = useState<BrushColour>(BRUSH_COLOUR_PALETTE[0]!);
+  const [colour, setColour] = useState<BrushColour>(DEFAULT_BRUSH_COLOUR);
   const [strokes, setStrokes] = useState<BrushStroke[]>([]);
   const strokesRef = useRef<BrushStroke[]>([]);
 
@@ -215,29 +216,34 @@ export function BrushSessionOverlay({
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1.5">
           <span className="text-neutral-400" data-4663-brush-label>
             BRUSH
           </span>
-          <div className="flex items-center gap-1" data-4663-brush-colours>
-            {BRUSH_COLOUR_PALETTE.map((swatch) => (
+          <div
+            className="flex max-w-[min(calc(100vw-1.5rem),12.5rem)] flex-wrap items-center justify-center gap-x-1 gap-y-1.5 overflow-x-hidden"
+            data-4663-brush-colours
+          >
+            {BRUSH_COLOURS.map((swatch) => (
               <button
-                key={swatch}
+                key={swatch.value}
                 type="button"
-                aria-label={`Colour ${swatch}`}
-                data-4663-brush-colour={swatch}
+                aria-label={`Colour ${swatch.label}`}
+                data-4663-brush-colour={swatch.value}
                 data-4663-brush-colour-active={
-                  colour === swatch ? "true" : "false"
+                  colour === swatch.value ? "true" : "false"
                 }
                 data-4663-interactive-control="true"
-                className="h-3.5 w-3.5 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400"
+                className="h-3.5 w-3.5 shrink-0 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400"
                 style={{
-                  backgroundColor: swatch,
+                  backgroundColor: swatch.value,
                   outline:
-                    colour === swatch ? "2px solid #404040" : "1px solid #d4d4d4",
-                  outlineOffset: colour === swatch ? "1px" : "0",
+                    colour === swatch.value
+                      ? "2px solid #404040"
+                      : "1px solid #d4d4d4",
+                  outlineOffset: colour === swatch.value ? "1px" : "0",
                 }}
-                onClick={() => setColour(swatch)}
+                onClick={() => setColour(swatch.value)}
               />
             ))}
           </div>

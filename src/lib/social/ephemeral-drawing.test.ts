@@ -66,10 +66,16 @@ const baseGeom = {
 } as const;
 
 describe("Social 3A ephemeral drawing helpers", () => {
-  it("uses one brush size and a fixed 6-colour palette", () => {
+  it("uses one brush size and a shared curated colour palette", () => {
     assert.equal(DRAWING_BRUSH_SIZE, 2.75);
-    assert.equal(DRAWING_COLOUR_PALETTE.length, 6);
+    assert.equal(DRAWING_COLOUR_PALETTE.length, 20);
     assert.ok(DRAWING_COLOUR_PALETTE.every((c) => c.startsWith("#")));
+    assert.ok(DRAWING_COLOUR_PALETTE.includes("#171717"));
+    assert.ok(DRAWING_COLOUR_PALETTE.includes("#8FAE00"));
+    assert.ok(DRAWING_COLOUR_PALETTE.includes("#3B82F6"));
+    assert.ok(DRAWING_COLOUR_PALETTE.includes("#E11D48"));
+    assert.ok(DRAWING_COLOUR_PALETTE.includes("#F59E0B"));
+    assert.ok(DRAWING_COLOUR_PALETTE.includes("#0D9488"));
   });
 
   it("enforces stroke/point caps", () => {
