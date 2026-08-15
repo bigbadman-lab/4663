@@ -9,7 +9,7 @@
  * Module singleton — one poller + one Realtime channel for monitoring + alerts.
  */
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   browserVisibilityIntervalDeps,
   startVisibilityIntervalPolling,
@@ -238,30 +238,8 @@ function getServerSnapshot(): ContinuationWatchlistStoreSnapshot {
   };
 }
 
-export function dismissRadarAlert(eventId: string): void {
-  setStore({
-    alerts: store.alerts.filter((a) => a.eventId !== eventId),
-  });
-}
-
-export type UseContinuationWatchlistResult = ContinuationWatchlistStoreSnapshot & {
-  dismissAlert: (eventId: string) => void;
-};
-
-export function useContinuationWatchlist(): UseContinuationWatchlistResult {
-  const snapshot = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
-  const dismissAlert = useCallback((eventId: string) => {
-    dismissRadarAlert(eventId);
-  }, []);
-
-  return {
-    ...snapshot,
-    dismissAlert,
-  };
+export function useContinuationWatchlist(): ContinuationWatchlistStoreSnapshot {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
 /** Test helper — reset module singleton between cases. */

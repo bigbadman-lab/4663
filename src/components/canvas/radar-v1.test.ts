@@ -3,7 +3,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -120,7 +120,7 @@ describe("RADAR V1 canvas alert + explorers", () => {
     assert.ok(alert.includes('data-4663-radar-alert-open'));
     assert.ok(alert.includes("{RADAR_ALERT_COPY.cta}"));
     assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
-    assert.ok(alert.includes("onDismiss(alert.eventId)"));
+    assert.equal(alert.includes("onDismiss"), false);
     assert.ok(alert.includes("event.stopPropagation()"));
 
     // Body/host must not wire open on the movable shell.
@@ -231,7 +231,8 @@ describe("RADAR alert trigger wiring (store → layer → open)", () => {
     assert.ok(layer.includes("alerts.map"));
     assert.ok(layer.includes("RadarAlertObject"));
     assert.ok(layer.includes("onOpen={openToToken}"));
-    assert.ok(layer.includes("onDismiss={dismissAlert}"));
+    assert.equal(layer.includes("onDismiss"), false);
+    assert.equal(layer.includes("dismissAlert"), false);
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("<RadarAlertLayer />"));
@@ -241,7 +242,7 @@ describe("RADAR alert trigger wiring (store → layer → open)", () => {
 
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
-    assert.ok(alert.includes("onDismiss(alert.eventId)"));
+    assert.equal(alert.includes("onDismiss"), false);
     assert.ok(alert.includes('data-4663-radar-alert-open'));
     assert.equal(
       alert.includes('aria-label="JUST HIT OUR RADAR — take a look"'),
@@ -253,5 +254,67 @@ describe("RADAR alert trigger wiring (store → layer → open)", () => {
     );
     assert.ok(state.includes("openRadarToToken"));
     assert.ok(state.includes("selectedTokenAddress"));
+  });
+});
+
+describe("RADAR alert CTA keeps the card until 4-minute expiry", () => {
+  it("TAKE A LOOK opens token detail and does not dismiss the alert", () => {
+    const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
+    const ctaIdx = alert.indexOf("data-4663-radar-alert-open");
+    assert.ok(ctaIdx > 0);
+    const ctaWindow = alert.slice(ctaIdx, ctaIdx + 550);
+    assert.ok(ctaWindow.includes("onOpen(alert.tokenAddress)"));
+    assert.equal(ctaWindow.includes("onDismiss"), false);
+    assert.equal(alert.includes("dismissRadarAlert"), false);
+    assert.equal(alert.includes("onDismiss"), false);
+
+    const layer = readSrc("src/components/canvas/radar-alert-layer.tsx");
+    assert.ok(layer.includes("onOpen={openToToken}"));
+    assert.equal(layer.includes("onDismiss"), false);
+    assert.equal(layer.includes("dismissAlert"), false);
+
+    const hook = readSrc(
+      "src/components/canvas/use-continuation-watchlist.ts",
+    );
+    assert.equal(hook.includes("dismissRadarAlert"), false);
+    assert.equal(hook.includes("dismissAlert"), false);
+  });
+
+  it("CTA does not rewrite createdAtMs or expiresAtMs", () => {
+    const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
+    assert.equal(alert.includes("createdAtMs"), false);
+    assert.equal(alert.includes("expiresAtMs"), false);
+    const layer = readSrc("src/components/canvas/radar-alert-layer.tsx");
+    assert.equal(layer.includes("createdAtMs"), false);
+    assert.equal(layer.includes("expiresAtMs"), false);
+  });
+
+  it("alerts still prune on the existing 4-minute client lifetime", () => {
+    const hook = readSrc(
+      "src/components/canvas/use-continuation-watchlist.ts",
+    );
+    assert.ok(hook.includes("pruneExpiredRadarAlerts(store.alerts, Date.now())"));
+    assert.ok(hook.includes("15_000"));
+    const alerts = readSrc("src/lib/events/radar-alerts.ts");
+    assert.ok(alerts.includes("RADAR_ALERT_LIFETIME_MS = 4 * 60 * 1000"));
+    assert.ok(
+      alerts.includes("return alerts.filter((a) => a.expiresAtMs > nowMs)"),
+    );
+  });
+
+  it("temporary radar debug instrumentation is gone", () => {
+    assert.equal(
+      existsSync(path.join(root, "src/lib/events/radar-debug.ts")),
+      false,
+    );
+    for (const rel of [
+      "src/components/canvas/radar-alert-object.tsx",
+      "src/components/canvas/radar-alert-layer.tsx",
+      "src/components/canvas/use-continuation-watchlist.ts",
+    ]) {
+      const src = readSrc(rel);
+      assert.equal(src.includes("RADAR DEBUG"), false, rel);
+      assert.equal(src.includes("radar-debug"), false, rel);
+    }
   });
 });

@@ -29,7 +29,6 @@ export function playhtmlRadarAlertElementId(eventId: string): string {
 type RadarAlertObjectProps = {
   alert: RadarAlert;
   onOpen: (tokenAddress: string) => void;
-  onDismiss: (eventId: string) => void;
 };
 
 function usePrefersReducedMotion(): boolean {
@@ -67,7 +66,6 @@ function useRadarAnimationData(): object | null {
 export function RadarAlertObject({
   alert,
   onOpen,
-  onDismiss,
 }: RadarAlertObjectProps) {
   const reducedMotion = usePrefersReducedMotion();
   const animationData = useRadarAnimationData();
@@ -117,7 +115,6 @@ export function RadarAlertObject({
             onClick={(event) => {
               event.stopPropagation();
               onOpen(alert.tokenAddress);
-              onDismiss(alert.eventId);
             }}
             onPointerDown={stopPlayhtmlMoveStart}
             onMouseDown={stopPlayhtmlMoveStart}

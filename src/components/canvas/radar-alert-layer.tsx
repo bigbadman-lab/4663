@@ -11,7 +11,7 @@ import { usePonsMonitoringPanelOpen } from "@/components/canvas/pons-monitoring-
 import { useContinuationWatchlist } from "@/components/canvas/use-continuation-watchlist";
 
 export function RadarAlertLayer() {
-  const { alerts, dismissAlert } = useContinuationWatchlist();
+  const { alerts } = useContinuationWatchlist();
   const { openToToken } = usePonsMonitoringPanelOpen();
 
   if (alerts.length === 0) return null;
@@ -23,7 +23,6 @@ export function RadarAlertLayer() {
           key={alert.eventId}
           alert={alert}
           onOpen={openToToken}
-          onDismiss={dismissAlert}
         />
       ))}
     </div>
