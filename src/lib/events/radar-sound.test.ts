@@ -436,7 +436,7 @@ describe("radar sound wiring + audio implementation", () => {
     assert.ok(sound.includes("createOscillator"));
     assert.ok(sound.includes('type = "sine"'));
     assert.ok(sound.includes("0.045"));
-    assert.ok(sound.includes("0.09"));
+    assert.ok(sound.includes("0.18"));
     assert.ok(sound.includes("peakGain * 0.7"));
     assert.ok(sound.includes("620"));
     assert.ok(sound.includes("880"));
@@ -479,7 +479,7 @@ describe("radar sound volume", () => {
     assert.deepEqual([...RADAR_SOUND_VOLUMES], ["low", "high"]);
     assert.equal(RADAR_SOUND_VOLUME_STORAGE_KEY, "4663:radar-sound-volume");
     assert.equal(RADAR_PING_PEAK_GAIN_LOW, 0.045);
-    assert.equal(RADAR_PING_PEAK_GAIN_HIGH, 0.09);
+    assert.equal(RADAR_PING_PEAK_GAIN_HIGH, 0.18);
     assert.equal(resolveRadarPingPeakGain("low"), 0.045);
     assert.equal(readRadarSoundVolume(memoryStorage()), "low");
   });
@@ -543,7 +543,7 @@ describe("radar sound volume", () => {
     assert.deepEqual(gains, [RADAR_PING_PEAK_GAIN_LOW]);
   });
 
-  it("6. SOUND ON + HIGH new event uses 0.09", () => {
+  it("6. SOUND ON + HIGH new event uses 0.18", () => {
     const seeded = seedVisible();
     const next = applyRadarWatchlistSnapshot({
       previousSeen: seeded.nextSeen,

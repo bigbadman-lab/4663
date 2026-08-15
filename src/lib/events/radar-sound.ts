@@ -12,7 +12,7 @@ import {
 /** Soft two-tone ping; total envelope ~260ms. */
 export const RADAR_PING_DURATION_MS = 260 as const;
 export const RADAR_PING_PEAK_GAIN_LOW = 0.045 as const;
-export const RADAR_PING_PEAK_GAIN_HIGH = 0.09 as const;
+export const RADAR_PING_PEAK_GAIN_HIGH = 0.18 as const;
 const TONE_A_HZ = 620;
 const TONE_B_HZ = 880;
 
