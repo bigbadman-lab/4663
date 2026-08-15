@@ -22,6 +22,7 @@ import {
   radarAlertFallbackWorldPct,
   type RadarAlert,
 } from "@/lib/events/radar-alerts";
+import { notifyRadarSoundForNewAlerts } from "@/lib/events/radar-sound";
 import type {
   ContinuationWatchlistToken,
   RadarQualificationRef,
@@ -145,6 +146,7 @@ async function loadWatchlist(): Promise<void> {
       status: "ready",
       alerts: applied.alerts,
     });
+    notifyRadarSoundForNewAlerts(applied.newAlerts.length);
   } catch {
     setStore({ status: "error" });
   }

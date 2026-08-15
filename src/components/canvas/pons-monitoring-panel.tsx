@@ -7,6 +7,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
+import { RadarSoundToggle } from "@/components/canvas/radar-sound-toggle";
 import {
   robinhoodChainAddressExplorerUrl,
   robinhoodChainBlockExplorerUrl,
@@ -508,16 +509,19 @@ export function PonsMonitoringPanel({
           >
             RADAR
           </h2>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-end font-mono text-[11px] tracking-wide text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
-            aria-label="Close"
-            data-4663-pons-monitoring-close
-          >
-            [ CLOSE ]
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <RadarSoundToggle />
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-end font-mono text-[11px] tracking-wide text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+              aria-label="Close"
+              data-4663-pons-monitoring-close
+            >
+              [ CLOSE ]
+            </button>
+          </div>
         </div>
 
         {showingDetail && selectedToken ? (

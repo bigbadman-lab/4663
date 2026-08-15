@@ -567,6 +567,7 @@ describe("radar alert client lifetime (independent of qualification age)", () =>
       emitAlerts: true,
     });
     assert.equal(seeded.alerts.length, 0);
+    assert.equal(seeded.newAlerts.length, 0);
 
     const hidden = applyRadarWatchlistSnapshot({
       previousSeen: seeded.nextSeen,
@@ -583,6 +584,7 @@ describe("radar alert client lifetime (independent of qualification age)", () =>
       emitAlerts: false,
     });
     assert.equal(hidden.alerts.length, 0);
+    assert.equal(hidden.newAlerts.length, 0);
     assert.equal(hidden.nextSeen.has(ID_G), false);
 
     const visibleAt = 50_000;
@@ -601,6 +603,7 @@ describe("radar alert client lifetime (independent of qualification age)", () =>
       emitAlerts: true,
     });
     assert.equal(visible.alerts.length, 1);
+    assert.equal(visible.newAlerts.length, 1);
     assert.equal(visible.alerts[0]!.eventId, ID_G);
     assert.equal(visible.alerts[0]!.createdAtMs, visibleAt);
     assert.equal(
@@ -628,5 +631,6 @@ describe("radar alert client lifetime (independent of qualification age)", () =>
       emitAlerts: true,
     });
     assert.equal(same.alerts.length, 0);
+    assert.equal(same.newAlerts.length, 0);
   });
 });

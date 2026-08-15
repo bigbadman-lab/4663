@@ -205,6 +205,8 @@ export function applyRadarWatchlistSnapshot(input: {
   nextSeen: Set<string>;
   seeded: boolean;
   alerts: RadarAlert[];
+  /** Newly accepted alerts this snapshot (empty on seed / hidden). */
+  newAlerts: RadarAlert[];
 } {
   const pruned = pruneExpiredRadarAlerts(input.previousAlerts, input.nowMs);
 
@@ -221,6 +223,7 @@ export function applyRadarWatchlistSnapshot(input: {
       nextSeen: seeded.nextSeen,
       seeded: true,
       alerts: pruned,
+      newAlerts: [],
     };
   }
 
@@ -229,6 +232,7 @@ export function applyRadarWatchlistSnapshot(input: {
       nextSeen: new Set(input.previousSeen),
       seeded: true,
       alerts: pruned,
+      newAlerts: [],
     };
   }
 
@@ -248,5 +252,6 @@ export function applyRadarWatchlistSnapshot(input: {
     nextSeen: diff.nextSeen,
     seeded: true,
     alerts,
+    newAlerts: diff.newAlerts,
   };
 }
