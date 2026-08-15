@@ -79,6 +79,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: CANVAS_TONE_BOOT_SCRIPT }}
         />
+        <Script
+          data-website-id="dfid_zSuZZbFaQ0cyXzZIIqLDQ"
+          data-domain="4663.live"
+          src="https://datafa.st/js/script.js"
+          strategy="afterInteractive"
+        />
         <PresenceHeartbeat />
         {children}
       </body>
