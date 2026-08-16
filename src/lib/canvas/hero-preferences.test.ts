@@ -10,7 +10,6 @@ import { fileURLToPath } from "node:url";
 import {
   DEFAULT_HERO_PREFERENCES,
   HERO_COLORS,
-  HERO_COLOR_VALUES,
   HERO_PREFERENCES_STORAGE_KEY,
   heroTextColorStyle,
   nextHeroColor,
@@ -18,6 +17,10 @@ import {
   readHeroPreferences,
   writeHeroPreferences,
 } from "@/lib/canvas/hero-preferences";
+import {
+  DRAW_COLOURS,
+  DRAWING_COLOUR_PALETTE,
+} from "@/lib/social/draw-colours";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -70,25 +73,40 @@ describe("hero preferences (local appearance)", () => {
     assert.ok(brand.includes("min-h-11"));
   });
 
-  it("3. COLOR cycles through the fixed colour set", () => {
-    assert.deepEqual([...HERO_COLORS], [
-      "default",
-      "slate",
-      "blue",
-      "green",
-      "red",
-    ]);
-    assert.equal(nextHeroColor("default"), "slate");
-    assert.equal(nextHeroColor("slate"), "blue");
-    assert.equal(nextHeroColor("blue"), "green");
-    assert.equal(nextHeroColor("green"), "red");
-    assert.equal(nextHeroColor("red"), "default");
-    assert.equal(HERO_COLOR_VALUES.slate, "#64748b");
-    assert.equal(HERO_COLOR_VALUES.blue, "#1d4ed8");
-    assert.equal(HERO_COLOR_VALUES.green, "#15803d");
-    assert.equal(HERO_COLOR_VALUES.red, "#b91c1c");
+  it("3. H1 cycles through the canonical DRAW palette and wraps", () => {
+    assert.equal(HERO_COLORS, DRAWING_COLOUR_PALETTE);
+    assert.deepEqual(
+      [...HERO_COLORS],
+      DRAW_COLOURS.map((c) => c.value),
+    );
+    assert.equal(HERO_COLORS.length, 20);
+
+    const first = HERO_COLORS[0]!;
+    const last = HERO_COLORS[HERO_COLORS.length - 1]!;
+    assert.equal(nextHeroColor("default"), first);
+
+    const walked: string[] = [];
+    let current = nextHeroColor("default");
+    walked.push(current);
+    for (let i = 1; i < HERO_COLORS.length; i += 1) {
+      current = nextHeroColor(current);
+      walked.push(current);
+    }
+    assert.deepEqual(walked, [...HERO_COLORS]);
+    assert.equal(nextHeroColor(last), first);
+
+    const prefs = readSrc("src/lib/canvas/hero-preferences.ts");
+    assert.ok(prefs.includes("DRAWING_COLOUR_PALETTE"));
+    assert.equal(prefs.includes("#64748b"), false);
+    assert.equal(prefs.includes("#1d4ed8"), false);
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.ok(brand.includes("heroTextColorStyle"));
+    assert.ok(brand.includes("cycleColor()"));
+
     assert.equal(heroTextColorStyle("default"), undefined);
-    assert.deepEqual(heroTextColorStyle("blue"), { color: "#1d4ed8" });
+    assert.deepEqual(heroTextColorStyle(first), { color: first });
+    const mid = DRAWING_COLOUR_PALETTE[8]!;
+    assert.deepEqual(heroTextColorStyle(mid), { color: mid });
   });
 
   it("4. HIDE removes hero copy but leaves Enter available", () => {
@@ -118,35 +136,37 @@ describe("hero preferences (local appearance)", () => {
   });
 
   it("6. selected colour survives hide/show (prefs keep color)", () => {
+    const blue = DRAWING_COLOUR_PALETTE[8]!;
     const hiddenBlue = normalizeHeroPreferences({
-      color: "blue",
+      color: blue,
       visible: false,
     });
-    assert.equal(hiddenBlue.color, "blue");
+    assert.equal(hiddenBlue.color, blue);
     assert.equal(hiddenBlue.visible, false);
     const shown = normalizeHeroPreferences({
       ...hiddenBlue,
       visible: true,
     });
-    assert.equal(shown.color, "blue");
+    assert.equal(shown.color, blue);
     assert.equal(shown.visible, true);
   });
 
   it("7. preferences persist/reload from localStorage", () => {
     assert.equal(HERO_PREFERENCES_STORAGE_KEY, "4663:hero-preferences");
+    const green = DRAWING_COLOUR_PALETTE[6]!;
     const storage = memoryStorage();
     writeHeroPreferences(
-      { color: "green", visible: false },
+      { color: green, visible: false },
       storage,
     );
     const raw = storage.getItem(HERO_PREFERENCES_STORAGE_KEY);
     assert.ok(raw);
     assert.deepEqual(JSON.parse(raw!), {
-      color: "green",
+      color: green,
       visible: false,
     });
     assert.deepEqual(readHeroPreferences(storage), {
-      color: "green",
+      color: green,
       visible: false,
     });
     assert.deepEqual(
@@ -155,6 +175,14 @@ describe("hero preferences (local appearance)", () => {
     );
     assert.deepEqual(
       normalizeHeroPreferences({ color: "nope", visible: "yes" }),
+      DEFAULT_HERO_PREFERENCES,
+    );
+    assert.deepEqual(
+      normalizeHeroPreferences({ color: "slate", visible: true }),
+      DEFAULT_HERO_PREFERENCES,
+    );
+    assert.deepEqual(
+      normalizeHeroPreferences({ color: "blue", visible: true }),
       DEFAULT_HERO_PREFERENCES,
     );
   });

@@ -49,17 +49,17 @@ describe("Stage IC1 large world + local camera wiring", () => {
     assert.equal(cam.includes("Broadcast"), false);
     assert.equal(cam.includes("supabase"), false);
     assert.ok(cam.includes("goHome"));
-    assert.ok(cam.includes("isCanvasPanHitTarget"));
+    assert.ok(cam.includes("shouldTrackCanvasPan"));
     // IC3: pan is not desktop-only; primary empty-hit pointer starts pan.
     assert.equal(cam.includes("isDesktopPointer"), false);
     assert.ok(cam.includes("event.isPrimary"));
-    assert.ok(cam.includes("panDragThresholdPx"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
   });
 
   it("empty-space pan + click suppress; object drag does not pan", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
-    assert.ok(cam.includes("isCanvasPanHitTarget"));
-    assert.ok(cam.includes("panDragThresholdPx"));
+    assert.ok(cam.includes("shouldTrackCanvasPan"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
     assert.ok(cam.includes("shouldSuppressEmptyCanvasClick"));
     assert.ok(cam.includes("setCreateUiBlocksPan"));
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
@@ -101,7 +101,7 @@ describe("Stage IC1 large world + local camera wiring", () => {
     assert.ok(play.includes("CanvasSurface"));
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.equal(cam.includes("isDesktopPointer"), false);
-    assert.ok(cam.includes("panDragThresholdPx"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("touch-none"));
     assert.ok(surface.includes("data-4663-canvas-empty-hit"));

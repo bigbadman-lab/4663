@@ -107,7 +107,7 @@ describe("RADAR alert overlap drag", () => {
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     assert.ok(alert.includes("useInteractiveControlProtection"));
     const lib = readSrc("src/lib/canvas/playhtml-move-interaction.ts");
-    assert.ok(lib.includes("INTERACTIVE_CONTROL_SELECTOR"));
+    assert.ok(lib.includes("isInteractiveCanvasTarget"));
     assert.ok(lib.includes("shouldBeginPlayhtmlMoveForeground"));
   });
 

@@ -114,7 +114,7 @@ describe("Stage IC2.1 HOME viewport reset", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("onViewportPointerDown"));
     assert.ok(cam.includes("panRef.current = {"));
-    assert.ok(cam.includes("isCanvasPanHitTarget"));
+    assert.ok(cam.includes("shouldTrackCanvasPan"));
     // Live dock still exposes HOME as local control.
     assert.ok(getLiveControlDockItems().some((i) => i.id === "home"));
   });

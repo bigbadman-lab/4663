@@ -12,6 +12,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  INTERACTIVE_CANVAS_TARGET_SELECTOR,
   INTERACTIVE_CONTROL_ATTR,
   INTERACTIVE_CONTROL_SELECTOR,
   isInteractiveCanvasControlTarget,
@@ -130,6 +131,7 @@ describe("IC3.6 shared interactive-control mechanism", () => {
     const interactive = {
       closest(sel: string) {
         if (sel === INTERACTIVE_CONTROL_SELECTOR) return this;
+        if (sel === INTERACTIVE_CANVAS_TARGET_SELECTOR) return this;
         return null;
       },
     };
@@ -154,7 +156,7 @@ describe("IC3.6 shared interactive-control mechanism", () => {
   it("protectInteractiveControlElement sets marker attr (structural API)", () => {
     assert.equal(typeof protectInteractiveControlElement, "function");
     const cam = readSrc("src/lib/canvas/world-camera.ts");
-    assert.ok(cam.includes("INTERACTIVE_CONTROL_SELECTOR"));
+    assert.ok(cam.includes("isInteractiveCanvasTarget"));
     assert.ok(cam.includes("isCanvasPanHitTarget"));
   });
 });
@@ -213,7 +215,7 @@ describe("IC3.6 control wiring + ownership contract", () => {
     assert.ok(surface.includes("data-4663-canvas-empty-hit"));
     assert.ok(surface.includes("onViewportPointerDown"));
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
-    assert.ok(cam.includes("isCanvasPanHitTarget(event.target)"));
+    assert.ok(cam.includes("shouldTrackCanvasPan"));
   });
 
   it("DRAW session editor still owns gestures; finished DRAW delete protected", () => {
@@ -232,6 +234,6 @@ describe("IC3.6 control wiring + ownership contract", () => {
     assert.ok(surface.includes("dispatchEmptyCanvasClick"));
     assert.ok(surface.includes("data-4663-canvas-empty-hit"));
     const panLib = readSrc("src/lib/canvas/world-camera.ts");
-    assert.ok(panLib.includes("INTERACTIVE_CONTROL_SELECTOR"));
+    assert.ok(panLib.includes("isInteractiveCanvasTarget"));
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Shared DRAW / BRUSH colour palette.
+ * Canonical DRAW / BRUSH / hero H1 colour palette.
  */
 
 import assert from "node:assert/strict";
@@ -7,6 +7,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import {
+  HERO_COLORS,
+  nextHeroColor,
+} from "@/lib/canvas/hero-preferences";
 import {
   DEFAULT_DRAWING_COLOUR,
   DRAW_COLOURS,
@@ -127,13 +131,36 @@ describe("shared DRAW / BRUSH colour palette", () => {
     assert.deepEqual(BRUSH_COLOUR_PALETTE, DRAWING_COLOUR_PALETTE);
   });
 
-  it("10. OBJECT and BRUSH ordering remains identical", () => {
+  it("10. OBJECT, BRUSH, and hero H1 share one palette with identical ordering", () => {
     assert.deepEqual(
       BRUSH_COLOURS.map((c) => c.value),
       DRAW_COLOURS.map((c) => c.value),
     );
     assert.deepEqual(BRUSH_COLOUR_PALETTE, DRAWING_COLOUR_PALETTE);
     assert.equal(DEFAULT_BRUSH_COLOUR, DEFAULT_DRAWING_COLOUR);
+    assert.equal(BRUSH_COLOURS, DRAW_COLOURS);
+    assert.equal(HERO_COLORS, DRAWING_COLOUR_PALETTE);
+    assert.deepEqual([...HERO_COLORS], [...DRAWING_COLOUR_PALETTE]);
+    assert.deepEqual(
+      [...HERO_COLORS],
+      BRUSH_COLOURS.map((c) => c.value),
+    );
+  });
+
+  it("hero H1 consumes the canonical palette without a private copy", () => {
+    const prefs = readSrc("src/lib/canvas/hero-preferences.ts");
+    const brand = readSrc("src/components/canvas/brand-anchors.tsx");
+    assert.ok(prefs.includes("DRAWING_COLOUR_PALETTE"));
+    assert.ok(prefs.includes("HERO_COLORS = DRAWING_COLOUR_PALETTE"));
+    assert.equal(prefs.includes("#64748b"), false);
+    assert.equal(brand.includes("#64748b"), false);
+    assert.equal(brand.includes("HERO_COLORS"), false);
+    assert.ok(brand.includes("cycleColor()"));
+    assert.equal(nextHeroColor("default"), DRAWING_COLOUR_PALETTE[0]);
+    assert.equal(
+      nextHeroColor(DRAWING_COLOUR_PALETTE[DRAWING_COLOUR_PALETTE.length - 1]!),
+      DRAWING_COLOUR_PALETTE[0],
+    );
   });
 
   it("11. newly added bright colours validate through isDrawingColour", () => {

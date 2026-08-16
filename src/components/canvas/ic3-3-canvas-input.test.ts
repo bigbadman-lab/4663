@@ -54,7 +54,7 @@ describe("Stage IC3.3 empty-canvas click classification", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("dispatchEmptyCanvasClick"));
     assert.ok(cam.includes("wasActivePan"));
-    assert.ok(cam.includes("panDragThresholdPx"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
     // Explicit tap path after inactive pan end.
     assert.ok(cam.includes("Tap / sub-threshold drag"));
     // Active pan still suppresses click.
@@ -77,7 +77,7 @@ describe("Stage IC3.3 empty-canvas click classification", () => {
 
   it("7–8. mouse + touch thresholds remain distinct; empty-hit still wired", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
-    assert.ok(cam.includes('pointerType === "touch"') || cam.includes("panDragThresholdPx(pan.pointerType)"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("data-4663-canvas-empty-hit"));
     assert.ok(surface.includes("dispatchEmptyCanvasClick"));

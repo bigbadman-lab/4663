@@ -1,19 +1,24 @@
 /**
  * Local-only hero appearance preferences (per browser / device).
  * Never synced via PlayHTML, Supabase, presence, or collaborative state.
+ *
+ * Clickable H1 colour cycling uses the canonical DRAW palette
+ * (`DRAWING_COLOUR_PALETTE`) — same source as OBJECT and BRUSH.
+ * `"default"` is the initial canvas-tone look, not a palette swatch.
  */
+
+import {
+  DRAWING_COLOUR_PALETTE,
+  isDrawingColour,
+  type DrawingColour,
+} from "@/lib/social/draw-colours";
 
 export const HERO_PREFERENCES_STORAGE_KEY = "4663:hero-preferences" as const;
 
-export const HERO_COLORS = [
-  "default",
-  "slate",
-  "blue",
-  "green",
-  "red",
-] as const;
+/** Same reference as DRAW OBJECT/BRUSH — do not duplicate hex values here. */
+export const HERO_COLORS = DRAWING_COLOUR_PALETTE;
 
-export type HeroColor = (typeof HERO_COLORS)[number];
+export type HeroColor = "default" | DrawingColour;
 
 export type HeroPreferences = {
   color: HeroColor;
@@ -25,22 +30,8 @@ export const DEFAULT_HERO_PREFERENCES: HeroPreferences = {
   visible: true,
 };
 
-/** Curated text colours for non-default hero appearance. */
-export const HERO_COLOR_VALUES: Record<
-  Exclude<HeroColor, "default">,
-  string
-> = {
-  slate: "#64748b",
-  blue: "#1d4ed8",
-  green: "#15803d",
-  red: "#b91c1c",
-};
-
 export function isHeroColor(value: unknown): value is HeroColor {
-  return (
-    typeof value === "string" &&
-    (HERO_COLORS as readonly string[]).includes(value)
-  );
+  return value === "default" || isDrawingColour(value);
 }
 
 export function normalizeHeroPreferences(value: unknown): HeroPreferences {
@@ -59,15 +50,16 @@ export function normalizeHeroPreferences(value: unknown): HeroPreferences {
   };
 }
 
-export function nextHeroColor(color: HeroColor): HeroColor {
-  const index = HERO_COLORS.indexOf(color);
-  const safeIndex = index < 0 ? 0 : index;
-  return HERO_COLORS[(safeIndex + 1) % HERO_COLORS.length]!;
+export function nextHeroColor(color: HeroColor): DrawingColour {
+  if (!isDrawingColour(color)) {
+    return HERO_COLORS[0]!;
+  }
+  return HERO_COLORS[(HERO_COLORS.indexOf(color) + 1) % HERO_COLORS.length]!;
 }
 
 export function readHeroPreferences(
   storage: Pick<Storage, "getItem"> | null | undefined = typeof window !==
-  "undefined"
+    "undefined"
     ? window.localStorage
     : null,
 ): HeroPreferences {
@@ -102,5 +94,5 @@ export function heroTextColorStyle(
   color: HeroColor,
 ): { color: string } | undefined {
   if (color === "default") return undefined;
-  return { color: HERO_COLOR_VALUES[color] };
+  return { color };
 }

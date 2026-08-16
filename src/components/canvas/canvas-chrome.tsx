@@ -64,19 +64,21 @@ export function CanvasChrome() {
         <BrandAnchors />
 
         <div
-          className="pointer-events-auto absolute -translate-x-1/2 text-center"
-          style={PARTICIPATION_CONTROL_DEFAULT_STYLE}
+          className="pointer-events-none absolute inset-x-0 flex justify-center text-center"
+          style={{ top: PARTICIPATION_CONTROL_DEFAULT_STYLE.top }}
           data-4663-chrome-participation
         >
-          {isParticipating && self ? (
-            <ParticipationSessionControl
-              name={self.displayName}
-              colour={self.colour}
-              onLeave={leave}
-            />
-          ) : (
-            <ParticipationEnterTrigger onOpen={openEnter} />
-          )}
+          <div className="pointer-events-auto">
+            {isParticipating && self ? (
+              <ParticipationSessionControl
+                name={self.displayName}
+                colour={self.colour}
+                onLeave={leave}
+              />
+            ) : (
+              <ParticipationEnterTrigger onOpen={openEnter} />
+            )}
+          </div>
         </div>
 
         <div

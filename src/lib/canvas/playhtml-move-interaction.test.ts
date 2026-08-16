@@ -9,7 +9,6 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   INTERACTIVE_CONTROL_ATTR,
-  INTERACTIVE_CONTROL_SELECTOR,
 } from "@/lib/canvas/interactive-control";
 import {
   PLAYHTML_MOVE_FOREGROUND_ATTR,
@@ -59,7 +58,10 @@ describe("PlayHTML move foreground helpers", () => {
     assert.equal(shouldBeginPlayhtmlMoveForeground(null), true);
     const control = {
       closest(selector: string) {
-        return selector === INTERACTIVE_CONTROL_SELECTOR ? this : null;
+        return selector.includes(INTERACTIVE_CONTROL_ATTR) ||
+          selector.includes("button")
+          ? this
+          : null;
       },
     };
     assert.equal(
@@ -124,7 +126,10 @@ describe("PlayHTML move foreground helpers", () => {
     const host = mockHost();
     const control = {
       closest(selector: string) {
-        return selector === `[${INTERACTIVE_CONTROL_ATTR}]` ? this : null;
+        return selector.includes(INTERACTIVE_CONTROL_ATTR) ||
+          selector.includes("button")
+          ? this
+          : null;
       },
     };
     assert.equal(

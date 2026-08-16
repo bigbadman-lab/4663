@@ -79,7 +79,7 @@ describe("Stage IC3.2.1 mobile scale recovery", () => {
     assert.equal(panDragThresholdPx("touch"), CANVAS_PAN_DRAG_THRESHOLD_TOUCH_PX);
     assert.equal(panDragThresholdPx("mouse"), CANVAS_PAN_DRAG_THRESHOLD_PX);
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
-    assert.ok(cam.includes("panDragThresholdPx(pan.pointerType)"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
     assert.ok(cam.includes("normalizeCameraToScaleOnePreservingCenter"));
     // Normalization only runs after pan.active becomes true (past threshold).
     const moveIdx = cam.indexOf("const onPointerMove");

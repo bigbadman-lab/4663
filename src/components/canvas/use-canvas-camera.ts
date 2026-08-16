@@ -19,16 +19,26 @@ import {
   HOME_REGION_WIDTH_PX,
   homeCameraForViewport,
   initialHomeCameraForViewport,
-  isCanvasPanHitTarget,
   normalizeCameraScale,
   normalizeCameraToScaleOnePreservingCenter,
   panCamera,
-  panDragThresholdPx,
   WORLD_CAMERA_SCALE_ATTR,
   type CanvasCamera,
   type ViewportRect,
   worldTransformStyle,
 } from "@/lib/canvas/world-camera";
+import {
+  activateOverlayInteractiveTarget,
+  overlayInteractiveTargetFromPoint,
+} from "@/lib/canvas/interactive-control";
+import {
+  canvasPanHasClaimedPointer,
+  canvasPanMovementPx,
+  createCanvasPanGesture,
+  shouldActivateOverlayTargetOnRelease,
+  shouldPromoteCanvasPan,
+  shouldTrackCanvasPan,
+} from "@/lib/canvas/canvas-pan-gesture";
 import { dispatchEmptyCanvasClick } from "@/lib/social/canvas-create-actions";
 
 /** Module flag: empty-canvas click must ignore post-pan synthetic clicks. */
@@ -78,6 +88,13 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     active: boolean;
     captureEl: HTMLElement | null;
   } | null>(null);
+  const overlayTapRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    pointerType: string;
+    element: Element;
+  } | null>(null);
 
   const applyCamera = useCallback((next: CanvasCamera) => {
     const viewport = viewportRef.current;
@@ -100,6 +117,7 @@ export function useCanvasCamera(): UseCanvasCameraResult {
   const cancelActivePan = useCallback(() => {
     const pan = panRef.current;
     panRef.current = null;
+    overlayTapRef.current = null;
     document.body.removeAttribute("data-4663-panning");
     suppressEmptyCanvasClick = false;
     if (!pan?.captureEl) return;
@@ -159,15 +177,29 @@ export function useCanvasCamera(): UseCanvasCameraResult {
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
+      const overlayTap = overlayTapRef.current;
+      if (overlayTap && event.pointerId === overlayTap.pointerId) {
+        return;
+      }
+
       const pan = panRef.current;
       if (!pan || event.pointerId !== pan.pointerId) return;
       const dx = event.clientX - pan.startX;
       const dy = event.clientY - pan.startY;
       if (!pan.active) {
-        if (Math.hypot(dx, dy) < panDragThresholdPx(pan.pointerType)) return;
+        if (!shouldPromoteCanvasPan(pan, event.clientX, event.clientY)) return;
         pan.active = true;
         suppressEmptyCanvasClick = true;
         document.body.setAttribute("data-4663-panning", "true");
+        // Claim the pointer only after this is a pan — capturing on pointerdown
+        // prevents Safari from synthesizing clicks on overlay controls.
+        if (pan.captureEl) {
+          try {
+            pan.captureEl.setPointerCapture(pan.pointerId);
+          } catch {
+            // ignore
+          }
+        }
 
         // First real pan: leave fitted landing scale; keep viewport-center world point.
         if (normalizeCameraScale(pan.origin.scale) < 1) {
@@ -188,9 +220,30 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     };
 
     const endPan = (event: PointerEvent) => {
+      const overlayTap = overlayTapRef.current;
+      if (overlayTap && event.pointerId === overlayTap.pointerId) {
+        overlayTapRef.current = null;
+        const moved = canvasPanMovementPx(overlayTap, event.clientX, event.clientY);
+        if (
+          event.type !== "pointercancel" &&
+          shouldActivateOverlayTargetOnRelease({
+            overlayElement: overlayTap.element,
+            pointerMovedPx: moved,
+            pointerType: overlayTap.pointerType,
+            eventTarget: event.target,
+          })
+        ) {
+          activateOverlayInteractiveTarget(overlayTap.element);
+        }
+        window.setTimeout(() => {
+          suppressEmptyCanvasClick = false;
+        }, 0);
+        return;
+      }
+
       const pan = panRef.current;
       if (!pan || event.pointerId !== pan.pointerId) return;
-      const wasActivePan = pan.active;
+      const wasActivePan = canvasPanHasClaimedPointer(pan);
       panRef.current = null;
       document.body.removeAttribute("data-4663-panning");
       if (pan.captureEl) {
@@ -213,8 +266,7 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       if (event.type === "pointercancel") return;
 
       // Tap / sub-threshold drag: open create menu explicitly.
-      // Viewport pointer capture retargets events away from empty-hit, so the
-      // empty-hit onClick often never fires after the world/camera refactor.
+      // Empty-hit onClick often never fires after the world/camera refactor.
       dispatchEmptyCanvasClick(
         new MouseEvent("click", {
           clientX: event.clientX,
@@ -248,25 +300,49 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     if (!event.isPrimary) return;
     if (event.button !== 0) return;
     if (createUiBlocksPan) return;
-    // Empty canvas only — objects / DRAW / TEXT / chrome are not pan hit targets.
-    if (!isCanvasPanHitTarget(event.target)) return;
+
+    const overlayInteractive = overlayInteractiveTargetFromPoint(
+      event.clientX,
+      event.clientY,
+      typeof document !== "undefined" ? document : null,
+    );
+    if (overlayInteractive) {
+      overlayTapRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        pointerType: event.pointerType || "mouse",
+        element: overlayInteractive,
+      };
+      suppressEmptyCanvasClick = true;
+      return;
+    }
+
+    if (
+      !shouldTrackCanvasPan({
+        isPrimary: event.isPrimary,
+        button: event.button,
+        createUiBlocksPan,
+        target: event.target,
+        overlayInteractive,
+      })
+    ) {
+      return;
+    }
     // One pan at a time.
     if (panRef.current) return;
 
-    panRef.current = {
+    const gesture = createCanvasPanGesture({
       pointerId: event.pointerId,
       pointerType: event.pointerType || "mouse",
-      startX: event.clientX,
-      startY: event.clientY,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+    panRef.current = {
+      ...gesture,
       origin: { ...cameraRef.current },
-      active: false,
       captureEl: event.currentTarget,
     };
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // ignore
-    }
   };
 
   return {

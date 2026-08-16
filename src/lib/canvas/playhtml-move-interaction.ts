@@ -9,7 +9,7 @@
  * pointerdown. This module closes that hole without changing PlayHTML data.
  */
 
-import { INTERACTIVE_CONTROL_SELECTOR } from "@/lib/canvas/interactive-control";
+import { isInteractiveCanvasTarget } from "@/lib/canvas/interactive-control";
 
 /** Session-only; competes with sibling hosts inside the same stacking context. */
 export const PLAYHTML_MOVE_FOREGROUND_Z_INDEX = 50 as const;
@@ -22,14 +22,7 @@ export const PLAYHTML_MOVE_HIT_ATTR = "data-4663-playhtml-move-hit" as const;
 export function shouldBeginPlayhtmlMoveForeground(
   target: EventTarget | null,
 ): boolean {
-  if (target == null || typeof target !== "object") return true;
-  if (
-    !("closest" in target) ||
-    typeof (target as Element).closest !== "function"
-  ) {
-    return true;
-  }
-  return !(target as Element).closest(INTERACTIVE_CONTROL_SELECTOR);
+  return !isInteractiveCanvasTarget(target);
 }
 
 export function applyPlayhtmlMoveForeground(element: HTMLElement): void {

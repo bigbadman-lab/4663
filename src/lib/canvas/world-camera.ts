@@ -3,7 +3,7 @@
  * Camera is never networked. World dimensions are fixed for all clients.
  */
 
-import { INTERACTIVE_CONTROL_SELECTOR } from "@/lib/canvas/interactive-control";
+import { isInteractiveCanvasTarget } from "@/lib/canvas/interactive-control";
 
 export const WORLD_WIDTH_PX = 4800 as const;
 export const WORLD_HEIGHT_PX = 3200 as const;
@@ -497,8 +497,8 @@ export function isCanvasPanHitTarget(target: EventTarget | null): boolean {
     return false;
   }
   const el = target as Element;
-  // Nested interactive controls inside movable objects never start camera pan.
-  if (el.closest(INTERACTIVE_CONTROL_SELECTOR)) return false;
+  // Buttons / links / inputs / explicit 4663 controls never start camera pan.
+  if (isInteractiveCanvasTarget(el)) return false;
   return Boolean(
     el.closest("[data-4663-canvas-empty-hit],[data-4663-world-pan-hit]"),
   );

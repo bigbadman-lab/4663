@@ -244,7 +244,7 @@ describe("Stage IC2 world-aware TEXT + DRAW placement", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("event.isPrimary"));
     assert.equal(cam.includes("isDesktopPointer"), false);
-    assert.ok(cam.includes("panDragThresholdPx"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
   });
 
   it("16. no camera/network synchronization introduced", () => {

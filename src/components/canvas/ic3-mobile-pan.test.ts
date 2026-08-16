@@ -33,12 +33,21 @@ describe("Stage IC3 mobile pan + touch gesture ownership", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.equal(cam.includes("isDesktopPointer"), false);
     assert.equal(cam.includes("(hover: hover) and (pointer: fine)"), false);
-    assert.ok(cam.includes("isCanvasPanHitTarget"));
+    assert.ok(cam.includes("shouldTrackCanvasPan"));
     assert.ok(cam.includes("event.isPrimary"));
-    assert.ok(cam.includes("panDragThresholdPx"));
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
     // Same Pointer Events model for mouse + touch.
     assert.ok(cam.includes("onViewportPointerDown"));
     assert.ok(cam.includes("setPointerCapture"));
+    const downIdx = cam.indexOf("const onViewportPointerDown");
+    const downFn = cam.slice(downIdx);
+    assert.equal(downFn.includes("setPointerCapture"), false);
+    const activeIdx = cam.indexOf("pan.active = true");
+    const captureIdx = cam.indexOf("setPointerCapture", activeIdx);
+    assert.ok(captureIdx > activeIdx);
+    assert.ok(cam.includes("shouldPromoteCanvasPan"));
+    assert.ok(cam.includes("overlayInteractiveTargetFromPoint"));
+    assert.equal(cam.includes("preventDefault"), false);
   });
 
   it("3–5. tap vs pan thresholds; camera bounds", () => {
@@ -65,7 +74,7 @@ describe("Stage IC3 mobile pan + touch gesture ownership", () => {
 
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("createUiBlocksPan"));
-    assert.ok(cam.includes("isCanvasPanHitTarget(event.target)"));
+    assert.ok(cam.includes("shouldTrackCanvasPan"));
 
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.ok(surface.includes("touch-none"));

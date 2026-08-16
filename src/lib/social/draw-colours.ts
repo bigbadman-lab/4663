@@ -1,5 +1,5 @@
 /**
- * Shared DRAW / BRUSH colour palette.
+ * Canonical DRAW / BRUSH / hero H1 colour palette.
  * Stored stroke colour is the hex `value`; ids/labels are UI-only.
  * Expanding this list must keep every previously persisted hex valid.
  */
@@ -31,7 +31,7 @@ export type DrawColourId = (typeof DRAW_COLOURS)[number]["id"];
 
 export type DrawingColour = (typeof DRAW_COLOURS)[number]["value"];
 
-/** Hex values in display order — OBJECT and BRUSH both consume this. */
+/** Hex values in display order — OBJECT, BRUSH, and hero H1 all consume this. */
 export const DRAWING_COLOUR_PALETTE: readonly DrawingColour[] =
   DRAW_COLOURS.map((c) => c.value);
 
