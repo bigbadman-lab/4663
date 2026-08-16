@@ -75,6 +75,7 @@ describe("IC3.6 shared interactive-control mechanism", () => {
       "src/components/canvas/pinned-pons-object.tsx",
       "src/components/social/ephemeral-drawing-object.tsx",
       "src/components/canvas/radar-alert-object.tsx",
+      "src/components/social/canvas-link-object.tsx",
     ];
     for (const file of files) {
       assert.ok(readSrc(file).includes(hook), `${file} should use ${hook}`);

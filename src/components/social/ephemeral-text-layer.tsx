@@ -2,11 +2,13 @@
 
 /**
  * Social 2A published TEXT + Social 2B live typing + Social 3A ephemeral DRAW
- * + Social 3B world BRUSH + Social 6 MARK create entry (durable marks; not session-ephemeral).
+ * + Social 3B world BRUSH + Social 6 MARK create entry (durable marks; not session-ephemeral)
+ * + LINK objects (PlayHTML page data snapshots).
  *
  * Published TEXT: PlayHTML usePageData("4663-ephemeral-texts")
  * Published DRAW: PlayHTML usePageData("4663-ephemeral-drawings")
  * Published BRUSH: PlayHTML usePageData("4663-ephemeral-brush-strokes")
+ * Published LINK: PlayHTML usePageData("4663-canvas-links")
  * Live drafts (text + drawing + brush): Supabase Broadcast on 4663-social-broadcast
  * MARK: Postgres via /api/social/marks (survives LEAVE/RESET/Presence loss)
  */
@@ -20,6 +22,8 @@ import {
 import { BrushSessionOverlay } from "@/components/social/brush-session-overlay";
 import { CanvasCreateMenu } from "@/components/social/canvas-create-menu";
 import { CanvasDrawModeChooser } from "@/components/social/canvas-draw-mode-chooser";
+import { CanvasLinkComposer } from "@/components/social/canvas-link-composer";
+import { CanvasLinkObjectView } from "@/components/social/canvas-link-object";
 import { CanvasMarkObject } from "@/components/social/canvas-mark-object";
 import { DrawingSessionEditor } from "@/components/social/drawing-session-editor";
 import { EphemeralBrushLayer } from "@/components/social/ephemeral-brush-layer";
@@ -31,6 +35,22 @@ import { LiveDrawingDraftView } from "@/components/social/live-drawing-draft";
 import { LiveTextDraftView } from "@/components/social/live-text-draft";
 import { MarkComposer } from "@/components/social/mark-composer";
 import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
+import { beginLinkIfNamed } from "@/lib/social/canvas-link-actions";
+import {
+  CANVAS_LINK_LIMIT_MESSAGE,
+  CANVAS_LINKS_PAGE_DATA_NAME,
+  canPlaceCanvasLink,
+  commitCanvasLinkPublish,
+  createCanvasLinkObject,
+  EMPTY_CANVAS_LINKS_PAGE_DATA,
+  isPlayhtmlPageDataWritable,
+  normalizeCanvasLinksPageData,
+  removeCanvasLink,
+  removeCanvasLinksByOwner,
+  retainCanvasLinksForPresentOwners,
+  type CanvasLinksPageData,
+} from "@/lib/social/canvas-link";
+import type { LinkPreview } from "@/lib/social/link-preview";
 import { validateMarkBody, MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { useCanvasMarks } from "@/lib/social/use-canvas-marks";
 import {
@@ -167,6 +187,11 @@ type CreateUi =
       toolsTopPct: number;
     }
   | {
+      mode: "link";
+      leftPct: number;
+      topPct: number;
+    }
+  | {
       mode: "mark";
       leftPct: number;
       topPct: number;
@@ -191,6 +216,10 @@ export function EphemeralTextLayer() {
   const [brushPageData, setBrushPageData] = usePageData<EphemeralBrushPageData>(
     EPHEMERAL_BRUSH_PAGE_DATA_NAME,
     EMPTY_EPHEMERAL_BRUSH_PAGE_DATA,
+  );
+  const [linksPageData, setLinksPageData] = usePageData<CanvasLinksPageData>(
+    CANVAS_LINKS_PAGE_DATA_NAME,
+    EMPTY_CANVAS_LINKS_PAGE_DATA,
   );
   const { isLoading: playhtmlLoading, isProviderMissing } = usePlayContext();
   const [createUi, setCreateUi] = useState<CreateUi>(null);
@@ -217,8 +246,18 @@ export function EphemeralTextLayer() {
   brushPageDataRef.current = brushPageData;
   setBrushPageDataRef.current = setBrushPageData;
 
+  const linksPageDataRef = useRef(linksPageData);
+  const setLinksPageDataRef = useRef(setLinksPageData);
+  linksPageDataRef.current = linksPageData;
+  setLinksPageDataRef.current = setLinksPageData;
+
   const brushPageDataReadyRef = useRef(false);
   brushPageDataReadyRef.current = isBrushPageDataWritable({
+    isLoading: playhtmlLoading,
+    isProviderMissing,
+  });
+  const linksPageDataReadyRef = useRef(false);
+  linksPageDataReadyRef.current = isPlayhtmlPageDataWritable({
     isLoading: playhtmlLoading,
     isProviderMissing,
   });
@@ -252,6 +291,7 @@ export function EphemeralTextLayer() {
   const drawings = normalizeEphemeralDrawingsPageData(drawingsPageData).drawings;
   const brushDocuments =
     normalizeEphemeralBrushPageData(brushPageData).documents;
+  const links = normalizeCanvasLinksPageData(linksPageData).links;
 
   const writePageData = (next: EphemeralTextsPageData) => {
     setPageDataRef.current(normalizeEphemeralTextsPageData(next));
@@ -263,6 +303,10 @@ export function EphemeralTextLayer() {
 
   const writeBrushPageData = (next: EphemeralBrushPageData) => {
     setBrushPageDataRef.current(normalizeEphemeralBrushPageData(next));
+  };
+
+  const writeLinksPageData = (next: CanvasLinksPageData) => {
+    setLinksPageDataRef.current(normalizeCanvasLinksPageData(next));
   };
 
   const clearLocalDraftBroadcast = (draftId: string, ownerSessionId: string) => {
@@ -412,6 +456,12 @@ export function EphemeralTextLayer() {
           sessionId,
         ),
       );
+      writeLinksPageData(
+        removeCanvasLinksByOwner(
+          normalizeCanvasLinksPageData(linksPageDataRef.current),
+          sessionId,
+        ),
+      );
       setRemoteDrafts((prev) => removeTextDraftsByOwner(prev, sessionId));
       setRemoteDrawingDrafts((prev) =>
         removeDrawingDraftsByOwner(prev, sessionId),
@@ -471,6 +521,14 @@ export function EphemeralTextLayer() {
       );
       if (next.documents.length !== currentBrush.documents.length) {
         writeBrushPageData(next);
+      }
+    }
+
+    const currentLinks = normalizeCanvasLinksPageData(linksPageDataRef.current);
+    if (currentLinks.links.length > 0) {
+      const next = retainCanvasLinksForPresentOwners(currentLinks, present);
+      if (next.links.length !== currentLinks.links.length) {
+        writeLinksPageData(next);
       }
     }
 
@@ -757,6 +815,43 @@ export function EphemeralTextLayer() {
     writeDrawingsPageData(removeEphemeralDrawing(current, drawingId));
   };
 
+  const onDeleteLink = (linkId: string) => {
+    if (!self) return;
+    const current = normalizeCanvasLinksPageData(linksPageDataRef.current);
+    const target = current.links.find((link) => link.linkId === linkId);
+    if (!target || target.ownerSessionId !== self.sessionId) return;
+    writeLinksPageData(removeCanvasLink(current, linkId));
+  };
+
+  const publishLink = (preview: LinkPreview) => {
+    if (!self) return { ok: false as const, error: "Enter to place a link." };
+    const ui = createUiRef.current;
+    if (ui?.mode !== "link") {
+      return { ok: false as const, error: "Nothing to place." };
+    }
+    const created = createCanvasLinkObject({
+      preview,
+      ownerSessionId: self.sessionId,
+      leftPct: ui.leftPct,
+      topPct: ui.topPct,
+    });
+    if (!created.ok) return created;
+    const committed = commitCanvasLinkPublish({
+      previous: normalizeCanvasLinksPageData(linksPageDataRef.current),
+      link: created.link,
+      ready: linksPageDataReadyRef.current,
+    });
+    if (!committed.ok) {
+      if (committed.reason === "limit") {
+        return { ok: false as const, error: CANVAS_LINK_LIMIT_MESSAGE };
+      }
+      return { ok: false as const, error: "Could not place link." };
+    }
+    writeLinksPageData(committed.pageData);
+    setCreateUi(null);
+    return { ok: true as const };
+  };
+
   const publishMark = async (body: string) => {
     if (!self) return { ok: false as const, error: "Enter to mark." };
     const ui = createUiRef.current;
@@ -959,6 +1054,15 @@ export function EphemeralTextLayer() {
         />
       ))}
 
+      {links.map((link) => (
+        <CanvasLinkObjectView
+          key={link.linkId}
+          link={link}
+          isOwner={self?.sessionId === link.ownerSessionId}
+          onDelete={onDeleteLink}
+        />
+      ))}
+
       {visibleRemoteDrafts.map((draft) => (
         <LiveTextDraftView key={draft.draftId} draft={draft} />
       ))}
@@ -993,6 +1097,20 @@ export function EphemeralTextLayer() {
                 mode: "draw-chooser",
                 leftPct: createUi.leftPct,
                 topPct: createUi.topPct,
+              });
+            }}
+            onChooseLink={() => {
+              beginLinkIfNamed({
+                isNamedParticipant: Boolean(
+                  isParticipatingRef.current && selfRef.current,
+                ),
+                onOpen: () => {
+                  setCreateUi({
+                    mode: "link",
+                    leftPct: createUi.leftPct,
+                    topPct: createUi.topPct,
+                  });
+                },
               });
             }}
             onChooseMark={() => {
@@ -1033,6 +1151,21 @@ export function EphemeralTextLayer() {
             onPublish={publish}
             onCancel={abandonCreate}
             onDraftBodyChange={onDraftBodyChange}
+          />
+        </div>
+      ) : null}
+
+      {createUi?.mode === "link" && self ? (
+        <div className="pointer-events-auto">
+          <CanvasLinkComposer
+            leftPct={createUi.leftPct}
+            topPct={createUi.topPct}
+            canPlace={canPlaceCanvasLink(
+              normalizeCanvasLinksPageData(linksPageData),
+              self.sessionId,
+            )}
+            onPlace={publishLink}
+            onCancel={abandonCreate}
           />
         </div>
       ) : null}

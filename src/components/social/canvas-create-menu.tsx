@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Compact empty-canvas create menu — TEXT + DRAW + MARK.
+ * Compact empty-canvas create menu — TEXT + DRAW + LINK + MARK.
  */
 
 type CanvasCreateMenuProps = {
@@ -10,6 +10,7 @@ type CanvasCreateMenuProps = {
   canMark?: boolean;
   onChooseText: () => void;
   onChooseDraw: () => void;
+  onChooseLink: () => void;
   onChooseMark?: () => void;
   onCancel: () => void;
 };
@@ -20,6 +21,7 @@ export function CanvasCreateMenu({
   canMark = false,
   onChooseText,
   onChooseDraw,
+  onChooseLink,
   onChooseMark,
   onCancel,
 }: CanvasCreateMenuProps) {
@@ -52,6 +54,17 @@ export function CanvasCreateMenu({
           }}
         >
           [ DRAW ]
+        </button>
+        <button
+          type="button"
+          className="text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+          data-4663-canvas-create-link
+          onClick={(event) => {
+            event.stopPropagation();
+            onChooseLink();
+          }}
+        >
+          [ LINK ]
         </button>
         {canMark ? (
           <button
