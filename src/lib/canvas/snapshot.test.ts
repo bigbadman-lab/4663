@@ -19,6 +19,7 @@ import {
 import { formatSnapshotFilename } from "@/lib/canvas/snapshot-filename";
 import {
   attachSnapshotShortcutListener,
+  beginSnapshotIfNamed,
   handleSnapshotShortcutKeyDown,
   isSnapshotSaveShortcut,
   isSnapshotTypingTarget,
@@ -612,6 +613,95 @@ describe("SNAPSHOT keyboard shortcut", () => {
     const unbind = attachSnapshotShortcutListener(target as Window);
     unbind();
     assert.deepEqual(ops, ["add:keydown:true", "remove:keydown:true"]);
+  });
+});
+
+describe("SNAPSHOT named-participant permission", () => {
+  it("named participant begins capture", () => {
+    let captures = 0;
+    let enters = 0;
+    const result = beginSnapshotIfNamed({
+      isNamedParticipant: true,
+      onCapture: () => {
+        captures += 1;
+      },
+      requestEnter: () => {
+        enters += 1;
+      },
+    });
+    assert.equal(result, "capture");
+    assert.equal(captures, 1);
+    assert.equal(enters, 0);
+  });
+
+  it("guest does not begin capture and requests ENTER", () => {
+    let captures = 0;
+    let enters = 0;
+    const result = beginSnapshotIfNamed({
+      isNamedParticipant: false,
+      onCapture: () => {
+        captures += 1;
+      },
+      requestEnter: () => {
+        enters += 1;
+      },
+    });
+    assert.equal(result, "enter");
+    assert.equal(captures, 0);
+    assert.equal(enters, 1);
+  });
+
+  it("guest CMD/CTRL+S cannot bypass — same startCapture gate", () => {
+    let captures = 0;
+    let enters = 0;
+    const event = shortcutEvent({ key: "s", metaKey: true });
+    const handled = handleSnapshotShortcutKeyDown(event, {
+      isMac: true,
+      actions: {
+        startCapture: () => {
+          beginSnapshotIfNamed({
+            isNamedParticipant: false,
+            onCapture: () => {
+              captures += 1;
+            },
+            requestEnter: () => {
+              enters += 1;
+            },
+          });
+        },
+        isBusy: () => false,
+      },
+    });
+    assert.equal(handled, true);
+    assert.equal(event.prevented, true);
+    assert.equal(captures, 0);
+    assert.equal(enters, 1);
+  });
+
+  it("named participant shortcut still captures", () => {
+    let captures = 0;
+    let enters = 0;
+    const event = shortcutEvent({ key: "s", ctrlKey: true });
+    const handled = handleSnapshotShortcutKeyDown(event, {
+      isMac: false,
+      actions: {
+        startCapture: () => {
+          beginSnapshotIfNamed({
+            isNamedParticipant: true,
+            onCapture: () => {
+              captures += 1;
+            },
+            requestEnter: () => {
+              enters += 1;
+            },
+          });
+        },
+        isBusy: () => false,
+      },
+    });
+    assert.equal(handled, true);
+    assert.equal(captures, 1);
+    assert.equal(enters, 0);
   });
 });
 

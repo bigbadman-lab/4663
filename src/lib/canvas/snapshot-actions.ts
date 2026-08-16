@@ -3,10 +3,29 @@
  * Do not duplicate capture orchestration here.
  */
 
+import { requestParticipationEnter } from "@/lib/social/request-participation-enter";
+
 export type SnapshotActions = {
   startCapture: () => void;
   isBusy: () => boolean;
 };
+
+/**
+ * Shared SNAPSHOT permission: named participants capture; guests open ENTER.
+ * Dock and CMD/CTRL+S must both go through startCapture which uses this.
+ */
+export function beginSnapshotIfNamed(input: {
+  isNamedParticipant: boolean;
+  onCapture: () => void;
+  requestEnter?: () => void;
+}): "capture" | "enter" {
+  if (!input.isNamedParticipant) {
+    (input.requestEnter ?? requestParticipationEnter)();
+    return "enter";
+  }
+  input.onCapture();
+  return "capture";
+}
 
 export type SnapshotShortcutKeyEvent = {
   key: string;

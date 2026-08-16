@@ -25,11 +25,36 @@ describe("SNAPSHOT control + preview wiring", () => {
     assert.ok(palette.includes("getSnapshotActions()?.startCapture()"));
     const layer = readSrc("src/components/social/canvas-snapshot-layer.tsx");
     assert.ok(layer.includes("registerSnapshotActions"));
+    assert.ok(layer.includes("beginSnapshotIfNamed"));
     assert.ok(layer.includes("captureVisibleCanvasViewport"));
     const actions = readSrc("src/lib/canvas/snapshot-actions.ts");
     assert.ok(actions.includes("attachSnapshotShortcutListener"));
     assert.ok(actions.includes("handleSnapshotShortcutKeyDown"));
     assert.ok(actions.includes("actions.startCapture()"));
+    assert.ok(actions.includes("beginSnapshotIfNamed"));
+    assert.ok(actions.includes("requestParticipationEnter"));
+  });
+
+  it("1b. guest SNAPSHOT requests ENTER and does not capture", () => {
+    const layer = readSrc("src/components/social/canvas-snapshot-layer.tsx");
+    assert.ok(layer.includes("beginSnapshotIfNamed"));
+    assert.ok(layer.includes("isParticipating && self"));
+    assert.ok(layer.includes("captureViewport"));
+    const start = layer.slice(
+      layer.indexOf("const startCapture"),
+      layer.indexOf("return registerSnapshotActions"),
+    );
+    assert.ok(start.includes("beginSnapshotIfNamed"));
+    assert.equal(start.includes("captureVisibleCanvasViewport"), false);
+    const capture = layer.slice(
+      layer.indexOf("const captureViewport"),
+      layer.indexOf("const startCapture"),
+    );
+    assert.ok(capture.includes("captureVisibleCanvasViewport"));
+    const palette = readSrc("src/components/canvas/canvas-control-palette.tsx");
+    assert.ok(palette.includes("getSnapshotActions()?.startCapture()"));
+    assert.equal(palette.includes("requestParticipationEnter"), false);
+    assert.equal(palette.includes("isParticipating"), false);
   });
 
   it("2. capture targets canvas world viewport, not app chrome", () => {
@@ -70,6 +95,10 @@ describe("SNAPSHOT control + preview wiring", () => {
     assert.ok(preview.includes("data-4663-snapshot-download"));
     assert.ok(preview.includes("data-4663-snapshot-place"));
     assert.ok(preview.includes("data-4663-snapshot-cancel"));
+    const layer = readSrc("src/components/social/canvas-snapshot-layer.tsx");
+    assert.ok(layer.includes("if (!self)"));
+    assert.ok(layer.includes("Enter to place on the canvas."));
+    assert.ok(layer.includes("canPlace={!!self}"));
   });
 
   it("5. CANCEL does not write a canvas object", () => {

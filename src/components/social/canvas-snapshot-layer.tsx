@@ -14,7 +14,10 @@ import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camer
 import { captureVisibleCanvasViewport } from "@/lib/canvas/snapshot-capture";
 import { downloadSnapshotBlob } from "@/lib/canvas/snapshot-download";
 import { formatSnapshotFilename } from "@/lib/canvas/snapshot-filename";
-import { registerSnapshotActions } from "@/lib/canvas/snapshot-actions";
+import {
+  beginSnapshotIfNamed,
+  registerSnapshotActions,
+} from "@/lib/canvas/snapshot-actions";
 import { CHAIN_ID } from "@/lib/pons/constants";
 import {
   CANVAS_SNAPSHOTS_PAGE_DATA_NAME,
@@ -45,7 +48,8 @@ type PreviewState = {
 
 export function CanvasSnapshotLayer() {
   const { isLoading, isProviderMissing } = usePlayContext();
-  const { self, participants, status } = useParticipation();
+  const { self, isParticipating, participants, status } =
+    useParticipation();
   const [pageData, setPageData] = usePageData<CanvasSnapshotsPageData>(
     CANVAS_SNAPSHOTS_PAGE_DATA_NAME,
     EMPTY_CANVAS_SNAPSHOTS_PAGE_DATA,
@@ -89,7 +93,7 @@ export function CanvasSnapshotLayer() {
     placingRef.current = false;
   }, []);
 
-  const startCapture = useCallback(async () => {
+  const captureViewport = useCallback(async () => {
     if (capturingRef.current || placingRef.current) return;
     if (previewRef.current) return;
     capturingRef.current = true;
@@ -111,11 +115,18 @@ export function CanvasSnapshotLayer() {
     setPreview(next);
   }, []);
 
+  const startCapture = useCallback(() => {
+    beginSnapshotIfNamed({
+      isNamedParticipant: Boolean(isParticipating && self),
+      onCapture: () => {
+        void captureViewport();
+      },
+    });
+  }, [captureViewport, isParticipating, self]);
+
   useEffect(() => {
     return registerSnapshotActions({
-      startCapture: () => {
-        void startCapture();
-      },
+      startCapture,
       isBusy: () =>
         capturingRef.current ||
         placingRef.current ||
