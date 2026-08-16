@@ -1,5 +1,5 @@
 /**
- * Lab-only module catalogue. NOTE is the sole V1 entry.
+ * Lab-only module catalogue.
  */
 
 import type { ModuleDefinition, ModuleId } from "@/lib/modules/types";
@@ -12,8 +12,17 @@ export const NOTE_MODULE: ModuleDefinition = {
   multipleInstances: true,
 };
 
+export const CHECKLIST_MODULE: ModuleDefinition = {
+  id: "checklist",
+  displayName: "CHECKLIST",
+  category: "organise",
+  tier: "free",
+  multipleInstances: true,
+};
+
 export const MODULE_LAB_MODULES: readonly ModuleDefinition[] = [
   NOTE_MODULE,
+  CHECKLIST_MODULE,
 ];
 
 const BY_ID: ReadonlyMap<ModuleId, ModuleDefinition> = new Map(
@@ -23,7 +32,7 @@ const BY_ID: ReadonlyMap<ModuleId, ModuleDefinition> = new Map(
 export function getModuleDefinition(
   id: string,
 ): ModuleDefinition | null {
-  if (id !== "note") return null;
+  if (id !== "note" && id !== "checklist") return null;
   return BY_ID.get(id) ?? null;
 }
 

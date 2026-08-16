@@ -46,9 +46,7 @@ export function ModuleLabDock({ onHome, onReset }: ModuleLabDockProps) {
                 className="min-h-11 touch-manipulation text-neutral-600 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
                 data-4663-module-lab-install={definition.id}
                 onClick={() => {
-                  if (definition.id === "note") {
-                    getModuleLabActions()?.createNote();
-                  }
+                  getModuleLabActions().create(definition.id);
                   setPickerOpen(false);
                 }}
               >

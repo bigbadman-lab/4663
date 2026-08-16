@@ -22,6 +22,7 @@ import {
   removeNoteInstance,
   resetModuleLabNotesPageData,
   updateNoteContent,
+  updateNoteColor,
   updateNoteSize,
   type ModuleLabNotesPageData,
 } from "@/modules/create/note/note-state";
@@ -47,7 +48,8 @@ export function NoteLayer() {
 
   useEffect(() => {
     return registerModuleLabActions({
-      createNote: () => {
+      create: (moduleId) => {
+        if (moduleId !== "note") return;
         if (!writableRef.current) return;
         const latest = normalizeModuleLabNotesPageData(pageDataRef.current);
         if (!canCreateNoteInstance(latest)) return;
@@ -84,6 +86,13 @@ export function NoteLayer() {
             if (!writable) return;
             const latest = normalizeModuleLabNotesPageData(pageDataRef.current);
             const next = updateNoteContent(latest, noteId, content);
+            pageDataRef.current = next;
+            setPageData(next);
+          }}
+          onColorChange={(noteId, color) => {
+            if (!writable) return;
+            const latest = normalizeModuleLabNotesPageData(pageDataRef.current);
+            const next = updateNoteColor(latest, noteId, color);
             pageDataRef.current = next;
             setPageData(next);
           }}

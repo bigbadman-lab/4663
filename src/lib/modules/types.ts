@@ -3,9 +3,9 @@
  * Metadata only — no billing, permissions, workers, or plugin loading.
  */
 
-export type ModuleId = "note";
+export type ModuleId = "note" | "checklist";
 
-export type ModuleCategory = "create";
+export type ModuleCategory = "create" | "organise";
 
 export type ModuleTier = "free" | "pro";
 

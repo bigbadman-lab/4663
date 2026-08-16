@@ -1,23 +1,40 @@
 /**
- * Module Lab action bridge — dock + NOTE layer, isolated from homepage create.
+ * Module Lab action bridge — dock create/reset, fan-out to mounted module layers.
+ * Isolated from homepage create/RESET.
  */
 
-export type ModuleLabActions = {
-  createNote: () => void;
-  reset: () => void;
+import type { ModuleId } from "@/lib/modules/types";
+
+export type ModuleLabActionHandlers = {
+  create?: (moduleId: ModuleId) => void;
+  reset?: () => void;
 };
 
-let registered: ModuleLabActions | null = null;
+const handlers = new Set<ModuleLabActionHandlers>();
 
 export function registerModuleLabActions(
-  actions: ModuleLabActions,
+  slot: ModuleLabActionHandlers,
 ): () => void {
-  registered = actions;
+  handlers.add(slot);
   return () => {
-    if (registered === actions) registered = null;
+    handlers.delete(slot);
   };
 }
 
-export function getModuleLabActions(): ModuleLabActions | null {
-  return registered;
+export function getModuleLabActions(): {
+  create: (moduleId: ModuleId) => void;
+  reset: () => void;
+} {
+  return {
+    create(moduleId) {
+      for (const slot of handlers) {
+        slot.create?.(moduleId);
+      }
+    },
+    reset() {
+      for (const slot of handlers) {
+        slot.reset?.();
+      }
+    },
+  };
 }

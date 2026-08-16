@@ -14,6 +14,7 @@ import {
   WORLD_WIDTH_PX,
 } from "@/lib/canvas/world-camera";
 import { NoteLayer } from "@/modules/create/note/note-layer";
+import { ChecklistLayer } from "@/modules/organise/checklist/checklist-layer";
 
 export function ModuleLabSurface() {
   const { worldRef, viewportRef, goHome, onViewportPointerDown } =
@@ -50,12 +51,13 @@ export function ModuleLabSurface() {
             aria-hidden
           />
           <NoteLayer />
+          <ChecklistLayer />
         </div>
       </div>
       <ModuleLabDock
         onHome={goHome}
         onReset={() => {
-          getModuleLabActions()?.reset();
+          getModuleLabActions().reset();
           goHome();
         }}
       />

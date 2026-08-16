@@ -3,12 +3,20 @@
  * PlayHTML page-data only. Not a production canvas model.
  */
 
+import { WORLD_HEIGHT_PX, WORLD_WIDTH_PX, type WorldPct } from "@/lib/canvas/world-camera";
 import {
-  clampWorldPct,
-  WORLD_HEIGHT_PX,
-  WORLD_WIDTH_PX,
-  type WorldPct,
-} from "@/lib/canvas/world-camera";
+  DEFAULT_LAB_OBJECT_COLOR,
+  normalizeLabObjectColor,
+  type LabObjectColor,
+} from "@/lib/modules/lab-object-color";
+import {
+  applyLabObjectResize,
+  clampLabObjectSize,
+  frameFromCenterPct,
+  nextLabSpawnPct,
+  worldDeltaToLabSizePct,
+  type LabObjectSizeLimits,
+} from "@/lib/modules/lab-object-size";
 import { isUuid, normalizeSessionId } from "@/lib/presence/session-id";
 
 export const NOTE_MODULE_ID = "note" as const;
@@ -31,6 +39,15 @@ export const NOTE_HEIGHT_PCT_MIN = (96 / WORLD_HEIGHT_PX) * 100;
 export const NOTE_WIDTH_PCT_MAX = (960 / WORLD_WIDTH_PX) * 100;
 export const NOTE_HEIGHT_PCT_MAX = (800 / WORLD_HEIGHT_PX) * 100;
 
+export const NOTE_SIZE_LIMITS: LabObjectSizeLimits = {
+  widthPctMin: NOTE_WIDTH_PCT_MIN,
+  heightPctMin: NOTE_HEIGHT_PCT_MIN,
+  widthPctMax: NOTE_WIDTH_PCT_MAX,
+  heightPctMax: NOTE_HEIGHT_PCT_MAX,
+  widthPctDefault: NOTE_WIDTH_PCT_DEFAULT,
+  heightPctDefault: NOTE_HEIGHT_PCT_DEFAULT,
+};
+
 export type NoteInstance = {
   id: string;
   moduleId: typeof NOTE_MODULE_ID;
@@ -39,6 +56,7 @@ export type NoteInstance = {
   widthPct: number;
   heightPct: number;
   content: string;
+  color: LabObjectColor;
 };
 
 export type NoteSize = {
@@ -75,39 +93,22 @@ function isFinitePct(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function clampNoteOriginPct(value: number): number {
-  if (!Number.isFinite(value)) return 50;
-  return Math.min(100, Math.max(0, value));
+function defaultNoteSizeForOrigin(leftPct: number, topPct: number): NoteSize {
+  return clampNoteSize({
+    widthPct: NOTE_WIDTH_PCT_DEFAULT,
+    heightPct: NOTE_HEIGHT_PCT_DEFAULT,
+    originLeftPct: leftPct,
+    originTopPct: topPct,
+  });
 }
 
-/**
- * Size against a top-left origin: min/max plus remaining world room.
- * If remaining room is below min, prefer staying in-bounds.
- */
 export function clampNoteSize(input: {
   widthPct: number;
   heightPct: number;
   originLeftPct: number;
   originTopPct: number;
 }): NoteSize {
-  const originLeftPct = clampNoteOriginPct(input.originLeftPct);
-  const originTopPct = clampNoteOriginPct(input.originTopPct);
-  const roomW = Math.max(0, 100 - originLeftPct);
-  const roomH = Math.max(0, 100 - originTopPct);
-  const maxW = Math.min(NOTE_WIDTH_PCT_MAX, roomW);
-  const maxH = Math.min(NOTE_HEIGHT_PCT_MAX, roomH);
-  const minW = Math.min(NOTE_WIDTH_PCT_MIN, maxW);
-  const minH = Math.min(NOTE_HEIGHT_PCT_MIN, maxH);
-  const widthPct = Number.isFinite(input.widthPct)
-    ? input.widthPct
-    : NOTE_WIDTH_PCT_DEFAULT;
-  const heightPct = Number.isFinite(input.heightPct)
-    ? input.heightPct
-    : NOTE_HEIGHT_PCT_DEFAULT;
-  return {
-    widthPct: Math.min(maxW, Math.max(minW, widthPct)),
-    heightPct: Math.min(maxH, Math.max(minH, heightPct)),
-  };
+  return clampLabObjectSize({ ...input, limits: NOTE_SIZE_LIMITS });
 }
 
 /** Pointer world-px delta → independent width/height % (no aspect lock). */
@@ -115,10 +116,7 @@ export function worldDeltaToNoteSizePct(
   deltaWorldX: number,
   deltaWorldY: number,
 ): { deltaWidthPct: number; deltaHeightPct: number } {
-  return {
-    deltaWidthPct: (deltaWorldX / WORLD_WIDTH_PX) * 100,
-    deltaHeightPct: (deltaWorldY / WORLD_HEIGHT_PX) * 100,
-  };
+  return worldDeltaToLabSizePct(deltaWorldX, deltaWorldY);
 }
 
 export function applyNoteResize(input: {
@@ -129,60 +127,7 @@ export function applyNoteResize(input: {
   deltaWidthPct: number;
   deltaHeightPct: number;
 }): NoteSize {
-  const dW = Number.isFinite(input.deltaWidthPct) ? input.deltaWidthPct : 0;
-  const dH = Number.isFinite(input.deltaHeightPct) ? input.deltaHeightPct : 0;
-  return clampNoteSize({
-    widthPct: input.widthPct + dW,
-    heightPct: input.heightPct + dH,
-    originLeftPct: input.originLeftPct,
-    originTopPct: input.originTopPct,
-  });
-}
-
-function defaultNoteSizeForOrigin(
-  leftPct: number,
-  topPct: number,
-): NoteSize {
-  return clampNoteSize({
-    widthPct: NOTE_WIDTH_PCT_DEFAULT,
-    heightPct: NOTE_HEIGHT_PCT_DEFAULT,
-    originLeftPct: leftPct,
-    originTopPct: topPct,
-  });
-}
-
-function fitNoteFrame(input: {
-  leftPct: number;
-  topPct: number;
-  widthPct: number;
-  heightPct: number;
-}): {
-  leftPct: number;
-  topPct: number;
-  widthPct: number;
-  heightPct: number;
-} {
-  const size = clampNoteSize({
-    widthPct: input.widthPct,
-    heightPct: input.heightPct,
-    originLeftPct: 0,
-    originTopPct: 0,
-  });
-  let leftPct = clampNoteOriginPct(input.leftPct);
-  let topPct = clampNoteOriginPct(input.topPct);
-  if (leftPct + size.widthPct > 100) {
-    leftPct = Math.max(0, 100 - size.widthPct);
-  }
-  if (topPct + size.heightPct > 100) {
-    topPct = Math.max(0, 100 - size.heightPct);
-  }
-  const fitted = clampNoteSize({
-    widthPct: size.widthPct,
-    heightPct: size.heightPct,
-    originLeftPct: leftPct,
-    originTopPct: topPct,
-  });
-  return { leftPct, topPct, ...fitted };
+  return applyLabObjectResize({ ...input, limits: NOTE_SIZE_LIMITS });
 }
 
 export function normalizeNoteInstance(raw: unknown): NoteInstance | null {
@@ -216,6 +161,7 @@ export function normalizeNoteInstance(raw: unknown): NoteInstance | null {
     widthPct: size.widthPct,
     heightPct: size.heightPct,
     content: validateNoteContent(record.content),
+    color: normalizeLabObjectColor(record.color),
   };
 }
 
@@ -254,14 +200,10 @@ export function createNoteInstance(
   input: CreateNoteInstanceInput,
 ): NoteInstance {
   const randomUUID = input.randomUUID ?? (() => crypto.randomUUID());
-  const size = defaultNoteSizeForOrigin(0, 0);
-  const centerLeft = clampWorldPct(input.leftPct);
-  const centerTop = clampWorldPct(input.topPct);
-  const frame = fitNoteFrame({
-    leftPct: centerLeft - size.widthPct / 2,
-    topPct: centerTop - size.heightPct / 2,
-    widthPct: size.widthPct,
-    heightPct: size.heightPct,
+  const frame = frameFromCenterPct({
+    leftPct: input.leftPct,
+    topPct: input.topPct,
+    limits: NOTE_SIZE_LIMITS,
   });
   return {
     id: normalizeSessionId(randomUUID()),
@@ -271,6 +213,7 @@ export function createNoteInstance(
     widthPct: frame.widthPct,
     heightPct: frame.heightPct,
     content: validateNoteContent(input.content ?? ""),
+    color: DEFAULT_LAB_OBJECT_COLOR,
   };
 }
 
@@ -300,6 +243,23 @@ export function updateNoteContent(
     if (note.content === nextContent) return note;
     changed = true;
     return { ...note, content: nextContent };
+  });
+  return changed ? { notes } : data;
+}
+
+export function updateNoteColor(
+  data: ModuleLabNotesPageData,
+  noteId: string,
+  color: LabObjectColor,
+): ModuleLabNotesPageData {
+  const id = noteId.trim().toLowerCase();
+  const nextColor = normalizeLabObjectColor(color);
+  let changed = false;
+  const notes = data.notes.map((note) => {
+    if (note.id !== id) return note;
+    if (note.color === nextColor) return note;
+    changed = true;
+    return { ...note, color: nextColor };
   });
   return changed ? { notes } : data;
 }
@@ -352,11 +312,10 @@ export function nextNoteSpawnPct(
   existingCount: number,
   base: WorldPct,
 ): WorldPct {
-  const n = Math.max(0, Math.floor(existingCount));
-  const col = n % NOTE_SPAWN_GRID;
-  const row = Math.floor(n / NOTE_SPAWN_GRID) % NOTE_SPAWN_GRID;
-  return {
-    leftPct: clampWorldPct(base.leftPct + col * NOTE_SPAWN_OFFSET_PCT),
-    topPct: clampWorldPct(base.topPct + row * NOTE_SPAWN_OFFSET_PCT),
-  };
+  return nextLabSpawnPct(
+    existingCount,
+    base,
+    NOTE_SPAWN_OFFSET_PCT,
+    NOTE_SPAWN_GRID,
+  );
 }

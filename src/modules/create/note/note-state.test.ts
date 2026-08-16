@@ -27,6 +27,7 @@ import {
   removeNoteInstance,
   resetModuleLabNotesPageData,
   updateNoteContent,
+  updateNoteColor,
   updateNoteSize,
   validateNoteContent,
   worldDeltaToNoteSizePct,
@@ -58,6 +59,8 @@ describe("NOTE instance helpers", () => {
     assert.equal(a.content, "");
     assert.equal(a.widthPct, NOTE_WIDTH_PCT_DEFAULT);
     assert.equal(a.heightPct, NOTE_HEIGHT_PCT_DEFAULT);
+    assert.equal(a.color, "bone");
+    assert.equal(b.color, "bone");
     assert.notEqual(a.leftPct, b.leftPct);
     assert.ok(a.widthPct > 0);
     assert.ok(a.heightPct > 0);
@@ -208,6 +211,7 @@ describe("NOTE instance helpers", () => {
     assert.equal(legacy.leftPct, 40);
     assert.equal(legacy.topPct, 41);
     assert.equal(legacy.content, "keep me");
+    assert.equal(legacy.color, "bone");
   });
 
   it("clamps resize to min, max, and remaining world room", () => {
@@ -288,5 +292,62 @@ describe("NOTE instance helpers", () => {
     assert.equal(next.notes[1]!.heightPct, b.heightPct);
     assert.equal(next.notes[1]!.content, "two");
     assert.equal(start.notes[0]!.widthPct, a.widthPct);
+  });
+
+  it("assigns default colour to new notes and normalizes legacy / invalid colour", () => {
+    const created = createNoteInstance({
+      leftPct: 20,
+      topPct: 20,
+      randomUUID: () => NOTE_A,
+    });
+    assert.equal(created.color, "bone");
+    const legacy = normalizeNoteInstance({
+      id: NOTE_A,
+      moduleId: "note",
+      leftPct: 20,
+      topPct: 20,
+      content: "old",
+    });
+    assert.equal(legacy?.color, "bone");
+    const invalid = normalizeNoteInstance({
+      id: NOTE_A,
+      moduleId: "note",
+      leftPct: 20,
+      topPct: 20,
+      content: "old",
+      color: "neon",
+    });
+    assert.equal(invalid?.color, "bone");
+    const kept = normalizeNoteInstance({
+      ...created,
+      color: "yellow",
+    });
+    assert.equal(kept?.color, "yellow");
+    assert.equal(kept?.content, created.content);
+  });
+
+  it("updates one note colour without mutating another note", () => {
+    const a = createNoteInstance({
+      leftPct: 20,
+      topPct: 20,
+      content: "one",
+      randomUUID: () => NOTE_A,
+    });
+    const b = createNoteInstance({
+      leftPct: 30,
+      topPct: 30,
+      content: "two",
+      randomUUID: () => NOTE_B,
+    });
+    const start = { notes: [a, b] };
+    const next = updateNoteColor(start, NOTE_A, "green");
+    assert.equal(next.notes[0]?.color, "green");
+    assert.equal(next.notes[0]?.content, "one");
+    assert.equal(next.notes[1]?.color, "bone");
+    assert.equal(next.notes[1]?.content, "two");
+    assert.equal(start.notes[0]?.color, "bone");
+    const mixed = updateNoteColor(next, NOTE_B, "dark");
+    assert.equal(mixed.notes[0]?.color, "green");
+    assert.equal(mixed.notes[1]?.color, "dark");
   });
 });
