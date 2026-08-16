@@ -28,8 +28,17 @@ describe("Module Lab actions", { concurrency: false }, () => {
     assert.deepEqual(seen, ["checklist"]);
     getModuleLabActions().create("note");
     assert.deepEqual(seen, ["checklist", "note"]);
+    const unregisterCountdown = registerModuleLabActions({
+      create(moduleId) {
+        if (moduleId !== "countdown") return;
+        seen.push("countdown");
+      },
+    });
+    getModuleLabActions().create("countdown");
+    assert.deepEqual(seen, ["checklist", "note", "countdown"]);
     unregisterNote();
     unregisterChecklist();
+    unregisterCountdown();
   });
 
   it("fans RESET out to every registered handler", () => {
@@ -44,11 +53,18 @@ describe("Module Lab actions", { concurrency: false }, () => {
         resets.push("checklist");
       },
     });
+    const unregisterCountdown = registerModuleLabActions({
+      reset() {
+        resets.push("countdown");
+      },
+    });
     getModuleLabActions().reset();
     assert.equal(resets.includes("note"), true);
     assert.equal(resets.includes("checklist"), true);
-    assert.equal(resets.length, 2);
+    assert.equal(resets.includes("countdown"), true);
+    assert.equal(resets.length, 3);
     unregisterNote();
     unregisterChecklist();
+    unregisterCountdown();
   });
 });

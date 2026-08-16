@@ -15,6 +15,7 @@ import {
 } from "@/lib/canvas/world-camera";
 import { NoteLayer } from "@/modules/create/note/note-layer";
 import { ChecklistLayer } from "@/modules/organise/checklist/checklist-layer";
+import { CountdownLayer } from "@/modules/organise/countdown/countdown-layer";
 
 export function ModuleLabSurface() {
   const { worldRef, viewportRef, goHome, onViewportPointerDown } =
@@ -52,6 +53,7 @@ export function ModuleLabSurface() {
           />
           <NoteLayer />
           <ChecklistLayer />
+          <CountdownLayer />
         </div>
       </div>
       <ModuleLabDock

@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { EPHEMERAL_TEXTS_PAGE_DATA_NAME } from "@/lib/social/ephemeral-text";
 import { MODULE_LAB_NOTES_PAGE_DATA_NAME } from "@/modules/create/note/note-state";
 import { MODULE_LAB_CHECKLISTS_PAGE_DATA_NAME } from "@/modules/organise/checklist/checklist-state";
+import { MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME } from "@/modules/organise/countdown/countdown-state";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -52,6 +53,7 @@ describe("Module Lab host", () => {
     assert.ok(surface.includes("data-4663-world-scale=\"1\""));
     assert.ok(surface.includes("NoteLayer"));
     assert.ok(surface.includes("ChecklistLayer"));
+    assert.ok(surface.includes("CountdownLayer"));
     assert.ok(surface.includes("data-4663-canvas-empty-hit"));
     for (const name of HOMEPAGE_IMPORTS) {
       assert.equal(surface.includes(name), false, name);
@@ -91,14 +93,38 @@ describe("Module Lab host", () => {
       MODULE_LAB_NOTES_PAGE_DATA_NAME,
       MODULE_LAB_CHECKLISTS_PAGE_DATA_NAME,
     );
+    const countdownLayer = readSrc(
+      "src/modules/organise/countdown/countdown-layer.tsx",
+    );
+    assert.ok(countdownLayer.includes("usePageData"));
+    assert.ok(
+      countdownLayer.includes("MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME"),
+    );
+    assert.equal(
+      countdownLayer.includes(MODULE_LAB_NOTES_PAGE_DATA_NAME),
+      false,
+    );
+    assert.equal(
+      MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME,
+      "4663-module-lab-countdowns",
+    );
+    assert.notEqual(
+      MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME,
+      MODULE_LAB_NOTES_PAGE_DATA_NAME,
+    );
+    assert.notEqual(
+      MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME,
+      MODULE_LAB_CHECKLISTS_PAGE_DATA_NAME,
+    );
   });
 
-  it("dock lists NOTE and CHECKLIST from the registry", () => {
+  it("dock lists installable modules from the registry", () => {
     const dock = readSrc("src/components/modules/module-lab-dock.tsx");
     assert.ok(dock.includes("listInstallableModules"));
     assert.ok(dock.includes("data-4663-module-lab-install"));
     assert.ok(dock.includes("[ + MODULE ]"));
-    assert.equal(dock.includes("COUNTDOWN"), false);
+    assert.equal(dock.includes("NOTE_MODULE"), false);
+    assert.equal(dock.includes("BOARD"), false);
   });
 
   it("NOTE object is movable and protects the editor from PlayHTML drag", () => {
@@ -115,6 +141,35 @@ describe("Module Lab host", () => {
     assert.ok(object.includes("data-4663-note-resize"));
     assert.ok(object.includes("width: `${note.widthPct}%`"));
     assert.ok(object.includes("height: `${note.heightPct}%`"));
+  });
+
+  it("COUNTDOWN object is movable, colourable, and ticks locally without persisting remaining time", () => {
+    const object = readSrc(
+      "src/modules/organise/countdown/countdown-object.tsx",
+    );
+    const layer = readSrc(
+      "src/modules/organise/countdown/countdown-layer.tsx",
+    );
+    const state = readSrc(
+      "src/modules/organise/countdown/countdown-state.ts",
+    );
+    assert.ok(/<CanMoveElement[^>]*>\s*<div\b/.test(object));
+    assert.ok(object.includes("PLAYHTML_CANVAS_BOUNDS_ID"));
+    assert.ok(object.includes("LabResizeHandle"));
+    assert.ok(object.includes("LabObjectColorPicker"));
+    assert.ok(object.includes("useInteractiveControlProtection"));
+    assert.ok(object.includes("stopPlayhtmlMoveStart"));
+    assert.ok(object.includes('type="date"'));
+    assert.ok(object.includes('type="time"'));
+    assert.ok(object.includes("[ EDIT ]"));
+    assert.ok(object.includes("COMPLETE"));
+    assert.ok(object.includes("setInterval"));
+    assert.ok(object.includes("countdownParts"));
+    assert.equal(object.includes("setPageData"), false);
+    assert.equal(layer.includes("setInterval"), false);
+    assert.equal(state.includes("remainingDays"), false);
+    assert.ok(layer.includes('if (moduleId !== "countdown") return'));
+    assert.equal(layer.includes("MODULE_LAB_NOTES_PAGE_DATA_NAME"), false);
   });
 
   it("CHECKLIST object is movable and protects title, items, and controls", () => {
@@ -149,7 +204,7 @@ describe("Module Lab host", () => {
     assert.ok(handle.includes("screenPointToWorldPoint"));
   });
 
-  it("RESET fans out to NOTE and CHECKLIST and HOME uses goHome", () => {
+  it("RESET fans out to NOTE, CHECKLIST, and COUNTDOWN and HOME uses goHome", () => {
     const surface = readSrc("src/components/modules/module-lab-surface.tsx");
     assert.ok(surface.includes("getModuleLabActions().reset()"));
     assert.ok(surface.includes("onHome={goHome}"));
@@ -166,6 +221,11 @@ describe("Module Lab host", () => {
       checklistLayer.includes("notifySessionContentReset"),
       false,
     );
+    const countdownLayer = readSrc(
+      "src/modules/organise/countdown/countdown-layer.tsx",
+    );
+    assert.ok(countdownLayer.includes("resetModuleLabCountdownsPageData"));
+    assert.ok(countdownLayer.includes('if (moduleId !== "countdown") return'));
     const actions = readSrc("src/lib/modules/lab-actions.ts");
     assert.ok(actions.includes("new Set<ModuleLabActionHandlers>()"));
   });
@@ -194,6 +254,10 @@ describe("Module Lab host", () => {
     );
     assert.ok(note.includes("LabObjectColorPicker"));
     assert.ok(checklist.includes("LabObjectColorPicker"));
+    const countdown = readSrc(
+      "src/modules/organise/countdown/countdown-object.tsx",
+    );
+    assert.ok(countdown.includes("LabObjectColorPicker"));
     assert.ok(note.includes("labObjectColorVisual"));
     assert.ok(checklist.includes("labObjectColorVisual"));
     const handle = readSrc("src/components/modules/lab-resize-handle.tsx");
@@ -255,6 +319,7 @@ describe("Module Lab host", () => {
     const homepage = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.equal(homepage.includes("NoteLayer"), false);
     assert.equal(homepage.includes("ChecklistLayer"), false);
+    assert.equal(homepage.includes("CountdownLayer"), false);
     assert.equal(homepage.includes("module-lab"), false);
     assert.ok(homepage.includes("EphemeralTextLayer"));
   });
