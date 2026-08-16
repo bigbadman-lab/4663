@@ -29,7 +29,8 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     assert.ok(chrome.includes("PresenceStatus"));
     assert.ok(chrome.includes("data-4663-chrome-presence"));
     assert.ok(chrome.includes("bottom-5 left-5") || chrome.includes("bottom-6 left-6"));
-    assert.ok(chrome.includes("sm:bottom-6 sm:left-6"));
+    assert.ok(chrome.includes("desktop-chrome:bottom-6 desktop-chrome:left-6"));
+    assert.equal(chrome.includes("sm:bottom-6 sm:left-6"), false);
     assert.equal(chrome.includes("justify-end"), false);
 
     const presence = readSrc("src/components/presence-status.tsx");
@@ -51,7 +52,12 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("CanvasLiveClock"));
     assert.ok(chrome.includes("data-4663-chrome-clock"));
-    assert.ok(chrome.includes("bottom-5 right-5") || chrome.includes("sm:bottom-6 sm:right-6"));
+    assert.ok(
+      chrome.includes("bottom-5 right-5") ||
+        chrome.includes("desktop-chrome:bottom-6 desktop-chrome:right-6") ||
+        chrome.includes("bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))]"),
+    );
+    assert.equal(chrome.includes("sm:bottom-6 sm:right-6"), false);
     assert.ok(chrome.includes("pointer-events-auto"));
 
     const clock = readSrc("src/components/canvas/canvas-live-clock.tsx");
@@ -77,7 +83,10 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
   it("intro trigger is top-right and opens note", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("CanvasIntroTrigger"));
-    assert.ok(chrome.includes("top-5 right-5") || chrome.includes("sm:top-6 sm:right-6"));
+    assert.ok(
+      chrome.includes("top-5 right-5") ||
+        chrome.includes("desktop-chrome:top-6 desktop-chrome:right-6"),
+    );
     assert.ok(chrome.includes("infoModal"));
     assert.ok(chrome.includes("CanvasIntroNote"));
     assert.ok(chrome.includes("CanvasToneControl"));

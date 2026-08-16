@@ -53,7 +53,7 @@ function DockIcon({ item }: { item: ControlDockItem }) {
       width={32}
       height={32}
       draggable={false}
-      className="pointer-events-none h-7 w-7 object-contain select-none sm:h-8 sm:w-8"
+      className="pointer-events-none h-7 w-7 object-contain select-none desktop-chrome:h-8 desktop-chrome:w-8"
       data-4663-dock-icon={item.id}
       data-4663-palette-icon-slot={item.id}
     />
@@ -85,7 +85,7 @@ function isDisabled(
 }
 
 const DOCK_BUTTON_BASE =
-  "flex min-h-12 min-w-[3.75rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-1.5 font-mono transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:min-w-[4.25rem] sm:gap-1 sm:px-1";
+  "flex min-h-12 min-w-[3.75rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-1.5 font-mono transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-35 desktop-chrome:min-h-14 desktop-chrome:min-w-[4.25rem] desktop-chrome:gap-1 desktop-chrome:px-1";
 
 const DOCK_BUTTON_IDLE =
   "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-neutral-400 active:bg-neutral-100";
@@ -145,21 +145,21 @@ export function CanvasControlPalette({
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-[18] flex justify-center pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] desktop-chrome:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"
       data-4663-control-dock
       data-4663-control-palette
       data-4663-snapshot-exclude=""
     >
       <div
         id={PLAYHTML_CONTROL_PALETTE_ID}
-        className="pointer-events-auto mx-2 flex max-w-[min(100%,28rem)] flex-col items-center sm:max-w-[min(100%,32rem)]"
+        className="pointer-events-auto mx-2 flex max-w-[min(100%,28rem)] flex-col items-center desktop-chrome:max-w-[min(100%,32rem)]"
         data-4663-control-palette-shell
       >
         {noticeText ? (
           <p
             role="status"
             aria-live="polite"
-            className="pointer-events-none mb-1.5 max-w-full truncate px-2 text-center font-mono text-[10px] tracking-wide text-neutral-600 sm:text-[11px]"
+            className="pointer-events-none mb-1.5 max-w-full truncate px-2 text-center font-mono text-[10px] tracking-wide text-neutral-600 desktop-chrome:text-[11px]"
             data-4663-control-notice
             data-4663-control-notice-kind={controlNotice ?? undefined}
           >
@@ -169,7 +169,7 @@ export function CanvasControlPalette({
         {!heroPreferences.visible ? (
           <button
             type="button"
-            className="mb-1.5 inline-flex min-h-11 items-center px-3 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+            className="mb-1.5 inline-flex min-h-11 items-center px-3 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 desktop-chrome:text-[11px]"
             data-4663-show-hero
             aria-label="Show hero"
             onClick={() => showHero()}
@@ -180,7 +180,7 @@ export function CanvasControlPalette({
         <div className="relative mb-1.5 flex justify-center">
           <button
             type="button"
-            className="inline-flex min-h-11 items-center px-3 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+            className="inline-flex min-h-11 items-center px-3 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 desktop-chrome:text-[11px]"
             data-4663-snapshot-trigger
             aria-label="Snapshot the visible canvas"
             onClick={() => {
@@ -192,7 +192,7 @@ export function CanvasControlPalette({
           <SnapshotShortcutHint />
         </div>
         <div
-          className="flex w-full items-stretch justify-between gap-1 rounded-2xl border border-neutral-300/90 bg-white/90 px-1.5 py-1.5 shadow-sm backdrop-blur-[2px] sm:gap-1.5 sm:px-2 sm:py-2"
+          className="flex w-full items-stretch justify-between gap-1 rounded-2xl border border-neutral-300/90 bg-white/90 px-1.5 py-1.5 shadow-sm backdrop-blur-[2px] desktop-chrome:gap-1.5 desktop-chrome:px-2 desktop-chrome:py-2"
           data-4663-control-dock-tray
         >
           {getLiveControlDockItems().map((item) => {
@@ -249,7 +249,7 @@ export function CanvasControlPalette({
               >
                 <DockIcon item={item} />
                 <span
-                  className="whitespace-nowrap text-center text-[9px] leading-none tracking-wide sm:text-[10px]"
+                  className="whitespace-nowrap text-center text-[9px] leading-none tracking-wide desktop-chrome:text-[10px]"
                   data-4663-dock-label={item.id}
                 >
                   {item.label}

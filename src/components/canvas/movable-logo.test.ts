@@ -59,9 +59,12 @@ describe("Stage 10B.6 / IC3.10 brand logo", () => {
   it("responsive size and iOS rounded-square styling", () => {
     const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     assert.ok(brand.includes("h-16 w-16"));
-    assert.ok(brand.includes("sm:h-[72px] sm:w-[72px]"));
+    assert.ok(
+      brand.includes("desktop-chrome:h-[72px] desktop-chrome:w-[72px]"),
+    );
+    assert.equal(brand.includes("sm:h-[72px]"), false);
     assert.ok(brand.includes("rounded-[16px]"));
-    assert.ok(brand.includes("sm:rounded-[18px]"));
+    assert.ok(brand.includes("desktop-chrome:rounded-[18px]"));
     assert.equal(brand.includes("rounded-full"), false);
   });
 

@@ -82,7 +82,7 @@ describe("Stage IC3.10 independent brand anchors", () => {
       "Create, communicate and interact — with Web3 tools built in.",
     );
     assert.ok(BRAND_LOGO_STYLE.left.includes("24px"));
-    assert.ok(BRAND_LOGO_STYLE.top.includes("24px"));
+    assert.ok(BRAND_LOGO_STYLE.top.includes("2.5rem"));
   });
 
   it("10–12. mobile: same viewport anchors; logo safe-area; H1 centered", () => {

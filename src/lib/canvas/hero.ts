@@ -6,6 +6,8 @@
  * stability; orphaned historical can-move records remain inert.
  */
 
+import { COMPACT_LOGO_MIN_INSET } from "@/lib/canvas/canvas-chrome-layout";
+
 export {
   PLAYHTML_CANVAS_BOUNDS_ID,
   PLAYHTML_WORLD_BOUNDS_ID,
@@ -60,10 +62,10 @@ export const LOGO_DEFAULT_STYLE = {
   top: "24px",
 } as const;
 
-/** Viewport logo — top-left with safe-area inset. */
+/** Viewport logo — top-left; compact min inset independent of empty tablet safe-area. */
 export const BRAND_LOGO_STYLE = {
   left: "max(24px, env(safe-area-inset-left, 0px))",
-  top: "max(24px, env(safe-area-inset-top, 0px))",
+  top: `max(${COMPACT_LOGO_MIN_INSET}, env(safe-area-inset-top, 0px))`,
 } as const;
 
 /** Title sits in the BrandHero stack (centered); no absolute offsets. */

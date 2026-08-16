@@ -87,8 +87,21 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(palette.includes("safe-area-inset-bottom"));
     assert.ok(palette.includes("5.75rem"));
     assert.ok(palette.includes("3.75rem"));
-    assert.ok(palette.includes("sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"));
-    assert.ok(palette.includes("sm:h-8") || palette.includes("sm:min-h-14"));
+    assert.ok(
+      palette.includes(
+        "desktop-chrome:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]",
+      ),
+    );
+    assert.equal(
+      palette.includes(
+        "sm:pb-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]",
+      ),
+      false,
+    );
+    assert.ok(
+      palette.includes("desktop-chrome:h-8") ||
+        palette.includes("desktop-chrome:min-h-14"),
+    );
     assert.ok(palette.includes("rounded-2xl"));
     assert.equal(PLAYHTML_CONTROL_PALETTE_ID, "4663-control-palette");
   });
@@ -157,8 +170,15 @@ describe("Social 8A responsive bottom control dock", () => {
     assert.ok(chrome.includes("data-4663-chrome-presence"));
     assert.ok(chrome.includes("CanvasLiveClock"));
     assert.ok(chrome.includes("data-4663-chrome-clock"));
-    assert.ok(chrome.includes("bottom-5 left-5") || chrome.includes("sm:bottom-6 sm:left-6"));
-    assert.ok(chrome.includes("bottom-5 right-5") || chrome.includes("sm:bottom-6 sm:right-6"));
+    assert.ok(
+      chrome.includes("bottom-5 left-5") ||
+        chrome.includes("desktop-chrome:bottom-6 desktop-chrome:left-6"),
+    );
+    assert.ok(
+      chrome.includes("bottom-5 right-5") ||
+        chrome.includes("desktop-chrome:bottom-6 desktop-chrome:right-6") ||
+        chrome.includes("bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))]"),
+    );
   });
 
   it("19–22. single mount, no event stream coupling, hero ids, patch/singleton markers", () => {

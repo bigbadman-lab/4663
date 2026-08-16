@@ -82,7 +82,7 @@ export function CanvasChrome() {
         </div>
 
         <div
-          className="pointer-events-auto absolute top-5 right-5 flex flex-col items-end gap-1 sm:top-6 sm:right-6"
+          className="pointer-events-auto absolute top-5 right-5 flex flex-col items-end gap-1 desktop-chrome:top-6 desktop-chrome:right-6"
           data-4663-chrome-top-right
         >
           <CanvasToneControl />
@@ -92,14 +92,14 @@ export function CanvasChrome() {
         </div>
 
         <div
-          className="pointer-events-auto absolute bottom-5 left-5 max-w-[min(16rem,calc(50%-0.75rem))] sm:bottom-6 sm:left-6 sm:max-w-[16rem]"
+          className="pointer-events-auto absolute bottom-5 left-5 max-w-[min(16rem,calc(50%-0.75rem))] desktop-chrome:bottom-6 desktop-chrome:left-6 desktop-chrome:max-w-[16rem]"
           data-4663-chrome-presence
         >
           <PresenceStatus />
         </div>
 
         <div
-          className="pointer-events-auto absolute right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] flex max-w-[min(11.5rem,calc(50%-0.75rem))] flex-col items-end gap-0.5 sm:bottom-6 sm:right-6 sm:max-w-[min(18rem,calc(50%-0.75rem))] sm:gap-1"
+          className="pointer-events-auto absolute right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] flex max-w-[min(11.5rem,calc(50%-0.75rem))] flex-col items-end gap-0.5 desktop-chrome:bottom-6 desktop-chrome:right-6 desktop-chrome:max-w-[min(18rem,calc(50%-0.75rem))] desktop-chrome:gap-1"
           data-4663-chrome-bottom-right
           data-4663-chrome-clock
         >

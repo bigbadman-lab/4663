@@ -38,7 +38,7 @@ export function BrandLogo() {
       data-4663-logo
       data-4663-brand-anchor="logo"
     >
-      <div className="h-16 w-16 overflow-hidden rounded-[16px] sm:h-[72px] sm:w-[72px] sm:rounded-[18px]">
+      <div className="h-16 w-16 overflow-hidden rounded-[16px] desktop-chrome:h-[72px] desktop-chrome:w-[72px] desktop-chrome:rounded-[18px]">
         <Image
           src="/4663pfp.png"
           alt="4663"
@@ -57,7 +57,7 @@ const HERO_SELECT_BUTTON =
   "pointer-events-auto touch-manipulation select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400";
 
 const HERO_TOOL_BUTTON =
-  "inline-flex min-h-11 items-center px-2 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]";
+  "inline-flex min-h-11 items-center px-2 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 desktop-chrome:text-[11px]";
 
 /**
  * H1 + subtitle — static layout grouping only (not a world/movable object).
@@ -94,7 +94,7 @@ export function BrandHero() {
       >
         <div className="relative">
           <div
-            className="pointer-events-auto absolute bottom-full left-1/2 z-[2] mb-1 flex -translate-x-1/2 items-center sm:mb-2"
+            className="pointer-events-auto absolute bottom-full left-1/2 z-[2] mb-1 flex -translate-x-1/2 items-center desktop-chrome:mb-2"
             data-4663-hero-appearance-tools
           >
             <button
@@ -116,7 +116,7 @@ export function BrandHero() {
             onClick={() => cycleColor()}
           >
             <h1
-              className={`whitespace-pre-line text-center text-5xl font-semibold tracking-tight sm:text-6xl ${titleColorClass}`}
+              className={`whitespace-pre-line text-center text-5xl font-semibold tracking-tight desktop-chrome:text-6xl ${titleColorClass}`}
               style={colorStyle}
             >
               {BRAND_HERO_TITLE}
@@ -127,13 +127,13 @@ export function BrandHero() {
 
       <div
         id={PLAYHTML_HERO_SUBTITLE_ID}
-        className="pointer-events-none absolute left-1/2 top-[52%] z-[1] w-full max-w-[16rem] -translate-x-1/2 select-none px-4 sm:max-w-none"
+        className="pointer-events-none absolute left-1/2 top-[52%] z-[1] w-full max-w-[16rem] -translate-x-1/2 select-none px-4 desktop-chrome:max-w-none"
         style={BRAND_SUBTITLE_STYLE}
         data-4663-hero-subtitle
         data-4663-brand-anchor="subtitle"
       >
         <p
-          className={`text-center font-mono text-[11px] leading-snug tracking-wide sm:text-xs ${subtitleColorClass}`}
+          className={`text-center font-mono text-[11px] leading-snug tracking-wide desktop-chrome:text-xs ${subtitleColorClass}`}
           style={colorStyle}
         >
           {BRAND_HERO_SUBTITLE}
