@@ -35,11 +35,16 @@ import {
   canvasPanHasClaimedPointer,
   canvasPanMovementPx,
   createCanvasPanGesture,
+  isUsableCanvasPointer,
   shouldActivateOverlayTargetOnRelease,
   shouldPromoteCanvasPan,
   shouldTrackCanvasPan,
 } from "@/lib/canvas/canvas-pan-gesture";
 import { dispatchEmptyCanvasClick } from "@/lib/social/canvas-create-actions";
+import {
+  nextViewportCameraAction,
+  readViewportClientSize,
+} from "@/lib/canvas/viewport-client-size";
 
 /** Module flag: empty-canvas click must ignore post-pan synthetic clicks. */
 let suppressEmptyCanvasClick = false;
@@ -98,9 +103,9 @@ export function useCanvasCamera(): UseCanvasCameraResult {
 
   const applyCamera = useCallback((next: CanvasCamera) => {
     const viewport = viewportRef.current;
-    const vw = viewport?.clientWidth ?? 0;
-    const vh = viewport?.clientHeight ?? 0;
-    const clamped = vw > 0 && vh > 0 ? clampCamera(next, vw, vh) : next;
+    const size = readViewportClientSize(viewport);
+    const clamped =
+      size != null ? clampCamera(next, size.width, size.height) : next;
     cameraRef.current = clamped;
     const world = worldRef.current;
     if (world) {
@@ -130,9 +135,9 @@ export function useCanvasCamera(): UseCanvasCameraResult {
 
   const goHome = useCallback(() => {
     // 1–2. Current viewport → normal HOME camera (always scale = 1).
-    const viewport = viewportRef.current;
-    const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
-    const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
+    const size = readViewportClientSize(viewportRef.current);
+    const vw = size?.width ?? HOME_REGION_WIDTH_PX;
+    const vh = size?.height ?? HOME_REGION_HEIGHT_PX;
     // 3. Cancel transient pan (pointer id, capture, deltas, grabbing flag).
     cancelActivePan();
     // 4–5. Immediate deterministic reset; shared world untouched.
@@ -141,18 +146,42 @@ export function useCanvasCamera(): UseCanvasCameraResult {
 
   useEffect(() => {
     // Initial boot/refresh only — may use fitted scale on narrow mobile.
+    // Older Safari can report 0×0 before the overlay/toolbar layout settles;
+    // wait for the first positive container box, then HOME. Later resizes clamp.
     const viewport = viewportRef.current;
-    const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
-    const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
-    applyCamera(initialHomeCameraForViewport(vw, vh));
+    let framed = false;
+    const frameIfReady = (): boolean => {
+      const size = readViewportClientSize(viewportRef.current);
+      const action = nextViewportCameraAction(framed, size);
+      if (action === "wait" || !size) return false;
+      const vw = size.width;
+      const vh = size.height;
+      if (action === "initial-home") {
+        framed = true;
+        applyCamera(initialHomeCameraForViewport(vw, vh));
+        return true;
+      }
+      // Clamp only — do not reapply fitted scale or auto-HOME on resize (IC2.1 / IC3.2.1).
+      applyCamera(cameraRef.current);
+      return true;
+    };
+    frameIfReady();
 
     if (!viewport || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => {
-      // Clamp only — do not reapply fitted scale or auto-HOME on resize (IC2.1 / IC3.2.1).
-      applyCamera(cameraRef.current);
+      frameIfReady();
     });
     ro.observe(viewport);
-    return () => ro.disconnect();
+    const raf =
+      typeof requestAnimationFrame === "function"
+        ? requestAnimationFrame(() => {
+            frameIfReady();
+          })
+        : 0;
+    return () => {
+      ro.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [applyCamera]);
 
   useEffect(() => {
@@ -204,8 +233,9 @@ export function useCanvasCamera(): UseCanvasCameraResult {
         // First real pan: leave fitted landing scale; keep viewport-center world point.
         if (normalizeCameraScale(pan.origin.scale) < 1) {
           const viewport = viewportRef.current;
-          const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
-          const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
+          const size = readViewportClientSize(viewport);
+          const vw = size?.width ?? HOME_REGION_WIDTH_PX;
+          const vh = size?.height ?? HOME_REGION_HEIGHT_PX;
           pan.origin = normalizeCameraToScaleOnePreservingCenter(
             pan.origin,
             vw,
@@ -213,9 +243,9 @@ export function useCanvasCamera(): UseCanvasCameraResult {
           );
         }
       }
-      const viewport = viewportRef.current;
-      const vw = viewport?.clientWidth ?? HOME_REGION_WIDTH_PX;
-      const vh = viewport?.clientHeight ?? HOME_REGION_HEIGHT_PX;
+      const size = readViewportClientSize(viewportRef.current);
+      const vw = size?.width ?? HOME_REGION_WIDTH_PX;
+      const vh = size?.height ?? HOME_REGION_HEIGHT_PX;
       applyCamera(panCamera(pan.origin, dx, dy, vw, vh));
     };
 
@@ -296,11 +326,9 @@ export function useCanvasCamera(): UseCanvasCameraResult {
   const onViewportPointerDown = (
     event: ReactPointerEvent<HTMLDivElement>,
   ) => {
-    // Primary pointer only — no multi-finger camera zoom (IC3).
-    if (!event.isPrimary) return;
-    if (event.button !== 0) return;
-    if (createUiBlocksPan) return;
-
+    // Overlay recovery first: older WebKit can deliver the hit to the world
+    // under a pointer-events:none chrome stacking context. Do not require
+    // isPrimary/button before this — those fields are unreliable on Safari 15.
     const overlayInteractive = overlayInteractiveTargetFromPoint(
       event.clientX,
       event.clientY,
@@ -317,6 +345,10 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       suppressEmptyCanvasClick = true;
       return;
     }
+
+    // Primary pointer only — no multi-finger camera zoom (IC3).
+    if (!isUsableCanvasPointer(event)) return;
+    if (createUiBlocksPan) return;
 
     if (
       !shouldTrackCanvasPan({

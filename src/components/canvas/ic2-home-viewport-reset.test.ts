@@ -31,9 +31,8 @@ function readSrc(rel: string): string {
 describe("Stage IC2.1 HOME viewport reset", () => {
   it("1–3. HOME uses homeCameraForViewport with current viewport size", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
+    assert.ok(cam.includes("readViewportClientSize"));
     assert.ok(cam.includes("homeCameraForViewport(vw, vh)"));
-    assert.ok(cam.includes("viewport?.clientWidth"));
-    assert.ok(cam.includes("viewport?.clientHeight"));
     assert.ok(cam.includes("cancelActivePan"));
     // Not a hardcoded single camera for every device.
     assert.equal(cam.includes("applyCamera({ x: 1680"), false);

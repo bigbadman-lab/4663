@@ -58,6 +58,11 @@ body {
 [data-4663-canvas-root] {
   --4663-dot-minor: rgba(23, 23, 23, 0.045);
   --4663-dot-major: rgba(23, 23, 23, 0.09);
+  /* Fill the layout box even when 100dvh is ignored or still 0 on first paint. */
+  height: 100%;
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--canvas-bg);
   color: var(--canvas-fg);
   transition: background-color 200ms ease, color 200ms ease;
@@ -78,6 +83,15 @@ body {
     0 0,
     center;
   background-repeat: repeat, repeat, no-repeat;
+}
+
+/**
+ * Transformed #4663-world can composite above later siblings on older WebKit.
+ * Promote overlay chrome so ENTER / dock remain hit-testable.
+ */
+[data-4663-canvas-chrome],
+[data-4663-control-dock] {
+  transform: translateZ(0);
 }
 
 @media (max-width: 640px) {

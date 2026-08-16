@@ -8,6 +8,7 @@ import {
   canvasPanHasClaimedPointer,
   canvasPanMovementPx,
   createCanvasPanGesture,
+  isUsableCanvasPointer,
   shouldActivateOverlayTargetOnRelease,
   shouldPreventDefaultForCanvasPan,
   shouldPromoteCanvasPan,
@@ -184,7 +185,11 @@ describe("canvas pan gesture", () => {
   it("does not start pan for non-primary / non-left / create-UI blocked pointers", () => {
     const empty = closestMock("empty") as unknown as EventTarget;
     assert.equal(
-      shouldTrackCanvasPan({ ...baseDown, isPrimary: false, target: empty }),
+      shouldTrackCanvasPan({
+        ...baseDown,
+        isPrimary: false,
+        target: empty,
+      }),
       false,
     );
     assert.equal(
@@ -198,6 +203,22 @@ describe("canvas pan gesture", () => {
         target: empty,
       }),
       false,
+    );
+  });
+
+  it("treats omitted isPrimary and button -1 as a usable primary pointer", () => {
+    assert.equal(isUsableCanvasPointer({}), true);
+    assert.equal(isUsableCanvasPointer({ button: -1 }), true);
+    assert.equal(isUsableCanvasPointer({ isPrimary: false }), false);
+    const empty = closestMock("empty") as unknown as EventTarget;
+    assert.equal(
+      shouldTrackCanvasPan({
+        createUiBlocksPan: false,
+        overlayInteractive: null,
+        target: empty,
+        button: -1,
+      }),
+      true,
     );
   });
 });

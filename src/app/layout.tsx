@@ -75,7 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-canvas-tone="white"
       suppressHydrationWarning
     >
-      <body className="min-h-full text-neutral-900">
+      <body className="h-full min-h-full text-neutral-900">
         <Script
           id="4663-canvas-tone-boot"
           strategy="beforeInteractive"

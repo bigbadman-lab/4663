@@ -20,16 +20,30 @@ export type CanvasPanGesture = {
 };
 
 export type CanvasPanPointerInput = {
-  isPrimary: boolean;
-  button: number;
+  isPrimary?: boolean;
+  button?: number;
   createUiBlocksPan: boolean;
   target: EventTarget | null;
   overlayInteractive: Element | null;
 };
 
+/**
+ * Older WebKit (Safari 15) may omit `isPrimary` or report `button === -1`
+ * for the first touch contact. Treat those as a usable primary pointer.
+ * Explicit `isPrimary === false` (non-primary finger) is still rejected.
+ */
+export function isUsableCanvasPointer(event: {
+  isPrimary?: boolean;
+  button?: number;
+}): boolean {
+  if (event.isPrimary === false) return false;
+  const button = event.button;
+  if (button == null || button === -1 || button === 0) return true;
+  return false;
+}
+
 export function shouldTrackCanvasPan(input: CanvasPanPointerInput): boolean {
-  if (!input.isPrimary) return false;
-  if (input.button !== 0) return false;
+  if (!isUsableCanvasPointer(input)) return false;
   if (input.createUiBlocksPan) return false;
   if (input.overlayInteractive != null) return false;
   if (isInteractiveCanvasTarget(input.target)) return false;

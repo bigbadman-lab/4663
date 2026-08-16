@@ -139,7 +139,7 @@ describe("Stage IC3.1 responsive HOME framing", () => {
     const cam = readSrc("src/components/canvas/use-canvas-camera.ts");
     assert.ok(cam.includes("homeCameraForViewport(vw, vh)"));
     assert.ok(cam.includes("initialHomeCameraForViewport(vw, vh)"));
-    assert.ok(cam.includes("viewport?.clientWidth"));
+    assert.ok(cam.includes("readViewportClientSize"));
     assert.ok(cam.includes("cancelActivePan"));
   });
 

@@ -64,7 +64,7 @@ export function CanvasChrome() {
         <BrandAnchors />
 
         <div
-          className="pointer-events-none absolute inset-x-0 flex justify-center text-center"
+          className="pointer-events-none absolute inset-x-0 z-[2] flex justify-center text-center"
           style={{ top: PARTICIPATION_CONTROL_DEFAULT_STYLE.top }}
           data-4663-chrome-participation
         >
