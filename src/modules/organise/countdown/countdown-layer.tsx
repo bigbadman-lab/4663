@@ -8,6 +8,7 @@ import { usePageData, usePlayContext } from "@playhtml/react";
 import { useEffect, useRef } from "react";
 import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
 import { registerModuleLabActions } from "@/lib/modules/lab-actions";
+import { registerLabBoardChildSource } from "@/lib/modules/lab-board-bridge";
 import { dockCreateWorldPct } from "@/lib/canvas/world-camera";
 import { CountdownObjectView } from "@/modules/organise/countdown/countdown-object";
 import {
@@ -21,6 +22,8 @@ import {
   normalizeModuleLabCountdownsPageData,
   removeCountdownInstance,
   resetModuleLabCountdownsPageData,
+  shiftCountdownOrigin,
+  updateCountdownBoardId,
   updateCountdownColor,
   updateCountdownLabel,
   updateCountdownLocalDateTime,
@@ -46,6 +49,39 @@ export function CountdownLayer() {
     pageDataRef.current = pageData;
     writableRef.current = writable;
   }, [pageData, writable]);
+
+  useEffect(() => {
+    return registerLabBoardChildSource({
+      kind: "countdown",
+      ownedIds: (boardId) =>
+        normalizeModuleLabCountdownsPageData(pageDataRef.current)
+          .countdowns.filter((row) => row.boardId === boardId)
+          .map((row) => row.id),
+      setBoardId: (instanceId, boardId) => {
+        if (!writableRef.current) return;
+        const latest = normalizeModuleLabCountdownsPageData(
+          pageDataRef.current,
+        );
+        const next = updateCountdownBoardId(latest, instanceId, boardId);
+        pageDataRef.current = next;
+        setPageData(next);
+      },
+      shiftOrigin: (instanceId, deltaLeftPct, deltaTopPct) => {
+        if (!writableRef.current) return;
+        const latest = normalizeModuleLabCountdownsPageData(
+          pageDataRef.current,
+        );
+        const next = shiftCountdownOrigin(
+          latest,
+          instanceId,
+          deltaLeftPct,
+          deltaTopPct,
+        );
+        pageDataRef.current = next;
+        setPageData(next);
+      },
+    });
+  }, [setPageData]);
 
   useEffect(() => {
     return registerModuleLabActions({

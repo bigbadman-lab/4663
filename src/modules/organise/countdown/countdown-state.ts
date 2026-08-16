@@ -4,6 +4,7 @@
  */
 
 import { WORLD_HEIGHT_PX, WORLD_WIDTH_PX, type WorldPct } from "@/lib/canvas/world-camera";
+import { normalizeLabBoardId } from "@/lib/modules/lab-board-containment";
 import {
   DEFAULT_LAB_OBJECT_COLOR,
   normalizeLabObjectColor,
@@ -57,6 +58,7 @@ export type CountdownInstance = {
   label: string;
   targetAt: string;
   color: LabObjectColor;
+  boardId: string | null;
 };
 
 export type ModuleLabCountdownsPageData = {
@@ -273,6 +275,7 @@ export function normalizeCountdownInstance(
     label: validateCountdownLabel(record.label),
     targetAt: normalizeCountdownTargetAt(record.targetAt, nowMs),
     color: normalizeLabObjectColor(record.color),
+    boardId: normalizeLabBoardId(record.boardId),
   };
 }
 
@@ -329,6 +332,7 @@ export function createCountdownInstance(
     label: validateCountdownLabel(input.label ?? ""),
     targetAt: normalizeCountdownTargetAt(input.targetAt, nowMs),
     color: DEFAULT_LAB_OBJECT_COLOR,
+    boardId: null,
   };
 }
 
@@ -438,6 +442,35 @@ export function updateCountdownSize(
     }
     return { ...countdown, ...next };
   });
+}
+
+export function updateCountdownBoardId(
+  data: ModuleLabCountdownsPageData,
+  countdownId: string,
+  boardId: string | null,
+): ModuleLabCountdownsPageData {
+  const nextBoardId = normalizeLabBoardId(boardId);
+  return mapCountdown(data, countdownId, (countdown) =>
+    countdown.boardId === nextBoardId
+      ? countdown
+      : { ...countdown, boardId: nextBoardId },
+  );
+}
+
+export function shiftCountdownOrigin(
+  data: ModuleLabCountdownsPageData,
+  countdownId: string,
+  deltaLeftPct: number,
+  deltaTopPct: number,
+): ModuleLabCountdownsPageData {
+  const dL = Number.isFinite(deltaLeftPct) ? deltaLeftPct : 0;
+  const dT = Number.isFinite(deltaTopPct) ? deltaTopPct : 0;
+  if (dL === 0 && dT === 0) return data;
+  return mapCountdown(data, countdownId, (countdown) => ({
+    ...countdown,
+    leftPct: countdown.leftPct + dL,
+    topPct: countdown.topPct + dT,
+  }));
 }
 
 export function removeCountdownInstance(

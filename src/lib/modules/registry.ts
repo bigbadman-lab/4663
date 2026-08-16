@@ -28,10 +28,19 @@ export const COUNTDOWN_MODULE: ModuleDefinition = {
   multipleInstances: true,
 };
 
+export const BOARD_MODULE: ModuleDefinition = {
+  id: "board",
+  displayName: "BOARD",
+  category: "organise",
+  tier: "free",
+  multipleInstances: true,
+};
+
 export const MODULE_LAB_MODULES: readonly ModuleDefinition[] = [
   NOTE_MODULE,
   CHECKLIST_MODULE,
   COUNTDOWN_MODULE,
+  BOARD_MODULE,
 ];
 
 const BY_ID: ReadonlyMap<ModuleId, ModuleDefinition> = new Map(
@@ -41,7 +50,14 @@ const BY_ID: ReadonlyMap<ModuleId, ModuleDefinition> = new Map(
 export function getModuleDefinition(
   id: string,
 ): ModuleDefinition | null {
-  if (id !== "note" && id !== "checklist" && id !== "countdown") return null;
+  if (
+    id !== "note" &&
+    id !== "checklist" &&
+    id !== "countdown" &&
+    id !== "board"
+  ) {
+    return null;
+  }
   return BY_ID.get(id) ?? null;
 }
 

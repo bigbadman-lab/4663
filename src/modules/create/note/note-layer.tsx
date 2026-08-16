@@ -8,6 +8,7 @@ import { usePageData, usePlayContext } from "@playhtml/react";
 import { useEffect, useRef } from "react";
 import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
 import { registerModuleLabActions } from "@/lib/modules/lab-actions";
+import { registerLabBoardChildSource } from "@/lib/modules/lab-board-bridge";
 import { dockCreateWorldPct } from "@/lib/canvas/world-camera";
 import { NoteObjectView } from "@/modules/create/note/note-object";
 import {
@@ -21,6 +22,8 @@ import {
   normalizeModuleLabNotesPageData,
   removeNoteInstance,
   resetModuleLabNotesPageData,
+  shiftNoteOrigin,
+  updateNoteBoardId,
   updateNoteContent,
   updateNoteColor,
   updateNoteSize,
@@ -45,6 +48,35 @@ export function NoteLayer() {
     pageDataRef.current = pageData;
     writableRef.current = writable;
   }, [pageData, writable]);
+
+  useEffect(() => {
+    return registerLabBoardChildSource({
+      kind: "note",
+      ownedIds: (boardId) =>
+        normalizeModuleLabNotesPageData(pageDataRef.current)
+          .notes.filter((note) => note.boardId === boardId)
+          .map((note) => note.id),
+      setBoardId: (instanceId, boardId) => {
+        if (!writableRef.current) return;
+        const latest = normalizeModuleLabNotesPageData(pageDataRef.current);
+        const next = updateNoteBoardId(latest, instanceId, boardId);
+        pageDataRef.current = next;
+        setPageData(next);
+      },
+      shiftOrigin: (instanceId, deltaLeftPct, deltaTopPct) => {
+        if (!writableRef.current) return;
+        const latest = normalizeModuleLabNotesPageData(pageDataRef.current);
+        const next = shiftNoteOrigin(
+          latest,
+          instanceId,
+          deltaLeftPct,
+          deltaTopPct,
+        );
+        pageDataRef.current = next;
+        setPageData(next);
+      },
+    });
+  }, [setPageData]);
 
   useEffect(() => {
     return registerModuleLabActions({

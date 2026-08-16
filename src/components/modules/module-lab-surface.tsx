@@ -13,7 +13,9 @@ import {
   WORLD_HEIGHT_PX,
   WORLD_WIDTH_PX,
 } from "@/lib/canvas/world-camera";
+import { LabBoardUiProvider } from "@/components/modules/lab-board-ui";
 import { NoteLayer } from "@/modules/create/note/note-layer";
+import { BoardLayer } from "@/modules/organise/board/board-layer";
 import { ChecklistLayer } from "@/modules/organise/checklist/checklist-layer";
 import { CountdownLayer } from "@/modules/organise/countdown/countdown-layer";
 
@@ -51,9 +53,12 @@ export function ModuleLabSurface() {
             data-4663-world-pan-hit
             aria-hidden
           />
-          <NoteLayer />
-          <ChecklistLayer />
-          <CountdownLayer />
+          <LabBoardUiProvider>
+            <BoardLayer />
+            <NoteLayer />
+            <ChecklistLayer />
+            <CountdownLayer />
+          </LabBoardUiProvider>
         </div>
       </div>
       <ModuleLabDock

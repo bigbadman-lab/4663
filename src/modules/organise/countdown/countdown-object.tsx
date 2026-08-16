@@ -8,6 +8,10 @@ import { CanMoveElement } from "@playhtml/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { LabObjectColorPicker } from "@/components/modules/lab-object-color-picker";
 import { LabResizeHandle } from "@/components/modules/lab-resize-handle";
+import {
+  LabBoardCarryFrame,
+  useLabBoardAdoption,
+} from "@/components/modules/lab-board-ui";
 import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { usePlayhtmlMoveForeground } from "@/components/canvas/use-playhtml-move-foreground";
@@ -120,6 +124,7 @@ export function CountdownObjectView({
   onDelete,
 }: CountdownObjectViewProps) {
   const move = usePlayhtmlMoveForeground<HTMLDivElement>();
+  const adopt = useLabBoardAdoption(countdown.id, countdown.boardId, move);
   const visual = labObjectColorVisual(countdown.color);
   const nowMs = useNowMs();
   const [editing, setEditing] = useState(false);
@@ -131,6 +136,7 @@ export function CountdownObjectView({
   const timeRef = useInteractiveControlProtection<HTMLInputElement>();
 
   return (
+    <LabBoardCarryFrame boardId={countdown.boardId}>
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
         id={playhtmlCountdownElementId(countdown.id)}
@@ -142,9 +148,10 @@ export function CountdownObjectView({
           height: `${countdown.heightPct}%`,
         }}
         data-4663-countdown={countdown.id}
-        onPointerDown={move.onPointerDown}
-        onPointerUp={move.onPointerUp}
-        onPointerCancel={move.onPointerCancel}
+        data-4663-owned-by={countdown.boardId ?? undefined}
+        onPointerDown={adopt.onPointerDown}
+        onPointerUp={adopt.onPointerUp}
+        onPointerCancel={adopt.onPointerCancel}
       >
         <div
           className="relative flex h-full w-full flex-col border px-2 pb-2 pt-1.5"
@@ -309,5 +316,6 @@ export function CountdownObjectView({
         </div>
       </div>
     </CanMoveElement>
+    </LabBoardCarryFrame>
   );
 }

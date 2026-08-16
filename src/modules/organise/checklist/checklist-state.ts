@@ -4,6 +4,7 @@
  */
 
 import { WORLD_HEIGHT_PX, WORLD_WIDTH_PX, type WorldPct } from "@/lib/canvas/world-camera";
+import { normalizeLabBoardId } from "@/lib/modules/lab-board-containment";
 import {
   DEFAULT_LAB_OBJECT_COLOR,
   normalizeLabObjectColor,
@@ -64,6 +65,7 @@ export type ChecklistInstance = {
   title: string;
   items: ChecklistItem[];
   color: LabObjectColor;
+  boardId: string | null;
 };
 
 export type ModuleLabChecklistsPageData = {
@@ -186,6 +188,7 @@ export function normalizeChecklistInstance(
     title: validateChecklistTitle(record.title),
     items,
     color: normalizeLabObjectColor(record.color),
+    boardId: normalizeLabBoardId(record.boardId),
   };
 }
 
@@ -238,6 +241,7 @@ export function createChecklistInstance(
     title: validateChecklistTitle(input.title ?? ""),
     items: [createChecklistItem({ randomUUID })],
     color: DEFAULT_LAB_OBJECT_COLOR,
+    boardId: null,
   };
 }
 
@@ -322,6 +326,35 @@ export function updateChecklistSize(
     }
     return { ...checklist, ...next };
   });
+}
+
+export function updateChecklistBoardId(
+  data: ModuleLabChecklistsPageData,
+  checklistId: string,
+  boardId: string | null,
+): ModuleLabChecklistsPageData {
+  const nextBoardId = normalizeLabBoardId(boardId);
+  return mapChecklist(data, checklistId, (checklist) =>
+    checklist.boardId === nextBoardId
+      ? checklist
+      : { ...checklist, boardId: nextBoardId },
+  );
+}
+
+export function shiftChecklistOrigin(
+  data: ModuleLabChecklistsPageData,
+  checklistId: string,
+  deltaLeftPct: number,
+  deltaTopPct: number,
+): ModuleLabChecklistsPageData {
+  const dL = Number.isFinite(deltaLeftPct) ? deltaLeftPct : 0;
+  const dT = Number.isFinite(deltaTopPct) ? deltaTopPct : 0;
+  if (dL === 0 && dT === 0) return data;
+  return mapChecklist(data, checklistId, (checklist) => ({
+    ...checklist,
+    leftPct: checklist.leftPct + dL,
+    topPct: checklist.topPct + dT,
+  }));
 }
 
 export function canAddChecklistItem(checklist: ChecklistInstance): boolean {

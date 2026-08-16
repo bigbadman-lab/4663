@@ -8,6 +8,7 @@ import { usePageData, usePlayContext } from "@playhtml/react";
 import { useEffect, useRef } from "react";
 import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
 import { registerModuleLabActions } from "@/lib/modules/lab-actions";
+import { registerLabBoardChildSource } from "@/lib/modules/lab-board-bridge";
 import { dockCreateWorldPct } from "@/lib/canvas/world-camera";
 import { ChecklistObjectView } from "@/modules/organise/checklist/checklist-object";
 import {
@@ -23,7 +24,9 @@ import {
   removeChecklistInstance,
   removeChecklistItem,
   resetModuleLabChecklistsPageData,
+  shiftChecklistOrigin,
   toggleChecklistItem,
+  updateChecklistBoardId,
   updateChecklistItemText,
   updateChecklistSize,
   updateChecklistTitle,
@@ -49,6 +52,39 @@ export function ChecklistLayer() {
     pageDataRef.current = pageData;
     writableRef.current = writable;
   }, [pageData, writable]);
+
+  useEffect(() => {
+    return registerLabBoardChildSource({
+      kind: "checklist",
+      ownedIds: (boardId) =>
+        normalizeModuleLabChecklistsPageData(pageDataRef.current)
+          .checklists.filter((row) => row.boardId === boardId)
+          .map((row) => row.id),
+      setBoardId: (instanceId, boardId) => {
+        if (!writableRef.current) return;
+        const latest = normalizeModuleLabChecklistsPageData(
+          pageDataRef.current,
+        );
+        const next = updateChecklistBoardId(latest, instanceId, boardId);
+        pageDataRef.current = next;
+        setPageData(next);
+      },
+      shiftOrigin: (instanceId, deltaLeftPct, deltaTopPct) => {
+        if (!writableRef.current) return;
+        const latest = normalizeModuleLabChecklistsPageData(
+          pageDataRef.current,
+        );
+        const next = shiftChecklistOrigin(
+          latest,
+          instanceId,
+          deltaLeftPct,
+          deltaTopPct,
+        );
+        pageDataRef.current = next;
+        setPageData(next);
+      },
+    });
+  }, [setPageData]);
 
   useEffect(() => {
     return registerModuleLabActions({

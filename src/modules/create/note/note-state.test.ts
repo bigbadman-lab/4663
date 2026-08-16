@@ -61,6 +61,7 @@ describe("NOTE instance helpers", () => {
     assert.equal(a.heightPct, NOTE_HEIGHT_PCT_DEFAULT);
     assert.equal(a.color, "bone");
     assert.equal(b.color, "bone");
+    assert.equal(a.boardId, null);
     assert.notEqual(a.leftPct, b.leftPct);
     assert.ok(a.widthPct > 0);
     assert.ok(a.heightPct > 0);
@@ -212,6 +213,7 @@ describe("NOTE instance helpers", () => {
     assert.equal(legacy.topPct, 41);
     assert.equal(legacy.content, "keep me");
     assert.equal(legacy.color, "bone");
+    assert.equal(legacy.boardId, null);
   });
 
   it("clamps resize to min, max, and remaining world room", () => {

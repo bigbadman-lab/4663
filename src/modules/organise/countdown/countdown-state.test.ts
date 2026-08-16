@@ -145,6 +145,7 @@ describe("COUNTDOWN instance helpers", () => {
     assert.equal(a.moduleId, "countdown");
     assert.equal(a.label, "");
     assert.equal(a.color, "bone");
+    assert.equal(a.boardId, null);
     assert.equal(a.targetAt, defaultCountdownTargetAt(NOW));
     assert.equal(Date.parse(a.targetAt), NOW + COUNTDOWN_DEFAULT_OFFSET_MS);
     assert.equal(a.widthPct, COUNTDOWN_WIDTH_PCT_DEFAULT);
@@ -379,6 +380,7 @@ describe("COUNTDOWN instance helpers", () => {
     assert.equal(legacy.heightPct, COUNTDOWN_HEIGHT_PCT_DEFAULT);
     assert.equal(legacy.label, "keep me");
     assert.equal(legacy.targetAt, defaultCountdownTargetAt(NOW));
+    assert.equal(legacy.boardId, null);
   });
 
   it("clamps resize and keeps sibling geometry/config intact", () => {

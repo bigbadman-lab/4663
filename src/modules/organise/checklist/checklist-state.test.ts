@@ -95,6 +95,7 @@ describe("CHECKLIST instance helpers", () => {
     assert.equal(a.heightPct, CHECKLIST_HEIGHT_PCT_DEFAULT);
     assert.equal(a.color, "bone");
     assert.equal(b.color, "bone");
+    assert.equal(a.boardId, null);
     assert.notEqual(a.leftPct, b.leftPct);
   });
 
@@ -346,6 +347,7 @@ describe("CHECKLIST instance helpers", () => {
     assert.equal(legacy.title, "keep me");
     assert.deepEqual(legacy.items, []);
     assert.equal(legacy.color, "bone");
+    assert.equal(legacy.boardId, null);
   });
 
   it("clamps resize to min, max, and remaining world room", () => {

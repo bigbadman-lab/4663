@@ -7,6 +7,10 @@
 import { CanMoveElement } from "@playhtml/react";
 import { LabObjectColorPicker } from "@/components/modules/lab-object-color-picker";
 import { LabResizeHandle } from "@/components/modules/lab-resize-handle";
+import {
+  LabBoardCarryFrame,
+  useLabBoardAdoption,
+} from "@/components/modules/lab-board-ui";
 import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { usePlayhtmlMoveForeground } from "@/components/canvas/use-playhtml-move-foreground";
@@ -104,9 +108,11 @@ export function NoteObjectView({
   onDelete,
 }: NoteObjectViewProps) {
   const move = usePlayhtmlMoveForeground<HTMLDivElement>();
+  const adopt = useLabBoardAdoption(note.id, note.boardId, move);
   const visual = labObjectColorVisual(note.color);
 
   return (
+    <LabBoardCarryFrame boardId={note.boardId}>
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
         id={playhtmlNoteElementId(note.id)}
@@ -118,9 +124,10 @@ export function NoteObjectView({
           height: `${note.heightPct}%`,
         }}
         data-4663-note={note.id}
-        onPointerDown={move.onPointerDown}
-        onPointerUp={move.onPointerUp}
-        onPointerCancel={move.onPointerCancel}
+        data-4663-owned-by={note.boardId ?? undefined}
+        onPointerDown={adopt.onPointerDown}
+        onPointerUp={adopt.onPointerUp}
+        onPointerCancel={adopt.onPointerCancel}
       >
         <div
           className="relative flex h-full w-full flex-col border px-2 pb-2 pt-1.5"
@@ -170,5 +177,6 @@ export function NoteObjectView({
         </div>
       </div>
     </CanMoveElement>
+    </LabBoardCarryFrame>
   );
 }

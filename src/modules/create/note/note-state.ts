@@ -4,6 +4,7 @@
  */
 
 import { WORLD_HEIGHT_PX, WORLD_WIDTH_PX, type WorldPct } from "@/lib/canvas/world-camera";
+import { normalizeLabBoardId } from "@/lib/modules/lab-board-containment";
 import {
   DEFAULT_LAB_OBJECT_COLOR,
   normalizeLabObjectColor,
@@ -57,6 +58,7 @@ export type NoteInstance = {
   heightPct: number;
   content: string;
   color: LabObjectColor;
+  boardId: string | null;
 };
 
 export type NoteSize = {
@@ -162,6 +164,7 @@ export function normalizeNoteInstance(raw: unknown): NoteInstance | null {
     heightPct: size.heightPct,
     content: validateNoteContent(record.content),
     color: normalizeLabObjectColor(record.color),
+    boardId: normalizeLabBoardId(record.boardId),
   };
 }
 
@@ -214,6 +217,7 @@ export function createNoteInstance(
     heightPct: frame.heightPct,
     content: validateNoteContent(input.content ?? ""),
     color: DEFAULT_LAB_OBJECT_COLOR,
+    boardId: null,
   };
 }
 
@@ -287,6 +291,46 @@ export function updateNoteSize(
     }
     changed = true;
     return { ...note, ...next };
+  });
+  return changed ? { notes } : data;
+}
+
+export function updateNoteBoardId(
+  data: ModuleLabNotesPageData,
+  noteId: string,
+  boardId: string | null,
+): ModuleLabNotesPageData {
+  const id = noteId.trim().toLowerCase();
+  const nextBoardId = normalizeLabBoardId(boardId);
+  let changed = false;
+  const notes = data.notes.map((note) => {
+    if (note.id !== id) return note;
+    if (note.boardId === nextBoardId) return note;
+    changed = true;
+    return { ...note, boardId: nextBoardId };
+  });
+  return changed ? { notes } : data;
+}
+
+export function shiftNoteOrigin(
+  data: ModuleLabNotesPageData,
+  noteId: string,
+  deltaLeftPct: number,
+  deltaTopPct: number,
+): ModuleLabNotesPageData {
+  const id = noteId.trim().toLowerCase();
+  const dL = Number.isFinite(deltaLeftPct) ? deltaLeftPct : 0;
+  const dT = Number.isFinite(deltaTopPct) ? deltaTopPct : 0;
+  if (dL === 0 && dT === 0) return data;
+  let changed = false;
+  const notes = data.notes.map((note) => {
+    if (note.id !== id) return note;
+    changed = true;
+    return {
+      ...note,
+      leftPct: note.leftPct + dL,
+      topPct: note.topPct + dT,
+    };
   });
   return changed ? { notes } : data;
 }

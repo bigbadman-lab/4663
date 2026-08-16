@@ -7,6 +7,10 @@
 import { CanMoveElement } from "@playhtml/react";
 import { LabObjectColorPicker } from "@/components/modules/lab-object-color-picker";
 import { LabResizeHandle } from "@/components/modules/lab-resize-handle";
+import {
+  LabBoardCarryFrame,
+  useLabBoardAdoption,
+} from "@/components/modules/lab-board-ui";
 import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { usePlayhtmlMoveForeground } from "@/components/canvas/use-playhtml-move-foreground";
@@ -193,10 +197,12 @@ export function ChecklistObjectView({
   onDelete,
 }: ChecklistObjectViewProps) {
   const move = usePlayhtmlMoveForeground<HTMLDivElement>();
+  const adopt = useLabBoardAdoption(checklist.id, checklist.boardId, move);
   const canAdd = canAddChecklistItem(checklist);
   const visual = labObjectColorVisual(checklist.color);
 
   return (
+    <LabBoardCarryFrame boardId={checklist.boardId}>
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
         id={playhtmlChecklistElementId(checklist.id)}
@@ -208,9 +214,10 @@ export function ChecklistObjectView({
           height: `${checklist.heightPct}%`,
         }}
         data-4663-checklist={checklist.id}
-        onPointerDown={move.onPointerDown}
-        onPointerUp={move.onPointerUp}
-        onPointerCancel={move.onPointerCancel}
+        data-4663-owned-by={checklist.boardId ?? undefined}
+        onPointerDown={adopt.onPointerDown}
+        onPointerUp={adopt.onPointerUp}
+        onPointerCancel={adopt.onPointerCancel}
       >
         <div
           className="relative flex h-full w-full flex-col border px-2 pb-2 pt-1.5"
@@ -294,5 +301,6 @@ export function ChecklistObjectView({
         </div>
       </div>
     </CanMoveElement>
+    </LabBoardCarryFrame>
   );
 }

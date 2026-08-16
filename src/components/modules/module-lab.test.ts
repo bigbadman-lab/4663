@@ -8,6 +8,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { EPHEMERAL_TEXTS_PAGE_DATA_NAME } from "@/lib/social/ephemeral-text";
+import { MODULE_LAB_BOARDS_PAGE_DATA_NAME } from "@/modules/organise/board/board-state";
 import { MODULE_LAB_NOTES_PAGE_DATA_NAME } from "@/modules/create/note/note-state";
 import { MODULE_LAB_CHECKLISTS_PAGE_DATA_NAME } from "@/modules/organise/checklist/checklist-state";
 import { MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME } from "@/modules/organise/countdown/countdown-state";
@@ -51,9 +52,11 @@ describe("Module Lab host", () => {
     assert.ok(surface.includes("WORLD_HEIGHT_PX"));
     assert.ok(surface.includes("PLAYHTML_WORLD_BOUNDS_ID"));
     assert.ok(surface.includes("data-4663-world-scale=\"1\""));
+    assert.ok(surface.includes("BoardLayer"));
     assert.ok(surface.includes("NoteLayer"));
     assert.ok(surface.includes("ChecklistLayer"));
     assert.ok(surface.includes("CountdownLayer"));
+    assert.ok(surface.includes("LabBoardUiProvider"));
     assert.ok(surface.includes("data-4663-canvas-empty-hit"));
     for (const name of HOMEPAGE_IMPORTS) {
       assert.equal(surface.includes(name), false, name);
@@ -115,6 +118,22 @@ describe("Module Lab host", () => {
     assert.notEqual(
       MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME,
       MODULE_LAB_CHECKLISTS_PAGE_DATA_NAME,
+    );
+    const boardLayer = readSrc("src/modules/organise/board/board-layer.tsx");
+    assert.ok(boardLayer.includes("usePageData"));
+    assert.ok(boardLayer.includes("MODULE_LAB_BOARDS_PAGE_DATA_NAME"));
+    assert.equal(MODULE_LAB_BOARDS_PAGE_DATA_NAME, "4663-module-lab-boards");
+    assert.notEqual(
+      MODULE_LAB_BOARDS_PAGE_DATA_NAME,
+      MODULE_LAB_NOTES_PAGE_DATA_NAME,
+    );
+    assert.notEqual(
+      MODULE_LAB_BOARDS_PAGE_DATA_NAME,
+      MODULE_LAB_CHECKLISTS_PAGE_DATA_NAME,
+    );
+    assert.notEqual(
+      MODULE_LAB_BOARDS_PAGE_DATA_NAME,
+      MODULE_LAB_COUNTDOWNS_PAGE_DATA_NAME,
     );
   });
 
@@ -204,7 +223,7 @@ describe("Module Lab host", () => {
     assert.ok(handle.includes("screenPointToWorldPoint"));
   });
 
-  it("RESET fans out to NOTE, CHECKLIST, and COUNTDOWN and HOME uses goHome", () => {
+  it("RESET fans out to NOTE, CHECKLIST, COUNTDOWN, and BOARD and HOME uses goHome", () => {
     const surface = readSrc("src/components/modules/module-lab-surface.tsx");
     assert.ok(surface.includes("getModuleLabActions().reset()"));
     assert.ok(surface.includes("onHome={goHome}"));
@@ -226,6 +245,10 @@ describe("Module Lab host", () => {
     );
     assert.ok(countdownLayer.includes("resetModuleLabCountdownsPageData"));
     assert.ok(countdownLayer.includes('if (moduleId !== "countdown") return'));
+    const boardLayer = readSrc("src/modules/organise/board/board-layer.tsx");
+    assert.ok(boardLayer.includes("resetModuleLabBoardsPageData"));
+    assert.ok(boardLayer.includes('if (moduleId !== "board") return'));
+    assert.ok(boardLayer.includes("detachLabBoardChildren"));
     const actions = readSrc("src/lib/modules/lab-actions.ts");
     assert.ok(actions.includes("new Set<ModuleLabActionHandlers>()"));
   });
@@ -315,11 +338,68 @@ describe("Module Lab host", () => {
     assert.equal(listFrame.includes("overflow-hidden"), false);
   });
 
+  it("BOARD object is a movable soft container behind children, without nesting them", () => {
+    const object = readSrc("src/modules/organise/board/board-object.tsx");
+    const layer = readSrc("src/modules/organise/board/board-layer.tsx");
+    const note = readSrc("src/modules/create/note/note-object.tsx");
+    const containment = readSrc("src/lib/modules/lab-board-containment.ts");
+    assert.ok(/<CanMoveElement[^>]*>\s*<div\b/.test(object));
+    assert.ok(object.includes("PLAYHTML_CANVAS_BOUNDS_ID"));
+    assert.ok(object.includes("LabResizeHandle"));
+    assert.ok(object.includes("LabObjectColorPicker"));
+    assert.ok(object.includes("data-4663-board-title"));
+    assert.ok(object.includes("data-4663-board-title-editor"));
+    assert.ok(object.includes("data-4663-board-accepting"));
+    assert.ok(object.includes("BoardChromeTitle"));
+    assert.equal(object.includes("data-4663-board-label"), false);
+    assert.equal(object.includes("BoardTitleInput"), false);
+    assert.ok(object.includes("stopPlayhtmlMoveStart"));
+    assert.ok(object.includes("useInteractiveControlProtection"));
+    const chrome = object.slice(
+      object.indexOf("function BoardChromeTitle"),
+      object.indexOf("export function BoardObjectView"),
+    );
+    const view = object.slice(object.indexOf("export function BoardObjectView"));
+    assert.ok(chrome.includes("data-4663-board-title"));
+    assert.ok(chrome.includes('event.key === "Enter"'));
+    assert.ok(chrome.includes('event.key === "Escape"'));
+    assert.ok(view.includes("<BoardChromeTitle"));
+    assert.ok(view.includes("<LabObjectColorPicker"));
+    assert.ok(view.indexOf("<BoardChromeTitle") < view.indexOf("<LabObjectColorPicker"));
+    assert.equal((view.match(/<BoardChromeTitle/g) ?? []).length, 1);
+    assert.equal(view.includes("BoardTitleInput"), false);
+    assert.equal(view.includes("data-4663-board-label"), false);
+    assert.ok(object.includes("z-[8]"));
+    assert.equal(object.includes("PLAYHTML_MOVE_FOREGROUND_Z_INDEX"), false);
+    assert.ok(object.includes("shiftOwnedLabBoardChildren"));
+    assert.equal(object.includes("NoteObjectView"), false);
+    assert.ok(layer.includes("detachLabBoardChildren"));
+    assert.ok(note.includes("useLabBoardAdoption"));
+    assert.ok(note.includes("LabBoardCarryFrame"));
+    assert.ok(object.includes("data-4663-board-chrome"));
+    assert.ok(object.includes("nudgeOwnedChildrenBelowBoardChrome"));
+    assert.ok(object.includes('className="relative z-[5] flex shrink-0'));
+    assert.ok(containment.includes("contentRect"));
+    assert.ok(containment.includes("childDeltaToClearContentTop"));
+    assert.ok(containment.includes("child's axis-aligned bounding-box centre"));
+    const ui = readSrc("src/components/modules/lab-board-ui.tsx");
+    assert.ok(ui.includes("resolveBoardDrop"));
+    assert.ok(ui.includes("clampHostBelowBoardChrome"));
+    assert.ok(ui.includes("requestAnimationFrame"));
+    const onMove = ui.slice(
+      ui.indexOf("const onMove"),
+      ui.indexOf("const onUp"),
+    );
+    assert.equal(onMove.includes("clampHostBelowBoardChrome"), false);
+    assert.ok(layer.includes('if (moduleId !== "board") return'));
+  });
+
   it("does not change the homepage surface to mount lab modules", () => {
     const homepage = readSrc("src/components/canvas/canvas-surface.tsx");
     assert.equal(homepage.includes("NoteLayer"), false);
     assert.equal(homepage.includes("ChecklistLayer"), false);
     assert.equal(homepage.includes("CountdownLayer"), false);
+    assert.equal(homepage.includes("BoardLayer"), false);
     assert.equal(homepage.includes("module-lab"), false);
     assert.ok(homepage.includes("EphemeralTextLayer"));
   });
