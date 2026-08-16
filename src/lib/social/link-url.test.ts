@@ -9,7 +9,15 @@ import {
   isBlockedIpv4,
   isBlockedIpv6,
   parsePublicHttpUrl,
+  type LinkUrlError,
 } from "@/lib/social/link-url";
+
+function assertUrlError(raw: string, error: LinkUrlError): void {
+  const result = parsePublicHttpUrl(raw);
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error, error);
+}
 
 describe("LINK URL validation", () => {
   it("accepts valid HTTPS and HTTP", () => {
@@ -40,28 +48,28 @@ describe("LINK URL validation", () => {
   });
 
   it("rejects localhost and loopback", () => {
-    assert.equal(parsePublicHttpUrl("http://localhost/x").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://localhost.localdomain/x").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://127.0.0.1/x").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://127.1/x").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://[::1]/x").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://0.0.0.0/x").error, "blocked");
+    assertUrlError("http://localhost/x", "blocked");
+    assertUrlError("http://localhost.localdomain/x", "blocked");
+    assertUrlError("http://127.0.0.1/x", "blocked");
+    assertUrlError("http://127.1/x", "blocked");
+    assertUrlError("http://[::1]/x", "blocked");
+    assertUrlError("http://0.0.0.0/x", "blocked");
   });
 
   it("rejects private IPv4", () => {
-    assert.equal(parsePublicHttpUrl("http://10.0.0.8/").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://192.168.1.1/").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://172.16.0.1/").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://169.254.1.1/").error, "blocked");
+    assertUrlError("http://10.0.0.8/", "blocked");
+    assertUrlError("http://192.168.1.1/", "blocked");
+    assertUrlError("http://172.16.0.1/", "blocked");
+    assertUrlError("http://169.254.1.1/", "blocked");
     assert.equal(isBlockedIpv4("10.1.2.3"), true);
     assert.equal(isBlockedIpv4("8.8.8.8"), false);
   });
 
   it("rejects IPv6 internal destinations", () => {
-    assert.equal(parsePublicHttpUrl("http://[fe80::1]/").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://[fd12:3456:789a::1]/").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://[::ffff:127.0.0.1]/").error, "blocked");
-    assert.equal(parsePublicHttpUrl("http://[::ffff:10.0.0.1]/").error, "blocked");
+    assertUrlError("http://[fe80::1]/", "blocked");
+    assertUrlError("http://[fd12:3456:789a::1]/", "blocked");
+    assertUrlError("http://[::ffff:127.0.0.1]/", "blocked");
+    assertUrlError("http://[::ffff:10.0.0.1]/", "blocked");
     assert.equal(isBlockedIpv6("::1"), true);
     assert.equal(isBlockedIpv6("fc00::1"), true);
     assert.equal(isBlockedIpAddress("2001:4860:4860::8888"), false);

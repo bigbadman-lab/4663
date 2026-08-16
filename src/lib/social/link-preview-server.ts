@@ -16,7 +16,7 @@ import {
 
 export const LINK_PREVIEW_TIMEOUT_MS = 8_000 as const;
 export const LINK_PREVIEW_MAX_REDIRECTS = 3 as const;
-export const LINK_PREVIEW_MAX_BYTES = 512 * 1024 as const;
+export const LINK_PREVIEW_MAX_BYTES = 524_288 as const;
 export const LINK_PREVIEW_USER_AGENT = "4663-link-preview/1.0" as const;
 
 export type ResolveHostAddresses = (hostname: string) => Promise<string[]>;
