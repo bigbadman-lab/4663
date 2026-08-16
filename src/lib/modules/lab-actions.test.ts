@@ -40,14 +40,29 @@ describe("Module Lab actions", { concurrency: false }, () => {
         seen.push("board");
       },
     });
+    const unregisterCalendar = registerModuleLabActions({
+      create(moduleId) {
+        if (moduleId !== "calendar") return;
+        seen.push("calendar");
+      },
+    });
     getModuleLabActions().create("countdown");
     assert.deepEqual(seen, ["checklist", "note", "countdown"]);
     getModuleLabActions().create("board");
     assert.deepEqual(seen, ["checklist", "note", "countdown", "board"]);
+    getModuleLabActions().create("calendar");
+    assert.deepEqual(seen, [
+      "checklist",
+      "note",
+      "countdown",
+      "board",
+      "calendar",
+    ]);
     unregisterNote();
     unregisterChecklist();
     unregisterCountdown();
     unregisterBoard();
+    unregisterCalendar();
   });
 
   it("fans RESET out to every registered handler", () => {
@@ -72,15 +87,22 @@ describe("Module Lab actions", { concurrency: false }, () => {
         resets.push("board");
       },
     });
+    const unregisterCalendar = registerModuleLabActions({
+      reset() {
+        resets.push("calendar");
+      },
+    });
     getModuleLabActions().reset();
     assert.equal(resets.includes("note"), true);
     assert.equal(resets.includes("checklist"), true);
     assert.equal(resets.includes("countdown"), true);
     assert.equal(resets.includes("board"), true);
-    assert.equal(resets.length, 4);
+    assert.equal(resets.includes("calendar"), true);
+    assert.equal(resets.length, 5);
     unregisterNote();
     unregisterChecklist();
     unregisterCountdown();
     unregisterBoard();
+    unregisterCalendar();
   });
 });

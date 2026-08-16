@@ -192,7 +192,8 @@ function readAdoptableHostId(host: HTMLElement): string | null {
   return (
     host.getAttribute("data-4663-note") ??
     host.getAttribute("data-4663-checklist") ??
-    host.getAttribute("data-4663-countdown")
+    host.getAttribute("data-4663-countdown") ??
+    host.getAttribute("data-4663-calendar")
   );
 }
 

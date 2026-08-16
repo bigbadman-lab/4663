@@ -26,6 +26,7 @@ export const LAB_BOARD_ADOPTABLE_MODULE_IDS = [
   "note",
   "checklist",
   "countdown",
+  "calendar",
 ] as const;
 
 export type LabBoardAdoptableModuleId =
@@ -64,7 +65,10 @@ export function isLabBoardAdoptableModuleId(
   value: string,
 ): value is LabBoardAdoptableModuleId {
   return (
-    value === "note" || value === "checklist" || value === "countdown"
+    value === "note" ||
+    value === "checklist" ||
+    value === "countdown" ||
+    value === "calendar"
   );
 }
 

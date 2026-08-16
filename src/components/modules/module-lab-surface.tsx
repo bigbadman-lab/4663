@@ -16,6 +16,7 @@ import {
 import { LabBoardUiProvider } from "@/components/modules/lab-board-ui";
 import { NoteLayer } from "@/modules/create/note/note-layer";
 import { BoardLayer } from "@/modules/organise/board/board-layer";
+import { CalendarLayer } from "@/modules/organise/calendar/calendar-layer";
 import { ChecklistLayer } from "@/modules/organise/checklist/checklist-layer";
 import { CountdownLayer } from "@/modules/organise/countdown/countdown-layer";
 
@@ -58,6 +59,7 @@ export function ModuleLabSurface() {
             <NoteLayer />
             <ChecklistLayer />
             <CountdownLayer />
+            <CalendarLayer />
           </LabBoardUiProvider>
         </div>
       </div>

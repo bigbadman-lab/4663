@@ -1,11 +1,12 @@
 /**
- * Module Lab registry — NOTE + CHECKLIST + COUNTDOWN + BOARD V1.
+ * Module Lab registry — NOTE + CHECKLIST + COUNTDOWN + BOARD + CALENDAR V1.
  */
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   BOARD_MODULE,
+  CALENDAR_MODULE,
   CHECKLIST_MODULE,
   COUNTDOWN_MODULE,
   getModuleDefinition,
@@ -49,18 +50,31 @@ describe("Module Lab registry", () => {
     assert.equal("children" in BOARD_MODULE, false);
   });
 
-  it("lists NOTE, CHECKLIST, COUNTDOWN, and BOARD as the installable lab modules", () => {
+  it("registers CALENDAR as a free organise module with multiple instances", () => {
+    assert.equal(CALENDAR_MODULE.id, "calendar");
+    assert.equal(CALENDAR_MODULE.displayName, "CALENDAR");
+    assert.equal(CALENDAR_MODULE.category, "organise");
+    assert.equal(CALENDAR_MODULE.tier, "free");
+    assert.equal(CALENDAR_MODULE.multipleInstances, true);
+    assert.equal("viewYear" in CALENDAR_MODULE, false);
+    assert.equal("events" in CALENDAR_MODULE, false);
+  });
+
+  it("lists NOTE, CHECKLIST, COUNTDOWN, BOARD, and CALENDAR as the installable lab modules", () => {
     const listed = listInstallableModules();
-    assert.equal(listed.length, 4);
+    assert.equal(listed.length, 5);
     assert.equal(listed[0], NOTE_MODULE);
     assert.equal(listed[1], CHECKLIST_MODULE);
     assert.equal(listed[2], COUNTDOWN_MODULE);
     assert.equal(listed[3], BOARD_MODULE);
+    assert.equal(listed[4], CALENDAR_MODULE);
     assert.deepEqual(getModuleDefinition("note"), NOTE_MODULE);
     assert.deepEqual(getModuleDefinition("checklist"), CHECKLIST_MODULE);
     assert.deepEqual(getModuleDefinition("countdown"), COUNTDOWN_MODULE);
     assert.deepEqual(getModuleDefinition("board"), BOARD_MODULE);
+    assert.deepEqual(getModuleDefinition("calendar"), CALENDAR_MODULE);
     assert.equal(getModuleDefinition("text"), null);
+    assert.equal(getModuleDefinition("link"), null);
   });
 
   it("does not put colour or countdown config on the module catalogue", () => {
@@ -68,6 +82,7 @@ describe("Module Lab registry", () => {
     assert.equal("color" in CHECKLIST_MODULE, false);
     assert.equal("color" in COUNTDOWN_MODULE, false);
     assert.equal("color" in BOARD_MODULE, false);
+    assert.equal("color" in CALENDAR_MODULE, false);
     assert.equal("palette" in NOTE_MODULE, false);
   });
 });

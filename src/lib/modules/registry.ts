@@ -36,11 +36,20 @@ export const BOARD_MODULE: ModuleDefinition = {
   multipleInstances: true,
 };
 
+export const CALENDAR_MODULE: ModuleDefinition = {
+  id: "calendar",
+  displayName: "CALENDAR",
+  category: "organise",
+  tier: "free",
+  multipleInstances: true,
+};
+
 export const MODULE_LAB_MODULES: readonly ModuleDefinition[] = [
   NOTE_MODULE,
   CHECKLIST_MODULE,
   COUNTDOWN_MODULE,
   BOARD_MODULE,
+  CALENDAR_MODULE,
 ];
 
 const BY_ID: ReadonlyMap<ModuleId, ModuleDefinition> = new Map(
@@ -54,7 +63,8 @@ export function getModuleDefinition(
     id !== "note" &&
     id !== "checklist" &&
     id !== "countdown" &&
-    id !== "board"
+    id !== "board" &&
+    id !== "calendar"
   ) {
     return null;
   }

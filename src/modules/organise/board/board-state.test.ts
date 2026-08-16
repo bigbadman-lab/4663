@@ -54,6 +54,12 @@ import {
   updateCountdownBoardId,
 } from "@/modules/organise/countdown/countdown-state";
 import {
+  createCalendarInstance,
+  shiftCalendarOrigin,
+  updateCalendarBoardId,
+  type ModuleLabCalendarsPageData,
+} from "@/modules/organise/calendar/calendar-state";
+import {
   detachLabBoardChildren,
   registerLabBoardChildSource,
   setLabBoardChildOwnership,
@@ -67,6 +73,7 @@ const NOTE_A = "550e8400-e29b-41d4-a716-446655440000";
 const LIST_A = "550e8400-e29b-41d4-a716-446655440010";
 const ITEM_A = "550e8400-e29b-41d4-a716-446655440011";
 const COUNT_A = "550e8400-e29b-41d4-a716-446655440020";
+const CAL_A = "550e8400-e29b-41d4-a716-446655440050";
 
 function paddedUuid(n: number): string {
   return `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -325,7 +332,7 @@ describe("BOARD instance helpers", () => {
 });
 
 describe("BOARD ownership via child state", { concurrency: false }, () => {
-  it("NOTE, CHECKLIST, and COUNTDOWN can adopt a board and cannot belong to two", () => {
+  it("NOTE, CHECKLIST, COUNTDOWN, and CALENDAR can adopt a board and cannot belong to two", () => {
     const note = createNoteInstance({
       leftPct: 40,
       topPct: 40,
@@ -341,9 +348,16 @@ describe("BOARD ownership via child state", { concurrency: false }, () => {
       topPct: 44,
       randomUUID: () => COUNT_A,
     });
+    const calendar = createCalendarInstance({
+      leftPct: 46,
+      topPct: 46,
+      now: new Date(2026, 7, 16),
+      randomUUID: () => CAL_A,
+    });
     assert.equal(note.boardId, null);
     assert.equal(list.boardId, null);
     assert.equal(countdown.boardId, null);
+    assert.equal(calendar.boardId, null);
 
     const notes = updateNoteBoardId({ notes: [note] }, NOTE_A, BOARD_A);
     const lists = updateChecklistBoardId({ checklists: [list] }, LIST_A, BOARD_A);
@@ -352,17 +366,23 @@ describe("BOARD ownership via child state", { concurrency: false }, () => {
       COUNT_A,
       BOARD_A,
     );
+    const calendars = updateCalendarBoardId(
+      { calendars: [calendar] },
+      CAL_A,
+      BOARD_A,
+    );
     assert.equal(notes.notes[0]?.boardId, BOARD_A);
     assert.equal(lists.checklists[0]?.boardId, BOARD_A);
     assert.equal(countdowns.countdowns[0]?.boardId, BOARD_A);
+    assert.equal(calendars.calendars[0]?.boardId, BOARD_A);
 
-    const transferred = updateNoteBoardId(notes, NOTE_A, BOARD_B);
-    assert.equal(transferred.notes[0]?.boardId, BOARD_B);
+    const transferred = updateCalendarBoardId(calendars, CAL_A, BOARD_B);
+    assert.equal(transferred.calendars[0]?.boardId, BOARD_B);
 
-    const detached = updateNoteBoardId(transferred, NOTE_A, null);
-    assert.equal(detached.notes[0]?.boardId, null);
-    assert.equal(detached.notes[0]?.leftPct, note.leftPct);
-    assert.equal(detached.notes[0]?.topPct, note.topPct);
+    const detached = updateCalendarBoardId(transferred, CAL_A, null);
+    assert.equal(detached.calendars[0]?.boardId, null);
+    assert.equal(detached.calendars[0]?.leftPct, calendar.leftPct);
+    assert.equal(detached.calendars[0]?.topPct, calendar.topPct);
   });
 
   it("deleting a board detaches children and leaves them at their world origin", () => {
@@ -480,6 +500,54 @@ describe("BOARD ownership via child state", { concurrency: false }, () => {
     assert.equal(notes.notes[0]?.boardId, BOARD_B);
     setLabBoardChildOwnership(NOTE_A, null);
     assert.equal(notes.notes[0]?.boardId, null);
+    unregister();
+  });
+
+  it("BOARD carry and delete detach work for CALENDAR through the existing child source", () => {
+    let calendars: ModuleLabCalendarsPageData = {
+      calendars: [
+        {
+          ...createCalendarInstance({
+            leftPct: 40,
+            topPct: 30,
+            now: new Date(2026, 7, 16),
+            randomUUID: () => CAL_A,
+          }),
+          boardId: BOARD_A,
+        },
+      ],
+    };
+    const startLeft = calendars.calendars[0]!.leftPct;
+    const startTop = calendars.calendars[0]!.topPct;
+    const startWidth = calendars.calendars[0]!.widthPct;
+    const unregister = registerLabBoardChildSource({
+      kind: "calendar",
+      ownedIds: (boardId) =>
+        calendars.calendars
+          .filter((row) => row.boardId === boardId)
+          .map((row) => row.id),
+      setBoardId: (instanceId, boardId) => {
+        calendars = updateCalendarBoardId(calendars, instanceId, boardId);
+      },
+      shiftOrigin: (instanceId, dL, dT) => {
+        calendars = shiftCalendarOrigin(calendars, instanceId, dL, dT);
+      },
+    });
+    const delta = worldDeltaPxToOriginPct(96, 32);
+    shiftOwnedLabBoardChildren(BOARD_A, delta.deltaLeftPct, delta.deltaTopPct);
+    assert.equal(
+      calendars.calendars[0]?.leftPct,
+      startLeft + delta.deltaLeftPct,
+    );
+    assert.equal(calendars.calendars[0]?.topPct, startTop + delta.deltaTopPct);
+    assert.equal(calendars.calendars[0]?.widthPct, startWidth);
+    assert.equal(calendars.calendars[0]?.boardId, BOARD_A);
+    detachLabBoardChildren(BOARD_A);
+    assert.equal(calendars.calendars[0]?.boardId, null);
+    assert.equal(
+      calendars.calendars[0]?.leftPct,
+      startLeft + delta.deltaLeftPct,
+    );
     unregister();
   });
 });

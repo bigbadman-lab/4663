@@ -34,15 +34,17 @@ describe("BOARD containment", () => {
     assert.equal(normalizeLabBoardId(BOARD_A.toUpperCase()), BOARD_A);
   });
 
-  it("only NOTE, CHECKLIST, and COUNTDOWN are adoptable — never BOARD", () => {
+  it("only NOTE, CHECKLIST, COUNTDOWN, and CALENDAR are adoptable — never BOARD", () => {
     assert.deepEqual(LAB_BOARD_ADOPTABLE_MODULE_IDS, [
       "note",
       "checklist",
       "countdown",
+      "calendar",
     ]);
     assert.equal(isLabBoardAdoptableModuleId("note"), true);
     assert.equal(isLabBoardAdoptableModuleId("checklist"), true);
     assert.equal(isLabBoardAdoptableModuleId("countdown"), true);
+    assert.equal(isLabBoardAdoptableModuleId("calendar"), true);
     assert.equal(isLabBoardAdoptableModuleId("board"), false);
   });
 
