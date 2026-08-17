@@ -1,6 +1,7 @@
 /**
  * Temporary heartbeat during continuous-mode startup catch-up.
  * Ops-only wall-clock liveness; no product/chain semantics.
+ * A fresh last_heartbeat_at does not imply latest_chain_block or cursors moved.
  */
 
 export type CatchUpHeartbeatHandle = {

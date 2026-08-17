@@ -10,7 +10,10 @@ import {
   CURSOR_STREAM_POOLS_SWAPS,
 } from "@/lib/pools/constants";
 import type { ChainRpc } from "@/lib/worker/chain/rpc";
-import { TRANSFER_SCAN_MAX_CHUNK_BLOCKS } from "@/lib/worker/constants";
+import {
+  POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
+  TRANSFER_SCAN_MAX_CHUNK_BLOCKS,
+} from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerLog } from "@/lib/worker/log";
 import { catchUpPoolsInstantCursor } from "@/lib/worker/pools/instant-loop";
@@ -134,6 +137,9 @@ export async function catchUpPoolsSwapCursor(input: {
         chainId: input.chainId,
         startupRewind: false,
         maxOuterRangeBlocks: outer,
+        // Bound nested Instant so a lagging Instant cursor cannot become
+        // an until-head loop inside one swap iteration.
+        maxRanges: input.maxRanges ?? POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
         targetThroughBlock: to,
         productionStartBlock: input.productionStartBlock,
         observationStartBlock: input.observationStartBlock,

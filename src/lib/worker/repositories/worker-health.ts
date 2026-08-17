@@ -5,6 +5,11 @@ import type { WorkerSupabase } from "@/lib/worker/supabase";
 /**
  * Upsert the single operational worker_health row.
  * Uses wall-clock timestamps (ops only — not product authority).
+ *
+ * last_heartbeat_at is process liveness only. It does not mean any stream
+ * advanced. Per-stream progress is chain_cursors.last_processed_block.
+ * latest_chain_block is the last PONS-observed RPC head written by the worker,
+ * and can stay unchanged while a heartbeat remains fresh.
  */
 export async function upsertWorkerHealth(
   supabase: WorkerSupabase,

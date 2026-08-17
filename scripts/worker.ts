@@ -25,6 +25,7 @@ import { createChainRpc } from "@/lib/worker/chain/rpc";
 import {
   FACTORY_POLL_INTERVAL_MS,
   HEARTBEAT_INTERVAL_MS,
+  POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
 } from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerError, workerLog } from "@/lib/worker/log";
@@ -86,6 +87,7 @@ function formatCursorLog(
   return `cursor ${stream}: last_processed_block=${row.lastProcessedBlock} (startup from ${startupFrom})`;
 }
 
+/** Process liveness only. Stream progress is chain_cursors, not this row. */
 async function writeHeartbeat(
   supabase: WorkerSupabase,
   memory: WorkerMemoryModel,
@@ -416,12 +418,14 @@ async function main(): Promise<void> {
       }
 
       // POOLS Instant discovery is isolated: failure must not block PONS.
+      // Continuous mode: one Instant range then one swap range, then return so
+      // the 3s PONS poll can start. Do not await Instant/swaps until head.
       const poolsCatch = await catchUpPoolsInstantCursorIsolated({
         rpc,
         supabase,
         chainId: config.chainId,
         startupRewind: true,
-        maxRanges: once ? 1 : undefined,
+        maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
         productionStartBlock,
         observationStartBlock,
         onPersisted: onPoolsLaunch,
@@ -438,7 +442,7 @@ async function main(): Promise<void> {
         chainId: config.chainId,
         memory: poolsMemory,
         startupRewind: true,
-        maxRanges: once ? 1 : undefined,
+        maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
         productionStartBlock,
         observationStartBlock,
         onInstantPersisted: onPoolsLaunch,
@@ -538,6 +542,7 @@ async function main(): Promise<void> {
           supabase,
           chainId: config.chainId,
           startupRewind: false,
+          maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
           productionStartBlock,
           observationStartBlock,
           onPersisted: onPoolsLaunch,
@@ -548,6 +553,7 @@ async function main(): Promise<void> {
           chainId: config.chainId,
           memory: poolsMemory,
           startupRewind: false,
+          maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
           productionStartBlock,
           observationStartBlock,
           onInstantPersisted: onPoolsLaunch,
