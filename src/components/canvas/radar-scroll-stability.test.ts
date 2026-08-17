@@ -61,8 +61,9 @@ describe("RADAR modal scroll stability", () => {
     assert.equal(panel.includes("key={generatedAt"), false);
     assert.equal(panel.includes("key={`${generatedAt"), false);
     assert.ok(panel.includes("data-4663-pons-monitoring-panel"));
-    // Detail remount on deliberate token change is intentional (starts at top).
-    assert.ok(panel.includes("key={selectedToken}"));
+    // Detail remount on deliberate token/launchpad change is intentional (starts at top).
+    assert.ok(panel.includes('selectedLaunchpad ?? "unknown"'));
+    assert.ok(panel.includes("selectedToken"));
   });
 
   it("panel mounts only while open — close/reopen is a fresh instance at top", () => {

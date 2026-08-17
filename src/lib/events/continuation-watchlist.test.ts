@@ -13,12 +13,16 @@ import {
 } from "@/lib/canvas/blockscout";
 import {
   CONTINUATION_WATCHLIST_LIMIT,
+  attachLaunchTimestamps,
   compareContinuationWatchlistRows,
   continuationWhyCopy,
+  loadContinuationWatchlist,
   normalizeContinuationWatchlistRow,
+  toRadarWatchlistToken,
   utcDayBounds,
 } from "@/lib/events/continuation-watchlist";
 import { EVENT_TYPE_PONS_BUYER_CONTINUATION } from "@/lib/pons/constants";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -35,11 +39,122 @@ const TOKEN_C = "0xcccccccccccccccccccccccccccccccccccccccc";
 
 const EVENT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
+function rank(
+  launchpad: "pons" | "pools",
+  tokenAddress: string,
+  continuationBuyerCount: number,
+  continuationTimestamp: string,
+) {
+  return {
+    launchpad,
+    tokenAddress,
+    continuationBuyerCount,
+    continuationTimestamp,
+    eventId: EVENT_ID,
+  };
+}
+
+function eventRow(input: {
+  id: string;
+  source: "pons" | "pools";
+  token: string;
+  buyers: number;
+  at: string;
+}) {
+  return {
+    id: input.id,
+    event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
+    source: input.source,
+    token_address: input.token,
+    market_address:
+      input.source === "pons"
+        ? "0x1111111111111111111111111111111111111111"
+        : "0x23f8209572b4a1c2ad88a42749e830791fb027f1",
+    occurred_at: input.at,
+    new_buyers: input.buyers,
+    payload: {
+      launch_block_number: 34002670,
+      pre_3m_buyers: 1,
+      continuation_buyers: input.buyers,
+    },
+  };
+}
+
+function thenableQuery(result: { data: unknown; error: unknown }) {
+  const query = {
+    select() {
+      return query;
+    },
+    eq() {
+      return query;
+    },
+    in() {
+      return query;
+    },
+    gte() {
+      return query;
+    },
+    lt() {
+      return query;
+    },
+    order() {
+      return query;
+    },
+    limit() {
+      return query;
+    },
+    maybeSingle() {
+      return Promise.resolve(result);
+    },
+    then(
+      resolve: (value: { data: unknown; error: unknown }) => unknown,
+      reject?: (reason: unknown) => unknown,
+    ) {
+      return Promise.resolve(result).then(resolve, reject);
+    },
+  };
+  return query;
+}
+
+function mockWatchlistSupabase(opts: {
+  events: unknown[];
+  ponsLaunches?: unknown[];
+  poolsLaunches?: unknown[];
+}): SupabaseClient {
+  return {
+    from(table: string) {
+      if (table === "production_state") {
+        return thenableQuery({
+          data: { production_start_block: 34002666 },
+          error: null,
+        });
+      }
+      if (table === "events") {
+        return thenableQuery({ data: opts.events, error: null });
+      }
+      if (table === "pons_launches") {
+        return thenableQuery({
+          data: opts.ponsLaunches ?? [],
+          error: null,
+        });
+      }
+      if (table === "pools_instant_launches") {
+        return thenableQuery({
+          data: opts.poolsLaunches ?? [],
+          error: null,
+        });
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as SupabaseClient;
+}
+
 describe("continuation watchlist read-model", () => {
   it("1. only pons_buyer_continuation rows normalize", () => {
     const ok = normalizeContinuationWatchlistRow({
       id: EVENT_ID,
       event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
+      source: "pons",
       token_address: TOKEN_A,
       market_address: "0x1111111111111111111111111111111111111111",
       occurred_at: "2026-08-13T12:00:00.000Z",
@@ -55,6 +170,18 @@ describe("continuation watchlist read-model", () => {
     assert.equal(ok!.continuationBuyerCount, 3);
     assert.equal(ok!.pre3mFirstBuyers, 2);
     assert.equal(ok!.continuationFirstBuyers, 3);
+    assert.equal(ok!.launchpad, "pons");
+
+    const poolsRow = normalizeContinuationWatchlistRow({
+      id: EVENT_ID,
+      event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
+      source: "pools",
+      token_address: TOKEN_A,
+      occurred_at: "2026-08-13T12:00:00.000Z",
+      new_buyers: 3,
+      payload: { launch_block_number: 34002670 },
+    });
+    assert.equal(poolsRow?.launchpad, "pools");
 
     assert.equal(
       normalizeContinuationWatchlistRow({
@@ -86,6 +213,12 @@ describe("continuation watchlist read-model", () => {
     assert.equal(bounds.endIso, "2026-08-14T00:00:00.000Z");
     const loader = readSrc("src/lib/events/continuation-watchlist.ts");
     assert.ok(loader.includes('EVENT_TYPE_PONS_BUYER_CONTINUATION'));
+    assert.ok(loader.includes("RADAR_WATCHLIST_SOURCES"));
+    assert.ok(loader.includes('.in("source"'));
+    assert.ok(loader.includes("EVENT_SOURCE_POOLS"));
+    assert.ok(loader.includes("pools_instant_launches"));
+    assert.ok(loader.includes("pons_launches"));
+    assert.equal(loader.includes('.eq("source", EVENT_SOURCE_PONS)'), false);
     assert.ok(loader.includes('.gte("occurred_at"'));
     assert.ok(loader.includes('.lt("occurred_at"'));
     assert.ok(loader.includes("utcDayBounds"));
@@ -204,6 +337,7 @@ describe("public PONS monitoring presentation", () => {
     assert.ok(panel.includes("Nothing has crossed our radar today yet."));
     assert.ok(panel.includes("ON OUR RADAR"));
     assert.ok(panel.includes("WHY IT"));
+    assert.ok(panel.includes("RadarLaunchpadLabel"));
     assert.ok(panel.includes("createPortal"));
     assert.equal(panel.includes("last 5"), false);
 
@@ -247,5 +381,175 @@ describe("public PONS monitoring presentation", () => {
     const loader = readSrc("src/lib/events/continuation-watchlist.ts");
     assert.equal(loader.includes("fire_pons_buyer_continuation"), false);
     assert.equal(loader.includes("@playhtml/react"), false);
+  });
+});
+
+describe("aggregated PONS + POOLS watchlist ranking", () => {
+  it("drops unknown/missing source instead of defaulting to pons", () => {
+    assert.equal(
+      normalizeContinuationWatchlistRow({
+        id: EVENT_ID,
+        event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
+        token_address: TOKEN_A,
+        occurred_at: "2026-08-13T12:00:00.000Z",
+        new_buyers: 3,
+        payload: { launch_block_number: 34002670 },
+      }),
+      null,
+    );
+    assert.equal(
+      normalizeContinuationWatchlistRow({
+        id: EVENT_ID,
+        event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
+        source: "crowd",
+        token_address: TOKEN_A,
+        occurred_at: "2026-08-13T12:00:00.000Z",
+        new_buyers: 3,
+        payload: { launch_block_number: 34002670 },
+      }),
+      null,
+    );
+  });
+
+  it("nulls POOLS market_address so Instant strategy is not a PONS market", () => {
+    const row = normalizeContinuationWatchlistRow({
+      id: EVENT_ID,
+      event_type: EVENT_TYPE_PONS_BUYER_CONTINUATION,
+      source: "pools",
+      token_address: TOKEN_A,
+      market_address: "0x23f8209572b4a1c2ad88a42749e830791fb027f1",
+      occurred_at: "2026-08-13T12:00:00.000Z",
+      new_buyers: 3,
+      payload: { launch_block_number: 34002670 },
+    });
+    assert.equal(row?.launchpad, "pools");
+    assert.equal(row?.marketAddress, null);
+  });
+
+  it("mixed ranking: POOLS can displace PONS in one global top-5", () => {
+    const rows = [
+      rank("pons", TOKEN_A, 2, "2026-08-13T12:00:00.000Z"),
+      rank("pons", TOKEN_B, 2, "2026-08-13T11:00:00.000Z"),
+      rank("pons", TOKEN_C, 2, "2026-08-13T10:00:00.000Z"),
+      rank("pools", "0x1111111111111111111111111111111111111111", 5, "2026-08-13T09:00:00.000Z"),
+      rank("pools", "0x2222222222222222222222222222222222222222", 4, "2026-08-13T08:00:00.000Z"),
+      rank("pools", "0x3333333333333333333333333333333333333333", 3, "2026-08-13T07:00:00.000Z"),
+    ];
+    const top = [...rows].sort(compareContinuationWatchlistRows).slice(0, 5);
+    assert.deepEqual(
+      top.map((r) => r.launchpad),
+      ["pools", "pools", "pools", "pons", "pons"],
+    );
+    assert.equal(top.some((r) => r.tokenAddress === TOKEN_C), false);
+  });
+
+  it("mixed ranking: PONS can displace POOLS in one global top-5", () => {
+    const rows = [
+      rank("pools", TOKEN_A, 2, "2026-08-13T12:00:00.000Z"),
+      rank("pools", TOKEN_B, 2, "2026-08-13T11:00:00.000Z"),
+      rank("pools", TOKEN_C, 2, "2026-08-13T10:00:00.000Z"),
+      rank("pons", "0x1111111111111111111111111111111111111111", 5, "2026-08-13T09:00:00.000Z"),
+      rank("pons", "0x2222222222222222222222222222222222222222", 4, "2026-08-13T08:00:00.000Z"),
+      rank("pons", "0x3333333333333333333333333333333333333333", 3, "2026-08-13T07:00:00.000Z"),
+    ];
+    const top = [...rows].sort(compareContinuationWatchlistRows).slice(0, 5);
+    assert.deepEqual(
+      top.map((r) => r.launchpad),
+      ["pons", "pons", "pons", "pools", "pools"],
+    );
+  });
+
+  it("same token address on both launchpads stays two rows; launchpad then eventId tie-break", () => {
+    const pons = {
+      ...rank("pons", TOKEN_A, 4, "2026-08-13T12:00:00.000Z"),
+      eventId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    };
+    const pools = {
+      ...rank("pools", TOKEN_A, 4, "2026-08-13T12:00:00.000Z"),
+      eventId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    };
+    const sorted = [pools, pons].sort(compareContinuationWatchlistRows);
+    assert.equal(sorted[0]!.launchpad, "pons");
+    assert.equal(sorted[1]!.launchpad, "pools");
+    assert.equal(sorted[0]!.tokenAddress, sorted[1]!.tokenAddress);
+  });
+
+  it("launch enrichment keys by launchpad+token so sources do not collide", () => {
+    const tokens = attachLaunchTimestamps(
+      [
+        {
+          eventId: EVENT_ID,
+          tokenAddress: TOKEN_A,
+          launchpad: "pons",
+          marketAddress: "0x1111111111111111111111111111111111111111",
+          continuationTimestamp: "2026-08-13T12:00:00.000Z",
+          continuationBuyerCount: 3,
+          pre3mFirstBuyers: 1,
+          continuationFirstBuyers: 3,
+        },
+        {
+          eventId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          tokenAddress: TOKEN_A,
+          launchpad: "pools",
+          marketAddress: null,
+          continuationTimestamp: "2026-08-13T12:01:00.000Z",
+          continuationBuyerCount: 2,
+          pre3mFirstBuyers: 1,
+          continuationFirstBuyers: 2,
+        },
+      ],
+      new Map([
+        ["pons:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "2026-08-13T11:00:00.000Z"],
+        ["pools:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "2026-08-13T11:30:00.000Z"],
+      ]),
+    );
+    assert.equal(tokens[0]!.launchTimestamp, "2026-08-13T11:00:00.000Z");
+    assert.equal(tokens[1]!.launchTimestamp, "2026-08-13T11:30:00.000Z");
+    const dto = toRadarWatchlistToken(tokens[1]!);
+    assert.equal(dto.launchpad, "pools");
+    assert.equal(dto.displayMarketAddress, null);
+    assert.equal("poolId" in dto, false);
+  });
+});
+
+describe("loadContinuationWatchlist aggregated query", () => {
+  it("PONS-only, POOLS-only, and mixed rows share one ranked top-5", async () => {
+    const mixed = [
+      eventRow({
+        id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        source: "pons",
+        token: TOKEN_A,
+        buyers: 2,
+        at: "2026-08-17T12:00:00.000Z",
+      }),
+      eventRow({
+        id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        source: "pools",
+        token: TOKEN_B,
+        buyers: 5,
+        at: "2026-08-17T11:00:00.000Z",
+      }),
+      eventRow({
+        id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        source: "pons",
+        token: TOKEN_C,
+        buyers: 4,
+        at: "2026-08-17T10:00:00.000Z",
+      }),
+    ];
+    const result = await loadContinuationWatchlist(
+      mockWatchlistSupabase({ events: mixed }),
+      Date.parse("2026-08-17T15:00:00.000Z"),
+    );
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(
+      result.body.tokens.map((t) => t.launchpad),
+      ["pools", "pons", "pons"],
+    );
+    assert.equal(result.body.tokens[0]!.tokenAddress, TOKEN_B);
+    assert.equal(result.body.tokens[0]!.marketAddress, null);
+    assert.equal(result.body.tokens[1]!.launchpad, "pons");
+    assert.equal(result.body.tokens.every((t) => typeof t.launchpad === "string"), true);
   });
 });

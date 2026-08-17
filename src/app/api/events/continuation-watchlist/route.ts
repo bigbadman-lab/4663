@@ -1,6 +1,6 @@
 /**
  * GET /api/events/continuation-watchlist
- * Up to 5 pons_buyer_continuation tokens from the current UTC day.
+ * Up to 5 aggregated PONS + POOLS continuation tokens from the current UTC day.
  */
 
 import { loadContinuationWatchlist } from "@/lib/events/continuation-watchlist";

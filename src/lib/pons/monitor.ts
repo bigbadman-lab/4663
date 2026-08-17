@@ -14,6 +14,7 @@ import {
   EVENT_TYPE_PONS_BUYER_CONTINUATION,
   WORKER_NAME,
 } from "@/lib/pons/constants";
+import { LAUNCHPAD_PONS, type Launchpad } from "@/lib/radar/launchpad";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Max rows returned to the monitoring terminal. */
@@ -29,6 +30,7 @@ export type PonsMonitorItemStatus = "watching" | "activity";
 
 export type PonsMonitorItem = {
   tokenAddress: string;
+  launchpad: Launchpad;
   marketAddress: string | null;
   version: "v1" | "v2" | null;
   launchBlock: number | null;
@@ -171,6 +173,7 @@ export function mapLaunchToMonitorItem(
 ): PonsMonitorItem {
   return {
     tokenAddress: launch.tokenAddress,
+    launchpad: LAUNCHPAD_PONS,
     marketAddress: launch.marketAddress,
     version: launch.version,
     launchBlock: launch.launchBlock,

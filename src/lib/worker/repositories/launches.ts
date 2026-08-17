@@ -1,3 +1,5 @@
+import { EVENT_SOURCE_PONS } from "@/lib/pons/constants";
+import { EVENT_SOURCE_POOLS } from "@/lib/pools/constants";
 import type { FactoryVersion, LaunchStatus } from "@/lib/pons/types";
 import type { ResolvedPonsLaunch } from "@/lib/pons/launch-discovery";
 import type { ActiveLaunchRow } from "@/lib/worker/db-types";
@@ -167,11 +169,12 @@ function formatContinuationLookupError(
   return parts.join("; ");
 }
 
-/** Token addresses that already have a pons_buyer_continuation event. */
+/** Token addresses that already have a pons_buyer_continuation event for a source. */
 export async function loadContinuationEventTokenAddresses(
   supabase: WorkerSupabase,
   chainId: number,
   tokenAddresses: string[],
+  source: typeof EVENT_SOURCE_PONS | typeof EVENT_SOURCE_POOLS = EVENT_SOURCE_PONS,
 ): Promise<Set<string>> {
   const out = new Set<string>();
   if (tokenAddresses.length === 0) return out;
@@ -191,6 +194,7 @@ export async function loadContinuationEventTokenAddresses(
       .select("token_address")
       .eq("chain_id", chainId)
       .eq("event_type", "pons_buyer_continuation")
+      .eq("source", source)
       .in("token_address", batch);
 
     if (error) {

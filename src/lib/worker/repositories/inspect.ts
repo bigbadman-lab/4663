@@ -7,6 +7,7 @@ import {
   CURSOR_STREAM_PONS_TRANSFERS,
   WORKER_NAME,
 } from "@/lib/pons/constants";
+import { CURSOR_STREAM_POOLS_INSTANT, CURSOR_STREAM_POOLS_SWAPS } from "@/lib/pools/constants";
 import { loadKnownCursors } from "@/lib/worker/repositories/cursors";
 import { loadProductionState } from "@/lib/worker/repositories/production-state";
 import type { WorkerSupabase } from "@/lib/worker/supabase";
@@ -21,6 +22,10 @@ export type DurableStateSnapshot = {
   observationStartedAt: string | null;
   factoryCursor: number | null;
   transferCursor: number | null;
+  /** Independent Instant discovery cursor; never aligned by cutover/observation. */
+  poolsInstantCursor: number | null;
+  /** Independent Instant activity cursor; never aligned by cutover/observation. */
+  poolsSwapsCursor: number | null;
   activeLaunchCount: number;
   firedLaunchCount: number;
   expiredLaunchCount: number;
@@ -180,6 +185,10 @@ export async function inspectDurableState(
       cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock ?? null,
     transferCursor:
       cursors.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock ?? null,
+    poolsInstantCursor:
+      cursors.get(CURSOR_STREAM_POOLS_INSTANT)?.lastProcessedBlock ?? null,
+    poolsSwapsCursor:
+      cursors.get(CURSOR_STREAM_POOLS_SWAPS)?.lastProcessedBlock ?? null,
     activeLaunchCount,
     firedLaunchCount,
     expiredLaunchCount,
@@ -208,6 +217,8 @@ export function formatDurableStateReport(
     `observation_started_at=${snap.observationStartedAt ?? "not_active"}`,
     `cursor pons_factories=${snap.factoryCursor ?? "NONE"}`,
     `cursor pons_transfers=${snap.transferCursor ?? "NONE"}`,
+    `cursor pools_instant=${snap.poolsInstantCursor ?? "NONE"}`,
+    `cursor pools_swaps=${snap.poolsSwapsCursor ?? "NONE"}`,
     `launches active=${snap.activeLaunchCount} fired=${snap.firedLaunchCount} expired=${snap.expiredLaunchCount}`,
     `pre_boundary_or_dev_active=${snap.preBoundaryActiveCount}`,
     `pre_observation_active=${snap.preObservationActiveCount}`,

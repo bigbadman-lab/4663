@@ -133,6 +133,8 @@ describe("Stage 7A cutover plan / idempotency / dry-run", () => {
     assert.equal(plan.cutoverVersion, PRODUCTION_CUTOVER_VERSION);
     assert.ok(plan.mutations.some((m) => m.includes("pons_factories")));
     assert.ok(plan.mutations.some((m) => m.includes("pons_transfers")));
+    assert.ok(plan.mutations.every((m) => !m.includes("pools_instant")));
+    assert.ok(plan.mutations.every((m) => !m.includes("pools_swaps")));
     assert.ok(
       plan.mutations.every(
         (m) => !m.toLowerCase().includes("delete pons_launches"),

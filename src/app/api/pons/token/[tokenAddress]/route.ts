@@ -1,9 +1,14 @@
 /**
  * GET /api/pons/token/[tokenAddress]
  * On-demand RADAR investigation detail from stored data (no chain RPC).
+ *
+ * Route name is PONS-historical (kept this phase to avoid a broad rename).
+ * Pass `?launchpad=pons|pools` so a POOLS token is not looked up as PONS.
+ * Future RADAR module should call `loadRadarTokenDetail`, not this path.
  */
 
 import { loadRadarTokenDetail } from "@/lib/events/radar-token-detail";
+import { parseLaunchpad } from "@/lib/radar/launchpad";
 import { createPresenceSupabase } from "@/lib/presence/supabase-server";
 
 export const runtime = "nodejs";
@@ -18,10 +23,13 @@ type RouteContext = {
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext,
 ): Promise<Response> {
   const { tokenAddress } = await context.params;
+  const launchpad = parseLaunchpad(
+    new URL(request.url).searchParams.get("launchpad"),
+  );
 
   let supabase;
   try {
@@ -33,7 +41,9 @@ export async function GET(
     );
   }
 
-  const result = await loadRadarTokenDetail(supabase, tokenAddress);
+  const result = await loadRadarTokenDetail(supabase, tokenAddress, {
+    launchpad,
+  });
   if (!result.ok) {
     const status =
       result.error === "invalid_token"

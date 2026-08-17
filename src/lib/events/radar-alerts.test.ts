@@ -123,11 +123,73 @@ describe("radar alert detection (visible tokens[] membership)", () => {
     assert.equal(first.newAlerts.length, 1);
     assert.equal(first.newAlerts[0]!.eventId, ID_G);
     assert.equal(first.newAlerts[0]!.tokenAddress, TOKEN_G);
+    assert.equal(first.newAlerts[0]!.launchpad, "pons");
     assert.equal(
       first.newAlerts[0]!.expiresAtMs,
       1_100_000 + RADAR_ALERT_LIFETIME_MS,
     );
     assert.ok(first.nextSeen.has(ID_E), "E remains seen after leaving top-5");
+  });
+
+  it("alert copies launchpad from the visible token (pools)", () => {
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: TOP5,
+      nowMs: 1,
+    });
+    const first = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: [
+        { eventId: ID_G, tokenAddress: TOKEN_G, launchpad: "pools" },
+        ...TOP5.slice(0, 4),
+      ],
+      nowMs: 2,
+    });
+    assert.equal(first.newAlerts.length, 1);
+    assert.equal(first.newAlerts[0]!.launchpad, "pools");
+    assert.equal(RADAR_ALERT_LIFETIME_MS, 4 * 60 * 1000);
+  });
+
+  it("mixed source stream still dedupes by event ID; launchpad change does not re-alert", () => {
+    const mixed = [
+      { eventId: ID_A, tokenAddress: TOKEN_A, launchpad: "pons" as const },
+      { eventId: ID_G, tokenAddress: TOKEN_G, launchpad: "pools" as const },
+    ];
+    const seeded = diffRadarVisibleTokens({
+      previousSeen: new Set(),
+      seeded: false,
+      tokens: mixed,
+      nowMs: 1,
+    });
+    assert.equal(seeded.newAlerts.length, 0);
+    const relabeled = diffRadarVisibleTokens({
+      previousSeen: seeded.nextSeen,
+      seeded: true,
+      tokens: [
+        { eventId: ID_A, tokenAddress: TOKEN_A, launchpad: "pools" },
+        { eventId: ID_G, tokenAddress: TOKEN_G, launchpad: "pons" },
+      ],
+      nowMs: 2,
+    });
+    assert.equal(relabeled.newAlerts.length, 0);
+    const next = diffRadarVisibleTokens({
+      previousSeen: relabeled.nextSeen,
+      seeded: true,
+      tokens: [
+        ...mixed,
+        { eventId: ID_H, tokenAddress: TOKEN_H, launchpad: "pools" },
+      ],
+      nowMs: 3,
+    });
+    assert.equal(next.newAlerts.length, 1);
+    assert.equal(next.newAlerts[0]!.eventId, ID_H);
+    assert.equal(next.newAlerts[0]!.launchpad, "pools");
+    assert.equal(
+      next.newAlerts[0]!.expiresAtMs,
+      3 + RADAR_ALERT_LIFETIME_MS,
+    );
   });
 
   it("same subsequent response does not duplicate", () => {

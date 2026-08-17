@@ -14,6 +14,7 @@ loadDotenv({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 loadDotenv({ path: resolve(process.cwd(), ".env"), quiet: true });
 
 import {
+  CONTINUATION_WATCH_END_SECONDS,
   CURSOR_STREAM_PONS_FACTORIES,
   CURSOR_STREAM_PONS_TRANSFERS,
   WORKER_NAME,
@@ -29,12 +30,25 @@ import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerError, workerLog } from "@/lib/worker/log";
 import { catchUpFactoryCursor } from "@/lib/worker/pons/factory-loop";
 import { catchUpTransferCursor } from "@/lib/worker/pons/transfer-loop";
+import { EVENT_SOURCE_POOLS } from "@/lib/pools/constants";
+import { catchUpPoolsInstantCursorIsolated } from "@/lib/worker/pools/instant-loop";
+import {
+  addPoolsLaunchToWatch,
+  poolsLaunchToWatched,
+  reconstructPoolsWorkerMemory,
+  type PoolsWorkerMemory,
+} from "@/lib/worker/pools/state";
+import { catchUpPoolsSwapCursorIsolated } from "@/lib/worker/pools/swap-loop";
+import { loadPoolsFirstBuyersForTokens } from "@/lib/worker/repositories/pools-first-buyers";
+import {
+  loadPoolsInstantLaunchesForContinuationWatch,
+  type PoolsInstantLaunchRow,
+} from "@/lib/worker/repositories/pools-launches";
 import {
   PRODUCTION_REFUSAL_MESSAGE,
   requireProductionCutover,
 } from "@/lib/worker/production-mode";
 import { loadKnownCursors } from "@/lib/worker/repositories/cursors";
-import { CONTINUATION_WATCH_END_SECONDS } from "@/lib/pons/constants";
 import { loadFirstBuyersForTokens } from "@/lib/worker/repositories/first-buyers";
 import {
   loadActiveLaunches,
@@ -260,6 +274,44 @@ async function main(): Promise<void> {
     );
   }
 
+  let poolsMemory: PoolsWorkerMemory;
+  if (tipUnix !== null) {
+    const launchAfterUnix = tipUnix - CONTINUATION_WATCH_END_SECONDS;
+    const launchAfterIso = new Date(launchAfterUnix * 1000).toISOString();
+    const poolsLaunches = await loadPoolsInstantLaunchesForContinuationWatch(
+      supabase,
+      config.chainId,
+      {
+        launchTimestampAfterIso: launchAfterIso,
+        productionStartBlock,
+        observationStartBlock,
+      },
+    );
+    const poolsTokenAddrs = poolsLaunches.map((l) => l.tokenAddress);
+    const poolsContinued = await loadContinuationEventTokenAddresses(
+      supabase,
+      config.chainId,
+      poolsTokenAddrs,
+      EVENT_SOURCE_POOLS,
+    );
+    const poolsBuyers = await loadPoolsFirstBuyersForTokens(
+      supabase,
+      config.chainId,
+      poolsTokenAddrs,
+    );
+    poolsMemory = reconstructPoolsWorkerMemory(
+      poolsLaunches,
+      poolsBuyers,
+      tipUnix,
+      poolsContinued,
+    );
+    workerLog(
+      `pools continuation watch reconstructed: ${poolsMemory.watch.size} buyers=${poolsBuyers.length}`,
+    );
+  } else {
+    poolsMemory = reconstructPoolsWorkerMemory([], [], 0, new Set());
+  }
+
   const onLaunch = (launch: {
     tokenAddress: string;
     marketAddress: string;
@@ -270,6 +322,14 @@ async function main(): Promise<void> {
     launchBlockTimestampIso: string;
   }) => {
     addActiveLaunchToMemory(memory, launch, watchBoundaryOpts);
+  };
+
+  const onPoolsLaunch = (row: PoolsInstantLaunchRow) => {
+    addPoolsLaunchToWatch(
+      poolsMemory,
+      poolsLaunchToWatched(row),
+      tipUnix ?? undefined,
+    );
   };
 
   let latestProcessedBlock = highestProcessed(
@@ -352,6 +412,40 @@ async function main(): Promise<void> {
       } else {
         workerLog(
           "no pons_transfers cursor — transfer scan idle until bootstrap",
+        );
+      }
+
+      // POOLS Instant discovery is isolated: failure must not block PONS.
+      const poolsCatch = await catchUpPoolsInstantCursorIsolated({
+        rpc,
+        supabase,
+        chainId: config.chainId,
+        startupRewind: true,
+        maxRanges: once ? 1 : undefined,
+        productionStartBlock,
+        observationStartBlock,
+        onPersisted: onPoolsLaunch,
+      });
+      if (poolsCatch) {
+        workerLog(
+          `pools instant catch-up: inserted=${poolsCatch.inserted} known=${poolsCatch.alreadyKnown} ranges=${poolsCatch.rangesScanned} blocked=${poolsCatch.blocked}`,
+        );
+      }
+
+      const poolsSwapCatch = await catchUpPoolsSwapCursorIsolated({
+        rpc,
+        supabase,
+        chainId: config.chainId,
+        memory: poolsMemory,
+        startupRewind: true,
+        maxRanges: once ? 1 : undefined,
+        productionStartBlock,
+        observationStartBlock,
+        onInstantPersisted: onPoolsLaunch,
+      });
+      if (poolsSwapCatch) {
+        workerLog(
+          `pools swaps catch-up: newBuyers=${poolsSwapCatch.newFirstBuyers} ranges=${poolsSwapCatch.rangesScanned} blocked=${poolsSwapCatch.blocked}`,
         );
       }
 
@@ -438,6 +532,26 @@ async function main(): Promise<void> {
           now.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
           now.get(CURSOR_STREAM_PONS_TRANSFERS)?.lastProcessedBlock,
         );
+
+        await catchUpPoolsInstantCursorIsolated({
+          rpc,
+          supabase,
+          chainId: config.chainId,
+          startupRewind: false,
+          productionStartBlock,
+          observationStartBlock,
+          onPersisted: onPoolsLaunch,
+        });
+        await catchUpPoolsSwapCursorIsolated({
+          rpc,
+          supabase,
+          chainId: config.chainId,
+          memory: poolsMemory,
+          startupRewind: false,
+          productionStartBlock,
+          observationStartBlock,
+          onInstantPersisted: onPoolsLaunch,
+        });
       } catch (error) {
         workerError("poll cycle failed", error);
       } finally {

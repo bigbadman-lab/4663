@@ -2,13 +2,24 @@ import {
   CURSOR_STREAM_PONS_FACTORIES,
   CURSOR_STREAM_PONS_TRANSFERS,
 } from "@/lib/pons/constants";
-import type { CursorStreamName } from "@/lib/pons/types";
+import {
+  CURSOR_STREAM_POOLS_INSTANT,
+  CURSOR_STREAM_POOLS_SWAPS,
+} from "@/lib/pools/constants";
+import type { CursorStreamName, PonsCursorStreamName } from "@/lib/pons/types";
 import type { CursorRow } from "@/lib/worker/db-types";
 import type { WorkerSupabase } from "@/lib/worker/supabase";
 
-const KNOWN_STREAMS: readonly CursorStreamName[] = [
+/** Cutover / observation RPCs mutate only these two streams. */
+export const PONS_CURSOR_STREAMS: readonly PonsCursorStreamName[] = [
   CURSOR_STREAM_PONS_FACTORIES,
   CURSOR_STREAM_PONS_TRANSFERS,
+];
+
+const KNOWN_STREAMS: readonly CursorStreamName[] = [
+  ...PONS_CURSOR_STREAMS,
+  CURSOR_STREAM_POOLS_INSTANT,
+  CURSOR_STREAM_POOLS_SWAPS,
 ];
 
 type CursorDbRow = {

@@ -37,6 +37,7 @@ export function PonsMonitoringContent() {
   const {
     open,
     selectedTokenAddress,
+    selectedLaunchpad,
     openPanel,
     closePanel,
     clearSelectedToken,
@@ -96,6 +97,7 @@ export function PonsMonitoringContent() {
         <PonsMonitoringPanel
           tokens={tokens}
           initialTokenAddress={selectedTokenAddress}
+          initialLaunchpad={selectedLaunchpad}
           onClearSelection={clearSelectedToken}
           onClose={closePanel}
         />

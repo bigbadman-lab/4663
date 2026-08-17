@@ -8,11 +8,13 @@
 import { CanMoveElement } from "@playhtml/react";
 import Lottie from "lottie-react";
 import { useEffect, useState } from "react";
+import { RadarLaunchpadLabel } from "@/components/canvas/radar-launchpad-label";
 import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { usePlayhtmlMoveForeground } from "@/components/canvas/use-playhtml-move-foreground";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
+import type { Launchpad } from "@/lib/radar/launchpad";
 import type { RadarAlert } from "@/lib/events/radar-alerts";
 
 export const RADAR_ALERT_COPY = {
@@ -30,7 +32,7 @@ export function playhtmlRadarAlertElementId(eventId: string): string {
 
 type RadarAlertObjectProps = {
   alert: RadarAlert;
-  onOpen: (tokenAddress: string) => void;
+  onOpen: (tokenAddress: string, launchpad: Launchpad) => void;
 };
 
 function usePrefersReducedMotion(): boolean {
@@ -107,9 +109,12 @@ export function RadarAlertObject({
               </div>
             )}
           </div>
-          <span className="pointer-events-none relative font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
-            {RADAR_ALERT_COPY.title}
-          </span>
+          <div className="pointer-events-none relative flex items-baseline justify-between gap-2">
+            <span className="font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
+              {RADAR_ALERT_COPY.title}
+            </span>
+            <RadarLaunchpadLabel launchpad={alert.launchpad} />
+          </div>
           <span className="pointer-events-none relative font-mono text-[10px] leading-snug tracking-wide text-neutral-600">
             {RADAR_ALERT_COPY.body}
           </span>
@@ -121,7 +126,7 @@ export function RadarAlertObject({
             data-4663-radar-alert-open
             onClick={(event) => {
               event.stopPropagation();
-              onOpen(alert.tokenAddress);
+              onOpen(alert.tokenAddress, alert.launchpad);
             }}
             onPointerDown={stopPlayhtmlMoveStart}
             onMouseDown={stopPlayhtmlMoveStart}

@@ -6,6 +6,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { RadarLaunchpadLabel } from "@/components/canvas/radar-launchpad-label";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
 import { RadarSoundToggle } from "@/components/canvas/radar-sound-toggle";
 import {
@@ -26,12 +27,17 @@ import type {
   RadarTimelineEntry,
   RadarTokenDetail,
 } from "@/lib/events/radar-token-detail";
+import {
+  launchpadDetailLabel,
+  type Launchpad,
+} from "@/lib/radar/launchpad";
 
 type PonsMonitoringPanelProps = {
   tokens: readonly ContinuationWatchlistToken[];
   onClose: () => void;
   /** When set, open directly to this token's detail. */
   initialTokenAddress?: string | null;
+  initialLaunchpad?: Launchpad | null;
   onClearSelection?: () => void;
   nowMs?: number;
 };
@@ -67,7 +73,7 @@ function RadarList({
 }: {
   tokens: readonly ContinuationWatchlistToken[];
   relativeNow: number;
-  onInvestigate: (tokenAddress: string) => void;
+  onInvestigate: (token: ContinuationWatchlistToken) => void;
 }) {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
@@ -115,8 +121,9 @@ function RadarList({
               data-4663-pons-monitoring-item={token.tokenAddress}
               data-4663-radar-event={token.eventId}
             >
-              <p className="font-mono text-[10px] tracking-wide text-neutral-400">
-                TOKEN / ADDRESS
+              <p className="flex items-center justify-between gap-2 font-mono text-[10px] tracking-wide text-neutral-400">
+                <span>TOKEN / ADDRESS</span>
+                <RadarLaunchpadLabel launchpad={token.launchpad} />
               </p>
               <div className="mt-0.5 flex flex-wrap items-center gap-2">
                 <PonsAddressCopyControl
@@ -164,7 +171,7 @@ function RadarList({
                 type="button"
                 className="mt-3 inline-flex min-h-11 items-center font-mono text-[11px] tracking-wide text-neutral-700 transition-colors hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
                 data-4663-radar-investigate
-                onClick={() => onInvestigate(token.tokenAddress)}
+                onClick={() => onInvestigate(token)}
               >
                 [ TAKE A CLOSER LOOK ]
               </button>
@@ -215,10 +222,12 @@ function TimelineRow({ entry }: { entry: RadarTimelineEntry }) {
 
 function RadarDetail({
   tokenAddress,
+  launchpad,
   onBack,
   relativeNow,
 }: {
   tokenAddress: string;
+  launchpad: Launchpad | null;
   onBack: () => void;
   relativeNow: number;
 }) {
@@ -234,8 +243,11 @@ function RadarDetail({
 
     void (async () => {
       try {
+        const params = launchpad
+          ? `?launchpad=${encodeURIComponent(launchpad)}`
+          : "";
         const res = await fetch(
-          `/api/pons/token/${encodeURIComponent(tokenAddress)}`,
+          `/api/pons/token/${encodeURIComponent(tokenAddress)}${params}`,
           { method: "GET", cache: "no-store" },
         );
         if (cancelled) return;
@@ -259,7 +271,7 @@ function RadarDetail({
     return () => {
       cancelled = true;
     };
-  }, [tokenAddress]);
+  }, [tokenAddress, launchpad]);
 
   useEffect(() => {
     if (!copied) return;
@@ -293,7 +305,10 @@ function RadarDetail({
       {detail ? (
         <div className="mt-3 space-y-5 font-mono text-[12px] tracking-wide text-neutral-600">
           <section>
-            <p className="text-[10px] text-neutral-400">TOKEN</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] text-neutral-400">TOKEN</p>
+              <RadarLaunchpadLabel launchpad={detail.launchpad} />
+            </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
               <PonsAddressCopyControl
                 tokenAddress={detail.tokenAddress}
@@ -361,9 +376,12 @@ function RadarDetail({
                 </ExternalLink>
               </p>
             ) : null}
-            {detail.factoryVersion ? (
-              <p className="mt-1 text-neutral-800">
-                PONS {detail.factoryVersion.toUpperCase()}
+            {detail.launchpad === "pons" ? (
+              <p className="mt-1 text-neutral-800" data-4663-radar-pons-version>
+                {launchpadDetailLabel({
+                  launchpad: detail.launchpad,
+                  factoryVersion: detail.factoryVersion,
+                })}
               </p>
             ) : null}
           </section>
@@ -414,6 +432,7 @@ export function PonsMonitoringPanel({
   tokens,
   onClose,
   initialTokenAddress = null,
+  initialLaunchpad = null,
   onClearSelection,
   nowMs,
 }: PonsMonitoringPanelProps) {
@@ -425,11 +444,18 @@ export function PonsMonitoringPanel({
   const [selectedToken, setSelectedToken] = useState<string | null>(
     initialTokenAddress,
   );
-  const lastInitialRef = useRef(initialTokenAddress);
+  const [selectedLaunchpad, setSelectedLaunchpad] = useState<Launchpad | null>(
+    initialLaunchpad,
+  );
+  const lastInitialRef = useRef(
+    `${initialTokenAddress ?? ""}:${initialLaunchpad ?? ""}`,
+  );
 
-  if (lastInitialRef.current !== initialTokenAddress) {
-    lastInitialRef.current = initialTokenAddress;
+  const initialKey = `${initialTokenAddress ?? ""}:${initialLaunchpad ?? ""}`;
+  if (lastInitialRef.current !== initialKey) {
+    lastInitialRef.current = initialKey;
     setSelectedToken(initialTokenAddress ?? null);
+    setSelectedLaunchpad(initialLaunchpad ?? null);
   }
 
   useEffect(() => {
@@ -527,11 +553,13 @@ export function PonsMonitoringPanel({
 
         {showingDetail && selectedToken ? (
           <RadarDetail
-            key={selectedToken}
+            key={`${selectedLaunchpad ?? "unknown"}:${selectedToken}`}
             tokenAddress={selectedToken}
+            launchpad={selectedLaunchpad}
             relativeNow={relativeNow}
             onBack={() => {
               setSelectedToken(null);
+              setSelectedLaunchpad(null);
               onClearSelection?.();
             }}
           />
@@ -539,7 +567,10 @@ export function PonsMonitoringPanel({
           <RadarList
             tokens={tokens}
             relativeNow={relativeNow}
-            onInvestigate={(address) => setSelectedToken(address)}
+            onInvestigate={(token) => {
+              setSelectedToken(token.tokenAddress);
+              setSelectedLaunchpad(token.launchpad);
+            }}
           />
         )}
       </div>

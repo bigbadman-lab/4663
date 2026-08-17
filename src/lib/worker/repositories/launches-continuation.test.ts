@@ -50,7 +50,11 @@ function createMockSupabase(opts: MockOpts = {}) {
                   assert.equal(col2, "event_type");
                   assert.equal(value2, "pons_buyer_continuation");
                   return {
-                    in(col3: string, batch: string[]) {
+                    eq(colSource: string, sourceValue: unknown) {
+                      assert.equal(colSource, "source");
+                      assert.equal(sourceValue, "pons");
+                      return {
+                        in(col3: string, batch: string[]) {
                       assert.equal(col3, "token_address");
                       const batchIndex = inCalls.length;
                       inCalls.push([...batch]);
@@ -75,6 +79,8 @@ function createMockSupabase(opts: MockOpts = {}) {
                         .filter((token) => continuationTokens.has(token))
                         .map((token_address) => ({ token_address }));
                       return Promise.resolve({ data, error: null });
+                        },
+                      };
                     },
                   };
                 },

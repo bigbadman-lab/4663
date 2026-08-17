@@ -11,7 +11,13 @@ export type LaunchStatus = (typeof LAUNCH_STATUSES)[number];
 
 export type FactoryVersion = (typeof FACTORY_VERSIONS)[number];
 
-export type CursorStreamName = "pons_factories" | "pons_transfers";
+/** PONS discovery/activity cursors. Isolation: never reuse for POOLS. */
+export type PonsCursorStreamName = "pons_factories" | "pons_transfers";
+
+/** All durable worker streams. POOLS Instant discovery/activity are independent of PONS. */
+export type PoolsCursorStreamName = "pools_instant" | "pools_swaps";
+
+export type CursorStreamName = PonsCursorStreamName | PoolsCursorStreamName;
 
 export type PonsBuyingEventType = typeof EVENT_TYPE_PONS_BUYING_ACTIVITY;
 export type PonsBuyerContinuationEventType =

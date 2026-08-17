@@ -33,6 +33,8 @@ const PRESERVE_TABLES = [
   "worker_health",
   "pons_launches",
   "pons_first_buyers",
+  "pools_instant_launches",
+  "pools_first_buyers",
 ] as const;
 
 describe("Stage 8A.4 production clean-slate SQL", () => {

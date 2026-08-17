@@ -8,9 +8,9 @@ import {
 } from "@/lib/events/normalize";
 import {
   CHAIN_ID,
-  EVENT_SOURCE_PONS,
   EVENT_TYPE_PONS_BUYER_CONTINUATION,
 } from "@/lib/pons/constants";
+import { parseLaunchpad, type Launchpad } from "@/lib/radar/launchpad";
 import {
   CONTINUATION_PRE_END_SECONDS,
   CONTINUATION_WINDOW_END_SECONDS,
@@ -40,6 +40,7 @@ export type RadarTimelineEntry = {
 
 export type RadarTokenDetail = {
   tokenAddress: string;
+  launchpad: Launchpad;
   marketAddress: string | null;
   factoryVersion: string | null;
   factoryAddress: string | null;
@@ -226,9 +227,15 @@ export function buildRadarTimeline(input: {
   return timeline;
 }
 
+export type LoadRadarTokenDetailOptions = {
+  /** When omitted, newest continuation for this token wins (do not maybeSingle across sources). */
+  launchpad?: Launchpad | null;
+};
+
 export async function loadRadarTokenDetail(
   supabase: SupabaseClient,
   tokenAddressRaw: string,
+  options: LoadRadarTokenDetailOptions = {},
 ): Promise<LoadRadarTokenDetailResult> {
   const tokenAddress = normalizeRadarTokenAddress(tokenAddressRaw);
   if (!tokenAddress) {
@@ -256,40 +263,25 @@ export async function loadRadarTokenDetail(
   })();
   if (productionStartBlock === null) return { ok: false, error: "unavailable" };
 
-  const [eventRes, launchRes, buyersRes] = await Promise.all([
-    supabase
-      .from("events")
-      .select(
-        "id, event_type, token_address, market_address, occurred_at, new_buyers, trigger_tx_hash, trigger_block_number, payload",
-      )
-      .eq("chain_id", CHAIN_ID)
-      .eq("event_type", EVENT_TYPE_PONS_BUYER_CONTINUATION)
-      .eq("source", EVENT_SOURCE_PONS)
-      .eq("token_address", tokenAddress)
-      .maybeSingle(),
-    supabase
-      .from("pons_launches")
-      .select(
-        "token_address, market_address, factory_version, factory_address, launch_block_number, launch_block_timestamp, launch_tx_hash",
-      )
-      .eq("chain_id", CHAIN_ID)
-      .eq("token_address", tokenAddress)
-      .maybeSingle(),
-    supabase
-      .from("pons_first_buyers")
-      .select(
-        "wallet_address, first_buy_tx_hash, first_buy_block_number, first_buy_block_timestamp",
-      )
-      .eq("chain_id", CHAIN_ID)
-      .eq("token_address", tokenAddress)
-      .order("first_buy_block_timestamp", { ascending: true })
-      .order("first_buy_tx_hash", { ascending: true })
-      .limit(RADAR_TOKEN_DETAIL_BUYER_LIMIT),
-  ]);
+  let eventQuery = supabase
+    .from("events")
+    .select(
+      "id, event_type, token_address, market_address, occurred_at, new_buyers, trigger_tx_hash, trigger_block_number, payload, source",
+    )
+    .eq("chain_id", CHAIN_ID)
+    .eq("event_type", EVENT_TYPE_PONS_BUYER_CONTINUATION)
+    .eq("token_address", tokenAddress);
 
-  if (eventRes.error || launchRes.error || buyersRes.error) {
-    return { ok: false, error: "unavailable" };
+  if (options.launchpad) {
+    eventQuery = eventQuery.eq("source", options.launchpad);
   }
+
+  const eventRes = await eventQuery
+    .order("occurred_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (eventRes.error) return { ok: false, error: "unavailable" };
 
   const event = eventRes.data;
   if (!event || typeof event !== "object") {
@@ -297,6 +289,9 @@ export async function loadRadarTokenDetail(
   }
 
   const eventRecord = event as Record<string, unknown>;
+  const launchpad = parseLaunchpad(eventRecord.source);
+  if (!launchpad) return { ok: false, error: "not_found" };
+
   if (
     !isProductionLaunchBlock(eventRecord.payload, productionStartBlock) ||
     safeLaunchBlockFromPayload(eventRecord.payload) === null
@@ -317,6 +312,38 @@ export async function loadRadarTokenDetail(
     !Array.isArray(eventRecord.payload)
       ? (eventRecord.payload as Record<string, unknown>)
       : {};
+
+  const launchTable =
+    launchpad === "pools" ? "pools_instant_launches" : "pons_launches";
+  const buyersTable =
+    launchpad === "pools" ? "pools_first_buyers" : "pons_first_buyers";
+  const launchSelect =
+    launchpad === "pools"
+      ? "token_address, launch_block_number, launch_block_timestamp, launch_tx_hash"
+      : "token_address, market_address, factory_version, factory_address, launch_block_number, launch_block_timestamp, launch_tx_hash";
+
+  const [launchRes, buyersRes] = await Promise.all([
+    supabase
+      .from(launchTable)
+      .select(launchSelect)
+      .eq("chain_id", CHAIN_ID)
+      .eq("token_address", tokenAddress)
+      .maybeSingle(),
+    supabase
+      .from(buyersTable)
+      .select(
+        "wallet_address, first_buy_tx_hash, first_buy_block_number, first_buy_block_timestamp",
+      )
+      .eq("chain_id", CHAIN_ID)
+      .eq("token_address", tokenAddress)
+      .order("first_buy_block_timestamp", { ascending: true })
+      .order("first_buy_tx_hash", { ascending: true })
+      .limit(RADAR_TOKEN_DETAIL_BUYER_LIMIT),
+  ]);
+
+  if (launchRes.error || buyersRes.error) {
+    return { ok: false, error: "unavailable" };
+  }
 
   const launch = launchRes.data as Record<string, unknown> | null;
   const launchTimestamp = launch ? toIso(launch.launch_block_timestamp) : null;
@@ -355,27 +382,38 @@ export async function loadRadarTokenDetail(
   const newBuyers = asNonNeg(eventRecord.new_buyers);
 
   const marketFromEvent =
+    launchpad === "pons" &&
     typeof eventRecord.market_address === "string" &&
     isValidEvmAddress(eventRecord.market_address)
       ? eventRecord.market_address.trim().toLowerCase()
       : null;
   const marketFromLaunch =
+    launchpad === "pons" &&
     launch &&
     typeof launch.market_address === "string" &&
     isValidEvmAddress(launch.market_address)
       ? launch.market_address.trim().toLowerCase()
       : null;
 
+  const launchTxHash =
+    launch && typeof launch.launch_tx_hash === "string"
+      ? launch.launch_tx_hash.trim().toLowerCase()
+      : null;
+
   const body: RadarTokenDetail = {
     tokenAddress,
+    launchpad,
     marketAddress: marketFromEvent ?? marketFromLaunch,
     factoryVersion:
-      launch && typeof launch.factory_version === "string"
-        ? launch.factory_version
-        : typeof payload.factory_version === "string"
-          ? payload.factory_version
-          : null,
+      launchpad === "pons"
+        ? launch && typeof launch.factory_version === "string"
+          ? launch.factory_version
+          : typeof payload.factory_version === "string"
+            ? payload.factory_version
+            : null
+        : null,
     factoryAddress:
+      launchpad === "pons" &&
       launch &&
       typeof launch.factory_address === "string" &&
       isValidEvmAddress(launch.factory_address)
@@ -383,10 +421,7 @@ export async function loadRadarTokenDetail(
         : null,
     launchTimestamp,
     launchBlockNumber: launch ? asBlock(launch.launch_block_number) : null,
-    launchTxHash:
-      launch && typeof launch.launch_tx_hash === "string"
-        ? launch.launch_tx_hash.trim().toLowerCase()
-        : null,
+    launchTxHash,
     eventId,
     continuationTimestamp,
     qualificationBlockNumber: asBlock(eventRecord.trigger_block_number),
@@ -399,10 +434,7 @@ export async function loadRadarTokenDetail(
     totalFirstBuyers: buyers.length,
     timeline: buildRadarTimeline({
       launchTimestamp,
-      launchTxHash:
-        launch && typeof launch.launch_tx_hash === "string"
-          ? launch.launch_tx_hash.trim().toLowerCase()
-          : null,
+      launchTxHash,
       launchBlockNumber: launch ? asBlock(launch.launch_block_number) : null,
       buyers,
       continuationTimestamp,

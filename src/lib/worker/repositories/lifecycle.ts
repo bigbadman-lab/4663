@@ -129,6 +129,35 @@ export async function callFirePonsBuyerContinuation(
     );
   }
 
+  return mapContinuationFireResult(data);
+}
+
+export async function callFirePoolsBuyerContinuation(
+  supabase: WorkerSupabase,
+  input: {
+    chainId: number;
+    tokenAddress: string;
+    evaluationTimestampIso: string;
+    evaluationBlockNumber: number;
+  },
+): Promise<ContinuationFireRpcResult> {
+  const { data, error } = await supabase.rpc("fire_pools_buyer_continuation", {
+    p_chain_id: input.chainId,
+    p_token_address: input.tokenAddress,
+    p_evaluation_timestamp: input.evaluationTimestampIso,
+    p_evaluation_block_number: input.evaluationBlockNumber,
+  });
+
+  if (error) {
+    throw new Error(
+      `[4663-worker] fire_pools_buyer_continuation RPC failed: ${error.message}`,
+    );
+  }
+
+  return mapContinuationFireResult(data);
+}
+
+function mapContinuationFireResult(data: unknown): ContinuationFireRpcResult {
   const raw = asRecord(data);
   const status = String(raw.status ?? "error") as FireRpcStatus;
 

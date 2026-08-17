@@ -78,7 +78,7 @@ select
 from public.worker_health
 order by worker_name;
 
--- A6. Preserve snapshot — PONS intelligence counts (must remain after wipe)
+-- A6. Preserve snapshot — launch intelligence counts (must remain after wipe)
 select 'pons_launches' as table_name, count(*)::bigint as rows from public.pons_launches
 union all
 select 'pons_launches_active', count(*)::bigint from public.pons_launches where status = 'active'
@@ -88,6 +88,10 @@ union all
 select 'pons_launches_expired', count(*)::bigint from public.pons_launches where status = 'expired'
 union all
 select 'pons_first_buyers', count(*)::bigint from public.pons_first_buyers
+union all
+select 'pools_instant_launches', count(*)::bigint from public.pools_instant_launches
+union all
+select 'pools_first_buyers', count(*)::bigint from public.pools_first_buyers
 order by table_name;
 
 -- -----------------------------------------------------------------------------
@@ -104,9 +108,12 @@ delete from public.canvas_marks;
 delete from public.chat_messages;
 
 -- surfaced historical / test public events
--- Clears pons_buying_activity + pons_buyer_continuation product history.
+-- Clears pons_buying_activity + pons_buyer_continuation product history
+-- (source='pons' and source='pools').
 -- Does NOT move chain_cursors or production_state.
 -- Does NOT mutate pons_launches / pons_first_buyers.
+-- Does NOT mutate pools_instant_launches / pools_first_buyers.
+-- Does NOT rewind pons_factories, pons_transfers, pools_instant, or pools_swaps.
 --
 -- Residual product note (acceptable for launch if worker paused / no young
 -- tokens): fire_pons_buying_activity will NOT re-fire for status='fired'
@@ -165,7 +172,7 @@ select worker_name, last_heartbeat_at, latest_chain_block, latest_processed_bloc
 from public.worker_health
 order by worker_name;
 
--- C5. PONS intelligence counts unchanged vs SECTION A6
+-- C5. Launch intelligence counts unchanged vs SECTION A6
 select 'pons_launches' as table_name, count(*)::bigint as rows from public.pons_launches
 union all
 select 'pons_launches_active', count(*)::bigint from public.pons_launches where status = 'active'
@@ -175,6 +182,10 @@ union all
 select 'pons_launches_expired', count(*)::bigint from public.pons_launches where status = 'expired'
 union all
 select 'pons_first_buyers', count(*)::bigint from public.pons_first_buyers
+union all
+select 'pools_instant_launches', count(*)::bigint from public.pools_instant_launches
+union all
+select 'pools_first_buyers', count(*)::bigint from public.pools_first_buyers
 order by table_name;
 
 -- =============================================================================
@@ -182,7 +193,8 @@ order by table_name;
 -- =============================================================================
 --
 -- public.chain_cursors
---   Reason: durable last_processed_block for pons_factories / pons_transfers.
+--   Reason: durable last_processed_block for pons_factories / pons_transfers
+--   and (once bootstrapped) pools_instant / pools_swaps.
 --   Deleting would force historical chain replay / cursor bootstrap.
 --
 -- public.production_state
@@ -203,6 +215,16 @@ order by table_name;
 --   Reason: durable first-buyer idempotency / window reconstruction. Clearing
 --   would risk duplicate buyer inserts on rewind and corrupt fire eligibility
 --   math for still-watched tokens. Not user-visible canvas history.
+--
+-- public.pools_instant_launches
+--   Reason: durable POOLS Instant discovery state, parallel to pons_launches.
+--   Deleting would discard Instant pool/token mapping needed to reconstruct
+--   BUY classification after a product wipe.
+--
+-- public.pools_first_buyers
+--   Reason: durable POOLS first-buyer idempotency / Candidate B reconstruction.
+--   Clearing would risk duplicate Instant buyer inserts and corrupt POOLS
+--   continuation eligibility for still-watched tokens.
 --
 -- public.public_presence_summary (VIEW)
 --   Reason: not a table; aggregates presence. Empties naturally after presence wipe.

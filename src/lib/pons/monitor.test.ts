@@ -76,6 +76,10 @@ describe("pons monitor read-model", () => {
       "watching",
     );
     assert.equal(
+      mapLaunchToMonitorItem({ ...base, dbStatus: "active" }, 3).launchpad,
+      "pons",
+    );
+    assert.equal(
       mapLaunchToMonitorItem({ ...base, dbStatus: "fired" }, 3).status,
       "activity",
     );

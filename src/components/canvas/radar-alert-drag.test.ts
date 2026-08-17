@@ -96,7 +96,7 @@ describe("RADAR alert overlap drag", () => {
     const ctaIdx = alert.indexOf("data-4663-radar-alert-open");
     assert.ok(ctaIdx > 0);
     const cta = alert.slice(Math.max(0, ctaIdx - 450), ctaIdx + 700);
-    assert.ok(cta.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(cta.includes("onOpen(alert.tokenAddress, alert.launchpad)"));
     assert.ok(cta.includes("stopPlayhtmlMoveStart"));
     assert.ok(cta.includes("relative z-[1]"));
     assert.equal(cta.includes("onDismiss"), false);

@@ -395,7 +395,7 @@ describe("radar sound trigger + dedupe", () => {
     const ctaIdx = alert.indexOf("data-4663-radar-alert-open");
     assert.ok(ctaIdx > 0);
     const ctaWindow = alert.slice(ctaIdx, ctaIdx + 550);
-    assert.ok(ctaWindow.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(ctaWindow.includes("onOpen(alert.tokenAddress, alert.launchpad)"));
     assert.equal(ctaWindow.includes("onDismiss"), false);
     assert.equal(alert.includes("dismissRadarAlert"), false);
     assert.equal(alert.includes("playRadarPing"), false);
@@ -708,7 +708,7 @@ describe("radar sound volume", () => {
 
   it("13. [ TAKE A LOOK ] remains open-only", () => {
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
-    assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(alert.includes("onOpen(alert.tokenAddress, alert.launchpad)"));
     assert.equal(alert.includes("onDismiss"), false);
     assert.equal(alert.includes("data-4663-radar-sound-volume"), false);
   });

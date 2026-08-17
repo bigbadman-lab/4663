@@ -1,5 +1,6 @@
 /**
- * Server read-model: today's UTC pons_buyer_continuation watchlist (max 5).
+ * Server read-model: today's UTC aggregated RADAR watchlist (max 5).
+ * PONS and POOLS continuation rows compete in one ranking.
  * Presentation only — does not alter Candidate B / fire RPC / worker.
  */
 
@@ -12,6 +13,13 @@ import {
   EVENT_SOURCE_PONS,
   EVENT_TYPE_PONS_BUYER_CONTINUATION,
 } from "@/lib/pons/constants";
+import { EVENT_SOURCE_POOLS } from "@/lib/pools/constants";
+import {
+  LAUNCHPAD_POOLS,
+  parseLaunchpad,
+  type Launchpad,
+} from "@/lib/radar/launchpad";
+import type { RadarWatchlistToken } from "@/lib/radar/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Max tokens returned to the public monitoring object. */
@@ -27,25 +35,64 @@ export const CONTINUATION_WATCHLIST_FETCH_MULTIPLIER = 4 as const;
 export const RADAR_RECENT_QUALIFICATIONS_LIMIT = 50 as const;
 
 const SELECT_COLUMNS =
-  "id, event_type, token_address, market_address, occurred_at, new_buyers, payload" as const;
+  "id, event_type, token_address, market_address, occurred_at, new_buyers, payload, source" as const;
 
-export type ContinuationWatchlistToken = {
-  /** Durable events.id for RADAR-entry detection. */
-  eventId: string;
-  tokenAddress: string;
+export type ContinuationWatchlistToken = RadarWatchlistToken & {
+  /**
+   * PONS market address. Always null for POOLS — Instant strategy is not a market.
+   */
   marketAddress: string | null;
-  launchTimestamp: string | null;
-  continuationTimestamp: string;
-  /** Continuation-window first buyers (events.new_buyers / payload.continuation_buyers). */
-  continuationBuyerCount: number;
-  pre3mFirstBuyers: number | null;
-  continuationFirstBuyers: number | null;
 };
+
+/** Public watchlist includes both launchpad sources in one ranked query. */
+export const RADAR_WATCHLIST_SOURCES = [
+  EVENT_SOURCE_PONS,
+  EVENT_SOURCE_POOLS,
+] as const;
+
+export function watchlistLaunchLookupKey(
+  launchpad: Launchpad,
+  tokenAddress: string,
+): string {
+  return `${launchpad}:${tokenAddress}`;
+}
+
+/** Shared RADAR DTO — homepage and a future module consume the same shape. */
+export function toRadarWatchlistToken(
+  token: ContinuationWatchlistToken,
+): RadarWatchlistToken {
+  return {
+    eventId: token.eventId,
+    tokenAddress: token.tokenAddress,
+    launchpad: token.launchpad,
+    launchTimestamp: token.launchTimestamp,
+    continuationTimestamp: token.continuationTimestamp,
+    continuationBuyerCount: token.continuationBuyerCount,
+    pre3mFirstBuyers: token.pre3mFirstBuyers,
+    continuationFirstBuyers: token.continuationFirstBuyers,
+    displayMarketAddress: token.marketAddress,
+  };
+}
+
+export function attachLaunchTimestamps(
+  rows: readonly Omit<ContinuationWatchlistToken, "launchTimestamp">[],
+  launchByKey: ReadonlyMap<string, string>,
+): ContinuationWatchlistToken[] {
+  return rows.map((row) => ({
+    ...row,
+    launchTimestamp:
+      launchByKey.get(
+        watchlistLaunchLookupKey(row.launchpad, row.tokenAddress),
+      ) ?? null,
+    displayMarketAddress: row.marketAddress,
+  }));
+}
 
 /** Lightweight today's qualification for live RADAR alerts (not the ranked top-5). */
 export type RadarQualificationRef = {
   eventId: string;
   tokenAddress: string;
+  launchpad: Launchpad;
   occurredAt: string;
 };
 
@@ -146,6 +193,27 @@ function toIso(value: unknown): string | null {
   return new Date(ms).toISOString();
 }
 
+function ingestLaunchTimestamps(
+  launchByKey: Map<string, string>,
+  launchpad: Launchpad,
+  launches: unknown,
+): void {
+  if (!Array.isArray(launches)) return;
+  for (const launch of launches) {
+    if (!launch || typeof launch !== "object") continue;
+    const record = launch as {
+      token_address?: unknown;
+      launch_block_timestamp?: unknown;
+    };
+    if (typeof record.token_address !== "string") continue;
+    const token = record.token_address.trim().toLowerCase();
+    const ts = toIso(record.launch_block_timestamp);
+    if (ts) {
+      launchByKey.set(watchlistLaunchLookupKey(launchpad, token), ts);
+    }
+  }
+}
+
 function normalizeMarketAddress(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value !== "string") return null;
@@ -180,11 +248,13 @@ type RawContinuationRow = {
   occurred_at?: unknown;
   new_buyers?: unknown;
   payload?: unknown;
+  source?: unknown;
 };
 
 type NormalizedContinuationRow = {
   eventId: string;
   tokenAddress: string;
+  launchpad: Launchpad;
   marketAddress: string | null;
   continuationTimestamp: string;
   continuationBuyerCount: number;
@@ -195,17 +265,18 @@ type NormalizedContinuationRow = {
 
 /**
  * Rank: stronger continuation buyer count, then most recent continuation,
- * then token address (deterministic).
+ * then token address, then launchpad, then event id (deterministic).
+ * PONS and POOLS compete in one list — no reserved slots.
  */
 export function compareContinuationWatchlistRows(
   a: Pick<
     NormalizedContinuationRow,
     "continuationBuyerCount" | "continuationTimestamp" | "tokenAddress"
-  >,
+  > & { launchpad?: string; eventId?: string },
   b: Pick<
     NormalizedContinuationRow,
     "continuationBuyerCount" | "continuationTimestamp" | "tokenAddress"
-  >,
+  > & { launchpad?: string; eventId?: string },
 ): number {
   if (a.continuationBuyerCount !== b.continuationBuyerCount) {
     return b.continuationBuyerCount - a.continuationBuyerCount;
@@ -213,11 +284,20 @@ export function compareContinuationWatchlistRows(
   const ta = Date.parse(a.continuationTimestamp);
   const tb = Date.parse(b.continuationTimestamp);
   if (ta !== tb) return tb - ta;
-  return a.tokenAddress < b.tokenAddress
-    ? -1
-    : a.tokenAddress > b.tokenAddress
-      ? 1
-      : 0;
+  if (a.tokenAddress !== b.tokenAddress) {
+    return a.tokenAddress < b.tokenAddress
+      ? -1
+      : a.tokenAddress > b.tokenAddress
+        ? 1
+        : 0;
+  }
+  const la = a.launchpad ?? "";
+  const lb = b.launchpad ?? "";
+  if (la !== lb) return la < lb ? -1 : 1;
+  const ea = a.eventId ?? "";
+  const eb = b.eventId ?? "";
+  if (ea !== eb) return ea < eb ? -1 : ea > eb ? 1 : 0;
+  return 0;
 }
 
 export function normalizeContinuationWatchlistRow(
@@ -247,10 +327,17 @@ export function normalizeContinuationWatchlistRow(
   if (continuationTimestamp === null) return null;
 
   const counts = payloadBuyerCounts(r.payload);
+  const launchpad = parseLaunchpad(r.source);
+  if (!launchpad) return null;
+  const marketAddress =
+    launchpad === LAUNCHPAD_POOLS
+      ? null
+      : normalizeMarketAddress(r.market_address);
   return {
     eventId,
     tokenAddress,
-    marketAddress: normalizeMarketAddress(r.market_address),
+    launchpad,
+    marketAddress,
     continuationTimestamp,
     continuationBuyerCount,
     pre3mFirstBuyers: counts.pre3m,
@@ -311,7 +398,7 @@ export async function loadContinuationWatchlist(
     .select(SELECT_COLUMNS)
     .eq("chain_id", CHAIN_ID)
     .eq("event_type", EVENT_TYPE_PONS_BUYER_CONTINUATION)
-    .eq("source", EVENT_SOURCE_PONS)
+    .in("source", [...RADAR_WATCHLIST_SOURCES])
     .gte("occurred_at", startIso)
     .lt("occurred_at", endIso)
     .order("new_buyers", { ascending: false })
@@ -341,10 +428,10 @@ export async function loadContinuationWatchlist(
   // Separate newest-first feed for live alerts (independent of strength ranking).
   const { data: recentRows, error: recentError } = await supabase
     .from("events")
-    .select("id, event_type, token_address, market_address, occurred_at, new_buyers, payload")
+    .select("id, event_type, token_address, market_address, occurred_at, new_buyers, payload, source")
     .eq("chain_id", CHAIN_ID)
     .eq("event_type", EVENT_TYPE_PONS_BUYER_CONTINUATION)
-    .eq("source", EVENT_SOURCE_PONS)
+    .in("source", [...RADAR_WATCHLIST_SOURCES])
     .gte("occurred_at", startIso)
     .lt("occurred_at", endIso)
     .order("occurred_at", { ascending: false })
@@ -366,44 +453,62 @@ export async function loadContinuationWatchlist(
     recentQualifications.push({
       eventId: normalized.eventId,
       tokenAddress: normalized.tokenAddress,
+      launchpad: normalized.launchpad,
       occurredAt: normalized.continuationTimestamp,
     });
   }
 
-  const launchByToken = new Map<string, string>();
-  if (top.length > 0) {
-    const tokens = top.map((row) => row.tokenAddress);
+  const launchByKey = new Map<string, string>();
+  const ponsTokens = [
+    ...new Set(
+      top
+        .filter((row) => row.launchpad === "pons")
+        .map((row) => row.tokenAddress),
+    ),
+  ];
+  const poolsTokens = [
+    ...new Set(
+      top
+        .filter((row) => row.launchpad === "pools")
+        .map((row) => row.tokenAddress),
+    ),
+  ];
+
+  if (ponsTokens.length > 0) {
     const { data: launches, error: launchError } = await supabase
       .from("pons_launches")
       .select("token_address, launch_block_timestamp")
       .eq("chain_id", CHAIN_ID)
-      .in("token_address", tokens);
-
+      .in("token_address", ponsTokens);
     if (!launchError) {
-      for (const launch of launches ?? []) {
-        if (!launch || typeof launch !== "object") continue;
-        const record = launch as {
-          token_address?: unknown;
-          launch_block_timestamp?: unknown;
-        };
-        if (typeof record.token_address !== "string") continue;
-        const token = record.token_address.trim().toLowerCase();
-        const ts = toIso(record.launch_block_timestamp);
-        if (ts) launchByToken.set(token, ts);
-      }
+      ingestLaunchTimestamps(launchByKey, "pons", launches);
     }
   }
 
-  const tokens: ContinuationWatchlistToken[] = top.map((row) => ({
-    eventId: row.eventId,
-    tokenAddress: row.tokenAddress,
-    marketAddress: row.marketAddress,
-    launchTimestamp: launchByToken.get(row.tokenAddress) ?? null,
-    continuationTimestamp: row.continuationTimestamp,
-    continuationBuyerCount: row.continuationBuyerCount,
-    pre3mFirstBuyers: row.pre3mFirstBuyers,
-    continuationFirstBuyers: row.continuationFirstBuyers,
-  }));
+  if (poolsTokens.length > 0) {
+    const { data: launches, error: launchError } = await supabase
+      .from("pools_instant_launches")
+      .select("token_address, launch_block_timestamp")
+      .eq("chain_id", CHAIN_ID)
+      .in("token_address", poolsTokens);
+    if (!launchError) {
+      ingestLaunchTimestamps(launchByKey, "pools", launches);
+    }
+  }
+
+  const tokens = attachLaunchTimestamps(
+    top.map((row) => ({
+      eventId: row.eventId,
+      tokenAddress: row.tokenAddress,
+      launchpad: row.launchpad,
+      marketAddress: row.marketAddress,
+      continuationTimestamp: row.continuationTimestamp,
+      continuationBuyerCount: row.continuationBuyerCount,
+      pre3mFirstBuyers: row.pre3mFirstBuyers,
+      continuationFirstBuyers: row.continuationFirstBuyers,
+    })),
+    launchByKey,
+  );
 
   return {
     ok: true,

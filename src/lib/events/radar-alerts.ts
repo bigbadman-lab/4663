@@ -12,6 +12,10 @@ import {
   type ViewportRect,
   type WorldPct,
 } from "@/lib/canvas/world-camera";
+import {
+  LAUNCHPAD_PONS,
+  type Launchpad,
+} from "@/lib/radar/launchpad";
 
 export const RADAR_ALERT_LIFETIME_MS = 4 * 60 * 1000;
 
@@ -19,11 +23,14 @@ export const RADAR_ALERT_LIFETIME_MS = 4 * 60 * 1000;
 export type RadarVisibleTokenInput = {
   eventId: string;
   tokenAddress: string;
+  /** Defaults to pons when omitted (legacy callers / tests). */
+  launchpad?: Launchpad;
 };
 
 export type RadarAlert = {
   eventId: string;
   tokenAddress: string;
+  launchpad: Launchpad;
   createdAtMs: number;
   expiresAtMs: number;
   /** World % origin (PlayHTML / CanMoveElement), frozen at spawn. */
@@ -167,6 +174,7 @@ export function diffRadarVisibleTokens(input: {
     newAlerts.push({
       eventId: t.eventId,
       tokenAddress: t.tokenAddress,
+      launchpad: t.launchpad ?? LAUNCHPAD_PONS,
       createdAtMs: input.nowMs,
       expiresAtMs: input.nowMs + lifetimeMs,
       leftPct: slot.leftPct,

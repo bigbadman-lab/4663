@@ -31,15 +31,15 @@ const GUIDE_ACTIONS = [
     heading: "WATCH ROBINHOOD CHAIN",
     paragraphs: [
       "4663 is connected to live onchain data.",
-      "We monitor new tokens launched through PONS and surface activity we think is worth looking at.",
+      "We monitor Robinhood Chain launches and surface activity we think is worth looking at.",
       "This isn't a signal to buy. It's something to investigate.",
     ],
   },
   {
     heading: "EXPLORE RADAR",
     paragraphs: [
-      "Click RADAR to see tokens currently on our radar — Robinhood Chain launches our PONS continuation model has flagged as potentially worth investigating.",
-      "These are surfaced from the live PONS activity 4663 monitors — not signals to buy, but tokens we think deserve a closer look.",
+      "Click RADAR to see tokens currently on our radar — Robinhood Chain launches that have hit our RADAR as potentially worth investigating.",
+      "These are surfaced from the live launch activity 4663 monitors — not signals to buy, but tokens we think deserve a closer look.",
     ],
   },
   {

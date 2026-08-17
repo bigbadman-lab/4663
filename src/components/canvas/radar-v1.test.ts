@@ -56,6 +56,7 @@ describe("RADAR V1 naming + watchlist UX", () => {
   it("watchlist DTO exposes eventId; recentQualifications retained (not alert trigger)", () => {
     const loader = readSrc("src/lib/events/continuation-watchlist.ts");
     assert.ok(loader.includes("eventId: string"));
+    assert.ok(loader.includes("launchpad: Launchpad"));
     assert.ok(loader.includes("recentQualifications"));
     assert.ok(loader.includes("RADAR_RECENT_QUALIFICATIONS_LIMIT"));
     assert.equal(loader.includes("CONTINUATION_WATCHLIST_LIMIT = 5"), true);
@@ -67,6 +68,10 @@ describe("RADAR V1 naming + watchlist UX", () => {
     assert.ok(panel.includes("copyTextQuiet"));
     assert.ok(panel.includes("COPIED"));
     assert.ok(panel.includes("[ TAKE A CLOSER LOOK ]"));
+    assert.ok(panel.includes("RadarLaunchpadLabel"));
+    assert.ok(panel.includes("launchpadDetailLabel"));
+    assert.ok(panel.includes("?launchpad="));
+    assert.equal(panel.includes("InstantLaunchStrategy"), false);
     assert.ok(panel.includes("[ BACK ]"));
     assert.ok(panel.includes("data-4663-radar-back"));
     assert.ok(panel.includes("/api/pons/token/"));
@@ -77,6 +82,7 @@ describe("RADAR V1 naming + watchlist UX", () => {
       "src/components/canvas/pons-monitoring-panel-state.ts",
     );
     assert.ok(state.includes("selectedTokenAddress"));
+    assert.ok(state.includes("selectedLaunchpad"));
     assert.ok(state.includes("openRadarToToken"));
   });
 });
@@ -95,6 +101,7 @@ describe("RADAR V1 canvas alert + explorers", () => {
     assert.ok(alert.includes("lottie-react"));
     assert.ok(alert.includes("prefers-reduced-motion"));
     assert.ok(alert.includes("onOpen"));
+    assert.ok(alert.includes("RadarLaunchpadLabel"));
     assert.ok(alert.includes("pointer-events-none"));
     assert.ok(alert.includes('data-4663-radar-lottie'));
 
@@ -119,7 +126,7 @@ describe("RADAR V1 canvas alert + explorers", () => {
     // CTA is the open control — not a whole-card button wrapper.
     assert.ok(alert.includes('data-4663-radar-alert-open'));
     assert.ok(alert.includes("{RADAR_ALERT_COPY.cta}"));
-    assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(alert.includes("onOpen(alert.tokenAddress, alert.launchpad)"));
     assert.equal(alert.includes("onDismiss"), false);
     assert.ok(alert.includes("event.stopPropagation()"));
 
@@ -241,7 +248,7 @@ describe("RADAR alert trigger wiring (store → layer → open)", () => {
     );
 
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
-    assert.ok(alert.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(alert.includes("onOpen(alert.tokenAddress, alert.launchpad)"));
     assert.equal(alert.includes("onDismiss"), false);
     assert.ok(alert.includes('data-4663-radar-alert-open'));
     assert.equal(
@@ -263,7 +270,7 @@ describe("RADAR alert CTA keeps the card until 4-minute expiry", () => {
     const ctaIdx = alert.indexOf("data-4663-radar-alert-open");
     assert.ok(ctaIdx > 0);
     const ctaWindow = alert.slice(ctaIdx, ctaIdx + 550);
-    assert.ok(ctaWindow.includes("onOpen(alert.tokenAddress)"));
+    assert.ok(ctaWindow.includes("onOpen(alert.tokenAddress, alert.launchpad)"));
     assert.equal(ctaWindow.includes("onDismiss"), false);
     assert.equal(alert.includes("dismissRadarAlert"), false);
     assert.equal(alert.includes("onDismiss"), false);
@@ -300,6 +307,27 @@ describe("RADAR alert CTA keeps the card until 4-minute expiry", () => {
     assert.ok(
       alerts.includes("return alerts.filter((a) => a.expiresAtMs > nowMs)"),
     );
+  });
+
+  it("compact PONS/POOLS labels do not redesign RADAR or grow rows", () => {
+    const label = readSrc("src/components/canvas/radar-launchpad-label.tsx");
+    assert.ok(label.includes("text-[9px]"));
+    assert.ok(label.includes("text-neutral-400"));
+    assert.ok(label.includes("launchpadDisplayLabel"));
+    assert.equal(label.includes("/pons.png"), false);
+    assert.equal(label.includes("InstantLaunchStrategy"), false);
+
+    const panel = readSrc("src/components/canvas/pons-monitoring-panel.tsx");
+    assert.ok(panel.includes("flex items-center justify-between gap-2"));
+    assert.ok(panel.includes("RadarLaunchpadLabel"));
+    assert.ok(panel.includes("sm:max-w-md"));
+    assert.ok(panel.includes("max-w-[min(24rem,calc(100vw-1.5rem))]"));
+    assert.equal(panel.includes("InstantLaunchStrategy"), false);
+
+    const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
+    assert.ok(alert.includes("flex items-baseline justify-between gap-2"));
+    assert.ok(alert.includes("RadarLaunchpadLabel"));
+    assert.ok(alert.includes("JUST HIT OUR RADAR"));
   });
 
   it("temporary radar debug instrumentation is gone", () => {

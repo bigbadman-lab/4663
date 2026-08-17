@@ -84,9 +84,8 @@ export function CanvasIntroNote({ onClose }: CanvasIntroNoteProps) {
           </p>
           <p>The canvas is also connected to Robinhood Chain.</p>
           <p>
-            4663 watches the chain in real time, monitors every new token
-            launched through PONS, and surfaces activity we think is worth
-            looking at.
+            4663 watches the chain in real time, monitors launch activity on
+            Robinhood Chain, and surfaces activity we think is worth looking at.
           </p>
           <p>But this is only the beginning.</p>
           <p>
