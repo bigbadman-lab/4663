@@ -56,7 +56,7 @@ describe("hero preferences (local appearance)", () => {
     assert.ok(brand.includes("return null"));
   });
 
-  it("2. H1 click cycles colour; HIDE sits above the title (no COLOR control)", () => {
+  it("2. H1 click cycles colour; HIDE sits on the title (no COLOR control)", () => {
     const brand = readSrc("src/components/canvas/brand-anchors.tsx");
     assert.ok(brand.includes("data-4663-hero-appearance-tools"));
     assert.ok(brand.includes("data-4663-hero-hide"));
@@ -65,8 +65,9 @@ describe("hero preferences (local appearance)", () => {
     assert.equal(/\bCOLOR\b/.test(brand), false);
     assert.ok(brand.includes("cycleColor()"));
     assert.ok(brand.includes('data-4663-hero-select="title"'));
-    assert.ok(brand.includes("bottom-full"));
-    assert.ok(brand.includes("desktop-chrome:mb-2"));
+    assert.equal(brand.includes("bottom-full"), false);
+    assert.ok(brand.includes("pointer-events-none absolute inset-x-0 top-0"));
+    assert.ok(brand.includes("relative mx-auto w-fit"));
     assert.ok(brand.includes("w-fit"));
     assert.equal(brand.includes("${HERO_SELECT_BUTTON} w-full"), false);
     assert.equal(brand.includes("HERO_SELECT_BUTTON} w-full"), false);

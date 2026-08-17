@@ -68,6 +68,8 @@ describe("Social 2A ephemeral text UI", () => {
     assert.ok(object.includes("cursor-grab"));
     assert.ok(object.includes("pointer-events-none"));
     assert.ok(object.includes("playhtmlTextElementId"));
+    assert.ok(object.includes("PlayhtmlMoveHitFill"));
+    assert.ok(object.includes("usePlayhtmlMoveForeground"));
     assert.equal(
       playhtmlTextElementId("550e8400-e29b-41d4-a716-446655440000"),
       "4663-text-550e8400-e29b-41d4-a716-446655440000",

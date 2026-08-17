@@ -46,6 +46,16 @@ export const OVERLAY_INTERACTIVE_ROOT_SELECTOR =
 /** Dock is stacked above the world; recover SNAPSHOT / tray taps even over objects. */
 export const OVERLAY_DOCK_SELECTOR = "[data-4663-control-dock]" as const;
 
+/**
+ * Brand H1 / HIDE — native pe-auto only. Do not overlay-recover these through
+ * empty canvas; that steals create-menu taps and TEXT drags above the hero.
+ */
+export const OVERLAY_HERO_CONTROL_SELECTOR = [
+  "[data-4663-hero-select]",
+  "[data-4663-hero-hide]",
+  "[data-4663-hero-appearance-tools]",
+].join(",") as string;
+
 export const CANVAS_WORLD_SELECTOR = "[data-4663-canvas-world]" as const;
 
 export const WORLD_PAN_HIT_SELECTOR =
@@ -53,8 +63,9 @@ export const WORLD_PAN_HIT_SELECTOR =
 
 /**
  * PlayHTML / world object hits. Used so overlay recovery does not walk past a
- * movable and synthesize a click on chrome underneath (HERO, ENTER).
+ * movable and synthesize a click on chrome underneath (ENTER).
  * Dock controls and nested object actions (LINK OPEN) still match.
+ * HERO / HIDE are never recovered through the world.
  */
 export const WORLD_MOVABLE_HIT_SELECTOR = [
   "[data-4663-playhtml-move-hit]",
@@ -167,10 +178,23 @@ function resolveInteractiveTarget(target: EventTarget | null): Element | null {
   return el.closest(INTERACTIVE_CANVAS_TARGET_SELECTOR) ?? el;
 }
 
+function isHeroOverlayControl(target: EventTarget | null): boolean {
+  const el = asClosestElement(target);
+  if (!el) return false;
+  return Boolean(el.closest(OVERLAY_HERO_CONTROL_SELECTOR));
+}
+
+function isEmptyCanvasHitTarget(target: EventTarget | null): boolean {
+  const el = asClosestElement(target);
+  if (!el) return false;
+  return Boolean(el.closest(WORLD_PAN_HIT_SELECTOR));
+}
+
 function layoutInteractiveAtPoint(
   roots: ArrayLike<Element>,
   clientX: number,
   clientY: number,
+  skip?: (el: Element) => boolean,
 ): Element | null {
   let match: Element | null = null;
   for (let i = 0; i < roots.length; i += 1) {
@@ -181,6 +205,7 @@ function layoutInteractiveAtPoint(
         ? root.querySelectorAll(INTERACTIVE_CANVAS_TARGET_SELECTOR)
         : [];
     for (const el of candidates) {
+      if (skip?.(el)) continue;
       if (typeof el.getBoundingClientRect !== "function") continue;
       const rect = el.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) continue;
@@ -198,8 +223,9 @@ function layoutInteractiveAtPoint(
  * Prefers document.elementsFromPoint; falls back to layout boxes so taps that
  * miss buggy hit-testing through pointer-events:none ancestors still match.
  *
- * World PlayHTML objects block recovering chrome (HERO / ENTER) stacked
- * underneath. Dock controls and nested object actions (LINK OPEN) still match.
+ * World PlayHTML objects block recovering chrome (ENTER) stacked underneath.
+ * Dock controls and nested object actions (LINK OPEN) still match.
+ * HERO / HIDE are not recovered through empty canvas or world objects.
  */
 export function overlayInteractiveTargetFromPoint(
   clientX: number,
@@ -223,7 +249,12 @@ export function overlayInteractiveTargetFromPoint(
 
   if (doc && typeof doc.elementsFromPoint === "function") {
     let blockedByWorld = false;
+    let sawEmptyHit = false;
     for (const node of doc.elementsFromPoint(clientX, clientY)) {
+      if (isEmptyCanvasHitTarget(node)) {
+        sawEmptyHit = true;
+        continue;
+      }
       if (isWorldMovableHitTarget(node)) {
         const worldInteractive = resolveInteractiveTarget(node);
         if (worldInteractive) return worldInteractive;
@@ -234,6 +265,9 @@ export function overlayInteractiveTargetFromPoint(
       if (!el?.closest(OVERLAY_INTERACTIVE_ROOT_SELECTOR)) continue;
       const overlayInteractive = resolveInteractiveTarget(el);
       if (!overlayInteractive) continue;
+      if (isHeroOverlayControl(el) && (blockedByWorld || sawEmptyHit)) {
+        continue;
+      }
       if (el.closest(OVERLAY_DOCK_SELECTOR) || !blockedByWorld) {
         return overlayInteractive;
       }
@@ -259,6 +293,7 @@ export function overlayInteractiveTargetFromPoint(
     searchRoot.querySelectorAll(OVERLAY_INTERACTIVE_ROOT_SELECTOR),
     clientX,
     clientY,
+    isHeroOverlayControl,
   );
 }
 

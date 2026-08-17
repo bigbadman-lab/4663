@@ -8,6 +8,7 @@ import {
   INTERACTIVE_CANVAS_TARGET_SELECTOR,
   INTERACTIVE_CONTROL_ATTR,
   INTERACTIVE_CONTROL_SELECTOR,
+  OVERLAY_HERO_CONTROL_SELECTOR,
   WORLD_MOVABLE_HIT_SELECTOR,
   activateOverlayInteractiveTarget,
   isInteractiveCanvasControlTarget,
@@ -379,6 +380,59 @@ describe("overlayInteractiveTargetFromPoint", () => {
     assert.equal(hit, enter);
     activateOverlayInteractiveTarget(hit!);
     assert.deepEqual(clicks, ["enter"]);
+  });
+
+  it("does not recover HERO through empty canvas (create-menu / TEXT region)", () => {
+    const world = { id: "world" };
+    const emptyHit = {
+      closest(selector: string) {
+        if (selector.includes("canvas-empty-hit") || selector.includes("world-pan-hit")) {
+          return this;
+        }
+        if (selector === "[data-4663-canvas-world]") return world;
+        return null;
+      },
+    };
+    const hero = {
+      closest(selector: string) {
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return hero;
+        if (selector === OVERLAY_HERO_CONTROL_SELECTOR) return hero;
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return chrome;
+        }
+        return null;
+      },
+      getBoundingClientRect() {
+        return { left: 200, right: 900, top: 250, bottom: 500, width: 700, height: 250 };
+      },
+      click() {
+        throw new Error("HERO must not be recovered through empty canvas");
+      },
+    };
+    const chrome = {
+      querySelectorAll(selector: string) {
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return [hero];
+        return [];
+      },
+    };
+    const root = {
+      elementsFromPoint() {
+        return [emptyHit, hero];
+      },
+      querySelectorAll(selector: string) {
+        if (selector === WORLD_MOVABLE_HIT_SELECTOR) return [];
+        if (selector === "[data-4663-control-dock]") return [];
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return [chrome];
+        }
+        return [];
+      },
+    };
+
+    assert.equal(
+      overlayInteractiveTargetFromPoint(480, 360, root as unknown as ParentNode),
+      null,
+    );
   });
 });
 

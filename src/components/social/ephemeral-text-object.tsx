@@ -9,8 +9,10 @@
 
 import { CanMoveElement } from "@playhtml/react";
 import { useState } from "react";
+import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
+import { usePlayhtmlMoveForeground } from "@/components/canvas/use-playhtml-move-foreground";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
 import { splitTextWithEvmAddresses } from "@/lib/canvas/format-address";
 import { PLAYHTML_CANVAS_BOUNDS_ID } from "@/lib/canvas/hero";
@@ -115,6 +117,7 @@ export function EphemeralTextObjectView({
   onDelete,
 }: EphemeralTextObjectViewProps) {
   const colour = colourFromSessionId(text.ownerSessionId);
+  const move = usePlayhtmlMoveForeground<HTMLDivElement>();
   const hostClassName = isOwner
     ? "pointer-events-auto absolute z-[16] max-w-[min(14rem,70vw)] cursor-grab touch-manipulation select-none active:cursor-grabbing"
     : "pointer-events-none absolute z-[16] max-w-[min(14rem,70vw)] select-none";
@@ -127,15 +130,25 @@ export function EphemeralTextObjectView({
         style={{ left: `${text.leftPct}%`, top: `${text.topPct}%` }}
         data-4663-ephemeral-text={text.textId}
         data-4663-ephemeral-text-owner={isOwner ? "true" : "false"}
+        onPointerDown={move.onPointerDown}
+        onPointerUp={move.onPointerUp}
+        onPointerCancel={move.onPointerCancel}
       >
-        <div className="group -translate-x-1/2 -translate-y-1/2">
-          <EphemeralTextBody body={text.body} colour={colour} />
-          {isOwner ? (
-            <EphemeralTextDeleteButton
-              textId={text.textId}
-              onDelete={onDelete}
-            />
-          ) : null}
+        <div className="group relative -translate-x-1/2 -translate-y-1/2">
+          {isOwner ? <PlayhtmlMoveHitFill /> : null}
+          <div
+            className={
+              isOwner ? "relative z-[1]" : "pointer-events-none relative z-[1]"
+            }
+          >
+            <EphemeralTextBody body={text.body} colour={colour} />
+            {isOwner ? (
+              <EphemeralTextDeleteButton
+                textId={text.textId}
+                onDelete={onDelete}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
     </CanMoveElement>
