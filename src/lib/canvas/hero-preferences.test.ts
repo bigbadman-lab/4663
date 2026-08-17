@@ -66,7 +66,10 @@ describe("hero preferences (local appearance)", () => {
     assert.ok(brand.includes("cycleColor()"));
     assert.ok(brand.includes('data-4663-hero-select="title"'));
     assert.ok(brand.includes("bottom-full"));
-    assert.ok(brand.includes("sm:mb-2"));
+    assert.ok(brand.includes("desktop-chrome:mb-2"));
+    assert.ok(brand.includes("w-fit"));
+    assert.equal(brand.includes("${HERO_SELECT_BUTTON} w-full"), false);
+    assert.equal(brand.includes("HERO_SELECT_BUTTON} w-full"), false);
     assert.equal(brand.includes("top-[calc(42%-3.25rem)]"), false);
     assert.ok(brand.includes('type="button"'));
     assert.ok(brand.includes("touch-manipulation"));

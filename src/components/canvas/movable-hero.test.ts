@@ -91,5 +91,7 @@ describe("Stage 10B.5 / IC3.10 brand hero", () => {
     assert.equal(brand.includes("setData"), false);
     assert.equal(brand.includes("onDragStart"), false);
     assert.ok(brand.includes("pointer-events-none"));
+    assert.ok(brand.includes("w-fit"));
+    assert.equal(brand.includes("${HERO_SELECT_BUTTON} w-full"), false);
   });
 });

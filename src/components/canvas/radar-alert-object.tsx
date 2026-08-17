@@ -80,7 +80,7 @@ export function RadarAlertObject({
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
         id={playhtmlRadarAlertElementId(alert.eventId)}
-        className="pointer-events-auto absolute z-[16] cursor-grab touch-manipulation select-none active:cursor-grabbing"
+        className="pointer-events-auto absolute z-[16] -translate-x-1/2 -translate-y-1/2 cursor-grab touch-manipulation select-none active:cursor-grabbing"
         style={{ left: `${alert.leftPct}%`, top: `${alert.topPct}%` }}
         data-4663-radar-alert
         data-4663-radar-alert-event={alert.eventId}
@@ -88,7 +88,7 @@ export function RadarAlertObject({
         onPointerUp={move.onPointerUp}
         onPointerCancel={move.onPointerCancel}
       >
-        <article className="relative -translate-x-1/2 -translate-y-1/2 flex w-[10.5rem] flex-col items-stretch gap-1.5 border border-neutral-300 bg-white px-2 py-2 shadow-sm sm:w-[11.5rem]">
+        <article className="relative flex w-[10.5rem] flex-col items-stretch gap-1.5 border border-neutral-300 bg-white px-2 py-2 shadow-sm sm:w-[11.5rem]">
           <PlayhtmlMoveHitFill />
           <div
             className="pointer-events-none relative mx-auto h-[5.5rem] w-[5.5rem] sm:h-[6.5rem] sm:w-[6.5rem]"

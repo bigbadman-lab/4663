@@ -8,9 +8,11 @@ import {
   INTERACTIVE_CANVAS_TARGET_SELECTOR,
   INTERACTIVE_CONTROL_ATTR,
   INTERACTIVE_CONTROL_SELECTOR,
+  WORLD_MOVABLE_HIT_SELECTOR,
   activateOverlayInteractiveTarget,
   isInteractiveCanvasControlTarget,
   isInteractiveCanvasTarget,
+  isWorldMovableHitTarget,
   overlayInteractiveTargetFromPoint,
 } from "@/lib/canvas/interactive-control";
 
@@ -152,5 +154,152 @@ describe("overlayInteractiveTargetFromPoint", () => {
 
   it("returns null without a search root", () => {
     assert.equal(overlayInteractiveTargetFromPoint(0, 0, null), null);
+  });
+
+  it("does not recover HERO when a world PlayHTML object owns the point", () => {
+    const world = { id: "world" };
+    const radar = {
+      closest(selector: string) {
+        if (selector.includes("canvas-empty-hit") || selector.includes("world-pan-hit")) {
+          return null;
+        }
+        if (selector === "[data-4663-canvas-world]") return world;
+        if (selector === "[data-4663-home-region]") return null;
+        if (selector === "[data-4663-radar-alerts]") return { id: "alerts" };
+        return null;
+      },
+      getBoundingClientRect() {
+        return { left: 400, right: 560, top: 280, bottom: 460, width: 160, height: 180 };
+      },
+    };
+    const hero = {
+      closest(selector: string) {
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return hero;
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return chrome;
+        }
+        return null;
+      },
+      getBoundingClientRect() {
+        return { left: 200, right: 900, top: 250, bottom: 500, width: 700, height: 250 };
+      },
+      click() {
+        throw new Error("HERO must not be recovered over a world object");
+      },
+    };
+    const chrome = {
+      querySelectorAll(selector: string) {
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return [hero];
+        return [];
+      },
+    };
+    const root = {
+      elementsFromPoint() {
+        return [radar, hero];
+      },
+      querySelectorAll(selector: string) {
+        if (selector === WORLD_MOVABLE_HIT_SELECTOR) return [radar];
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return [chrome];
+        }
+        return [];
+      },
+    };
+
+    assert.equal(isWorldMovableHitTarget(radar as unknown as EventTarget), true);
+    assert.equal(
+      overlayInteractiveTargetFromPoint(480, 360, root as unknown as ParentNode),
+      null,
+    );
+  });
+
+  it("still recovers genuine chrome when the world miss is empty-hit", () => {
+    const clicks: string[] = [];
+    const emptyHit = {
+      closest(selector: string) {
+        if (selector.includes("canvas-empty-hit") || selector.includes("world-pan-hit")) {
+          return this;
+        }
+        if (selector === "[data-4663-canvas-world]") return { id: "world" };
+        return null;
+      },
+    };
+    const enter = {
+      closest(selector: string) {
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return enter;
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return chrome;
+        }
+        return null;
+      },
+      getBoundingClientRect() {
+        return { left: 300, right: 420, top: 500, bottom: 544, width: 120, height: 44 };
+      },
+      click() {
+        clicks.push("enter");
+      },
+    };
+    const chrome = {
+      querySelectorAll(selector: string) {
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return [enter];
+        return [];
+      },
+    };
+    const root = {
+      elementsFromPoint() {
+        return [emptyHit, enter];
+      },
+      querySelectorAll(selector: string) {
+        if (selector === WORLD_MOVABLE_HIT_SELECTOR) return [];
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return [chrome];
+        }
+        return [];
+      },
+    };
+
+    assert.equal(isWorldMovableHitTarget(emptyHit as unknown as EventTarget), false);
+    const hit = overlayInteractiveTargetFromPoint(
+      360,
+      520,
+      root as unknown as ParentNode,
+    );
+    assert.equal(hit, enter);
+    activateOverlayInteractiveTarget(hit!);
+    assert.deepEqual(clicks, ["enter"]);
+  });
+});
+
+describe("isWorldMovableHitTarget", () => {
+  it("accepts world objects and rejects pan/shell hits", () => {
+    const world = { id: "world" };
+    const radar = {
+      closest(selector: string) {
+        if (selector.includes("canvas-empty-hit")) return null;
+        if (selector === "[data-4663-canvas-world]") return world;
+        if (selector === "[data-4663-home-region]") return null;
+        if (selector === "[data-4663-radar-alerts]") return { id: "layer" };
+        return null;
+      },
+    };
+    const empty = {
+      closest(selector: string) {
+        if (selector.includes("canvas-empty-hit") || selector.includes("world-pan-hit")) {
+          return this;
+        }
+        if (selector === "[data-4663-canvas-world]") return world;
+        return null;
+      },
+    };
+    const shell = {
+      closest(selector: string) {
+        if (selector === "[data-4663-canvas-world]") return this;
+        return null;
+      },
+    };
+    assert.equal(isWorldMovableHitTarget(null), false);
+    assert.equal(isWorldMovableHitTarget(radar as unknown as EventTarget), true);
+    assert.equal(isWorldMovableHitTarget(empty as unknown as EventTarget), false);
+    assert.equal(isWorldMovableHitTarget(shell as unknown as EventTarget), false);
   });
 });

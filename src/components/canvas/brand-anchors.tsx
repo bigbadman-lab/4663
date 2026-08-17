@@ -54,7 +54,7 @@ export function BrandLogo() {
 }
 
 const HERO_SELECT_BUTTON =
-  "pointer-events-auto touch-manipulation select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400";
+  "pointer-events-auto mx-auto block w-fit touch-manipulation select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400";
 
 const HERO_TOOL_BUTTON =
   "inline-flex min-h-11 items-center px-2 font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 desktop-chrome:text-[11px]";
@@ -109,7 +109,7 @@ export function BrandHero() {
           </div>
           <button
             type="button"
-            className={`${HERO_SELECT_BUTTON} w-full`}
+            className={HERO_SELECT_BUTTON}
             aria-label={`Cycle hero colour (current ${preferences.color})`}
             data-4663-hero-select="title"
             data-4663-hero-color-value={preferences.color}

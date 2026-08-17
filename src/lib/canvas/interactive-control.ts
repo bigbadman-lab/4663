@@ -43,6 +43,27 @@ export const INTERACTIVE_CANVAS_TARGET_SELECTOR = [
 export const OVERLAY_INTERACTIVE_ROOT_SELECTOR =
   "[data-4663-canvas-chrome], [data-4663-control-dock]" as const;
 
+export const CANVAS_WORLD_SELECTOR = "[data-4663-canvas-world]" as const;
+
+export const WORLD_PAN_HIT_SELECTOR =
+  "[data-4663-canvas-empty-hit],[data-4663-world-pan-hit]" as const;
+
+/**
+ * PlayHTML / world object hits. Used so overlay recovery does not walk past a
+ * movable and synthesize a click on chrome underneath (HERO, ENTER, dock).
+ */
+export const WORLD_MOVABLE_HIT_SELECTOR = [
+  "[data-4663-playhtml-move-hit]",
+  "[data-4663-playhtml-move-foreground]",
+  "[data-4663-radar-alert]",
+].join(",") as string;
+
+const WORLD_LAYER_SHELL_SELECTORS = [
+  CANVAS_WORLD_SELECTOR,
+  "[data-4663-home-region]",
+  "[data-4663-radar-alerts]",
+] as const;
+
 const MOVE_START_EVENTS = [
   "touchstart",
   "mousedown",
@@ -111,6 +132,23 @@ export function isInteractiveCanvasTarget(
   return Boolean(el.closest(INTERACTIVE_CANVAS_TARGET_SELECTOR));
 }
 
+/**
+ * True when the hit is a PlayHTML / world object (not empty-canvas pan, not
+ * the world/home/radar layer shells themselves).
+ */
+export function isWorldMovableHitTarget(
+  target: EventTarget | null,
+): boolean {
+  const el = asClosestElement(target);
+  if (!el) return false;
+  if (el.closest(WORLD_PAN_HIT_SELECTOR)) return false;
+  if (!el.closest(CANVAS_WORLD_SELECTOR)) return false;
+  for (const shell of WORLD_LAYER_SHELL_SELECTORS) {
+    if (el.closest(shell) === el) return false;
+  }
+  return true;
+}
+
 function pointInRect(
   x: number,
   y: number,
@@ -123,6 +161,9 @@ function pointInRect(
  * Topmost overlay (chrome / dock) interactive element at a client point.
  * Prefers document.elementsFromPoint; falls back to layout boxes so taps that
  * miss buggy hit-testing through pointer-events:none ancestors still match.
+ *
+ * If a world PlayHTML object owns the point, return null — do not recover a
+ * chrome control stacked under/through that object.
  */
 export function overlayInteractiveTargetFromPoint(
   clientX: number,
@@ -146,6 +187,9 @@ export function overlayInteractiveTargetFromPoint(
 
   if (doc && typeof doc.elementsFromPoint === "function") {
     for (const node of doc.elementsFromPoint(clientX, clientY)) {
+      if (isWorldMovableHitTarget(node)) {
+        return null;
+      }
       if (!asClosestElement(node)?.closest(OVERLAY_INTERACTIVE_ROOT_SELECTOR)) {
         continue;
       }
@@ -155,6 +199,10 @@ export function overlayInteractiveTargetFromPoint(
         );
       }
     }
+  }
+
+  if (worldMovableOwnsPoint(searchRoot, clientX, clientY)) {
+    return null;
   }
 
   const roots = searchRoot.querySelectorAll(OVERLAY_INTERACTIVE_ROOT_SELECTOR);
@@ -172,6 +220,21 @@ export function overlayInteractiveTargetFromPoint(
   return match
     ? (match.closest(INTERACTIVE_CANVAS_TARGET_SELECTOR) ?? match)
     : null;
+}
+
+function worldMovableOwnsPoint(
+  searchRoot: ParentNode,
+  clientX: number,
+  clientY: number,
+): boolean {
+  const objects = searchRoot.querySelectorAll(WORLD_MOVABLE_HIT_SELECTOR);
+  for (const el of objects) {
+    if (typeof el.getBoundingClientRect !== "function") continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    if (pointInRect(clientX, clientY, rect)) return true;
+  }
+  return false;
 }
 
 export function activateOverlayInteractiveTarget(element: Element): void {

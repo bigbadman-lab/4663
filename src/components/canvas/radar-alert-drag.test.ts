@@ -30,7 +30,18 @@ describe("RADAR alert overlap drag", () => {
   it("2. RADAR remains draggable after overlapping another PlayHTML object", () => {
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     assert.ok(alert.includes("PlayhtmlMoveHitFill"));
-    assert.ok(alert.includes("relative -translate-x-1/2"));
+    assert.ok(alert.includes("-translate-x-1/2 -translate-y-1/2"));
+    const hostClass = alert.slice(
+      alert.indexOf("className=\"pointer-events-auto absolute z-[16]"),
+      alert.indexOf("data-4663-radar-alert"),
+    );
+    assert.ok(hostClass.includes("-translate-x-1/2 -translate-y-1/2"));
+    assert.equal(alert.includes("relative -translate-x-1/2"), false);
+    assert.ok(
+      alert.includes(
+        'article className="relative flex w-[10.5rem]',
+      ),
+    );
     const fill = readSrc("src/components/canvas/playhtml-move-hit-fill.tsx");
     assert.ok(fill.includes("pointer-events-auto absolute inset-0"));
     assert.ok(fill.includes("data-4663-playhtml-move-hit"));
@@ -136,5 +147,19 @@ describe("RADAR alert overlap drag", () => {
         "PlayhtmlMoveHitFill",
       ),
     );
+  });
+
+  it("11. host is centered on spawn %; article has no extra translate hit box", () => {
+    const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
+    const layer = readSrc("src/components/canvas/radar-alert-layer.tsx");
+    assert.ok(alert.includes("left: `${alert.leftPct}%`"));
+    assert.ok(alert.includes("top: `${alert.topPct}%`"));
+    assert.ok(alert.includes("playhtmlRadarAlertElementId(alert.eventId)"));
+    assert.ok(layer.includes("key={alert.eventId}"));
+    assert.ok(layer.includes("alerts.map"));
+    assert.ok(layer.includes("pointer-events-none absolute inset-0"));
+    const articleIdx = alert.indexOf("<article");
+    const article = alert.slice(articleIdx, articleIdx + 220);
+    assert.equal(article.includes("translate"), false);
   });
 });
