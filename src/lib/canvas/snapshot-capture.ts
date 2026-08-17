@@ -12,6 +12,10 @@ import { parsePngIhderSize } from "@/lib/social/snapshot-png";
 
 export const SNAPSHOT_MAX_PIXEL_RATIO = 2 as const;
 
+/** 1×1 transparent PNG — remote LINK/TOKEN/OG images must not abort capture. */
+export const SNAPSHOT_IMAGE_PLACEHOLDER =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" as const;
+
 export type SnapshotCaptureResult =
   | {
       ok: true;
@@ -31,6 +35,8 @@ export type SnapshotToBlob = (
     filter: (node: HTMLElement) => boolean;
     width: number;
     height: number;
+    imagePlaceholder?: string;
+    onImageErrorHandler?: OnErrorEventHandler;
   },
 ) => Promise<Blob | null>;
 
@@ -120,6 +126,8 @@ export async function captureVisibleCanvasViewport(input?: {
       filter: (node) => isSnapshotCaptureIncludedNode(node),
       width,
       height,
+      imagePlaceholder: SNAPSHOT_IMAGE_PLACEHOLDER,
+      onImageErrorHandler: () => undefined,
     });
   } catch (error) {
     const message =

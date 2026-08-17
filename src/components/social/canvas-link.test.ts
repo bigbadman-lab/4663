@@ -174,4 +174,11 @@ describe("LINK interaction", () => {
     assert.ok(object.includes("CanMoveElement"));
     assert.ok(object.includes("useInteractiveControlProtection"));
   });
+
+  it("OPEN is recovered as an overlay interactive when the world object owns the point", () => {
+    const cam = readSrc("src/lib/canvas/interactive-control.ts");
+    assert.ok(cam.includes("World PlayHTML objects block recovering chrome"));
+    assert.ok(cam.includes("nested object actions (LINK OPEN)"));
+    assert.ok(cam.includes("OVERLAY_DOCK_SELECTOR"));
+  });
 });

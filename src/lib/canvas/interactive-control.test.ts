@@ -213,6 +213,118 @@ describe("overlayInteractiveTargetFromPoint", () => {
     );
   });
 
+  it("recovers LINK OPEN on a world object instead of starting pan", () => {
+    const clicks: string[] = [];
+    const world = { id: "world" };
+    const open = {
+      closest(selector: string) {
+        if (selector.includes("canvas-empty-hit") || selector.includes("world-pan-hit")) {
+          return null;
+        }
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return open;
+        if (selector === "[data-4663-canvas-world]") return world;
+        if (selector === "[data-4663-home-region]") return null;
+        if (selector === "[data-4663-radar-alerts]") return null;
+        return null;
+      },
+      getBoundingClientRect() {
+        return { left: 470, right: 540, top: 420, bottom: 444, width: 70, height: 24 };
+      },
+      click() {
+        clicks.push("open");
+      },
+    };
+    const root = {
+      elementsFromPoint() {
+        return [open];
+      },
+      querySelectorAll() {
+        return [];
+      },
+    };
+
+    assert.equal(isWorldMovableHitTarget(open as unknown as EventTarget), true);
+    assert.equal(isInteractiveCanvasTarget(open as unknown as EventTarget), true);
+    const hit = overlayInteractiveTargetFromPoint(
+      500,
+      430,
+      root as unknown as ParentNode,
+    );
+    assert.equal(hit, open);
+    activateOverlayInteractiveTarget(hit!);
+    assert.deepEqual(clicks, ["open"]);
+  });
+
+  it("recovers SNAPSHOT dock control even when a world object overlaps the point", () => {
+    const clicks: string[] = [];
+    const world = { id: "world" };
+    const radar = {
+      closest(selector: string) {
+        if (selector.includes("canvas-empty-hit") || selector.includes("world-pan-hit")) {
+          return null;
+        }
+        if (selector === "[data-4663-canvas-world]") return world;
+        if (selector === "[data-4663-home-region]") return null;
+        if (selector === "[data-4663-radar-alerts]") return { id: "alerts" };
+        return null;
+      },
+      getBoundingClientRect() {
+        return { left: 200, right: 900, top: 400, bottom: 900, width: 700, height: 500 };
+      },
+    };
+    const dock: {
+      id: string;
+      querySelectorAll: (selector: string) => unknown[];
+    } = {
+      id: "dock",
+      querySelectorAll() {
+        return [];
+      },
+    };
+    const snapshot = {
+      closest(selector: string) {
+        if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return snapshot;
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return dock;
+        }
+        if (selector === "[data-4663-control-dock]") return dock;
+        return null;
+      },
+      getBoundingClientRect() {
+        return { left: 420, right: 540, top: 720, bottom: 764, width: 120, height: 44 };
+      },
+      click() {
+        clicks.push("snapshot");
+      },
+    };
+    dock.querySelectorAll = (selector: string) => {
+      if (selector === INTERACTIVE_CANVAS_TARGET_SELECTOR) return [snapshot];
+      return [];
+    };
+    const root = {
+      elementsFromPoint() {
+        return [radar, snapshot];
+      },
+      querySelectorAll(selector: string) {
+        if (selector === WORLD_MOVABLE_HIT_SELECTOR) return [radar];
+        if (selector === "[data-4663-control-dock]") return [dock];
+        if (selector === "[data-4663-canvas-chrome], [data-4663-control-dock]") {
+          return [dock];
+        }
+        return [];
+      },
+    };
+
+    const hit = overlayInteractiveTargetFromPoint(
+      480,
+      740,
+      root as unknown as ParentNode,
+    );
+    assert.equal(hit, snapshot);
+    activateOverlayInteractiveTarget(hit!);
+    assert.deepEqual(clicks, ["snapshot"]);
+  });
+
   it("still recovers genuine chrome when the world miss is empty-hit", () => {
     const clicks: string[] = [];
     const emptyHit = {

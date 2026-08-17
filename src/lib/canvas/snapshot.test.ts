@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import {
   captureVisibleCanvasViewport,
   resolveSnapshotPixelRatio,
+  SNAPSHOT_IMAGE_PLACEHOLDER,
   SNAPSHOT_MAX_PIXEL_RATIO,
 } from "@/lib/canvas/snapshot-capture";
 import { downloadSnapshotBlob } from "@/lib/canvas/snapshot-download";
@@ -121,6 +122,8 @@ describe("SNAPSHOT capture helpers", () => {
       clientWidth: 1440,
       clientHeight: 900,
     };
+    let imagePlaceholder = "";
+    let hasImageErrorHandler = false;
     const result = await captureVisibleCanvasViewport({
       document: {
         querySelector() {
@@ -129,7 +132,11 @@ describe("SNAPSHOT capture helpers", () => {
         documentElement: { style: { getPropertyValue: () => "#ffffff" } },
         defaultView: { devicePixelRatio: 1, getComputedStyle: () => ({ getPropertyValue: () => "" }) },
       } as unknown as Document,
-      toBlob: async () => blob,
+      toBlob: async (_node, options) => {
+        imagePlaceholder = options.imagePlaceholder ?? "";
+        hasImageErrorHandler = typeof options.onImageErrorHandler === "function";
+        return blob;
+      },
       pixelRatio: 1,
     });
     assert.equal(result.ok, true);
@@ -137,6 +144,8 @@ describe("SNAPSHOT capture helpers", () => {
     assert.equal(result.blob.type, "image/png");
     assert.equal(result.width, 1440);
     assert.equal(result.height, 900);
+    assert.equal(imagePlaceholder, SNAPSHOT_IMAGE_PLACEHOLDER);
+    assert.equal(hasImageErrorHandler, true);
   });
 });
 

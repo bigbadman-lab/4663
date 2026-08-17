@@ -43,6 +43,9 @@ export const INTERACTIVE_CANVAS_TARGET_SELECTOR = [
 export const OVERLAY_INTERACTIVE_ROOT_SELECTOR =
   "[data-4663-canvas-chrome], [data-4663-control-dock]" as const;
 
+/** Dock is stacked above the world; recover SNAPSHOT / tray taps even over objects. */
+export const OVERLAY_DOCK_SELECTOR = "[data-4663-control-dock]" as const;
+
 export const CANVAS_WORLD_SELECTOR = "[data-4663-canvas-world]" as const;
 
 export const WORLD_PAN_HIT_SELECTOR =
@@ -50,7 +53,8 @@ export const WORLD_PAN_HIT_SELECTOR =
 
 /**
  * PlayHTML / world object hits. Used so overlay recovery does not walk past a
- * movable and synthesize a click on chrome underneath (HERO, ENTER, dock).
+ * movable and synthesize a click on chrome underneath (HERO, ENTER).
+ * Dock controls and nested object actions (LINK OPEN) still match.
  */
 export const WORLD_MOVABLE_HIT_SELECTOR = [
   "[data-4663-playhtml-move-hit]",
@@ -157,13 +161,45 @@ function pointInRect(
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 }
 
+function resolveInteractiveTarget(target: EventTarget | null): Element | null {
+  const el = asClosestElement(target);
+  if (!el || !isInteractiveCanvasTarget(el)) return null;
+  return el.closest(INTERACTIVE_CANVAS_TARGET_SELECTOR) ?? el;
+}
+
+function layoutInteractiveAtPoint(
+  roots: ArrayLike<Element>,
+  clientX: number,
+  clientY: number,
+): Element | null {
+  let match: Element | null = null;
+  for (let i = 0; i < roots.length; i += 1) {
+    const root = roots[i];
+    if (!root) continue;
+    const candidates =
+      typeof root.querySelectorAll === "function"
+        ? root.querySelectorAll(INTERACTIVE_CANVAS_TARGET_SELECTOR)
+        : [];
+    for (const el of candidates) {
+      if (typeof el.getBoundingClientRect !== "function") continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      if (!pointInRect(clientX, clientY, rect)) continue;
+      match = el;
+    }
+  }
+  return match
+    ? (match.closest(INTERACTIVE_CANVAS_TARGET_SELECTOR) ?? match)
+    : null;
+}
+
 /**
- * Topmost overlay (chrome / dock) interactive element at a client point.
+ * Topmost overlay (chrome / dock) or world-object control at a client point.
  * Prefers document.elementsFromPoint; falls back to layout boxes so taps that
  * miss buggy hit-testing through pointer-events:none ancestors still match.
  *
- * If a world PlayHTML object owns the point, return null — do not recover a
- * chrome control stacked under/through that object.
+ * World PlayHTML objects block recovering chrome (HERO / ENTER) stacked
+ * underneath. Dock controls and nested object actions (LINK OPEN) still match.
  */
 export function overlayInteractiveTargetFromPoint(
   clientX: number,
@@ -186,40 +222,44 @@ export function overlayInteractiveTargetFromPoint(
         : null;
 
   if (doc && typeof doc.elementsFromPoint === "function") {
+    let blockedByWorld = false;
     for (const node of doc.elementsFromPoint(clientX, clientY)) {
       if (isWorldMovableHitTarget(node)) {
-        return null;
-      }
-      if (!asClosestElement(node)?.closest(OVERLAY_INTERACTIVE_ROOT_SELECTOR)) {
+        const worldInteractive = resolveInteractiveTarget(node);
+        if (worldInteractive) return worldInteractive;
+        blockedByWorld = true;
         continue;
       }
-      if (isInteractiveCanvasTarget(node)) {
-        return (
-          (node as Element).closest(INTERACTIVE_CANVAS_TARGET_SELECTOR) ?? node
-        );
+      const el = asClosestElement(node);
+      if (!el?.closest(OVERLAY_INTERACTIVE_ROOT_SELECTOR)) continue;
+      const overlayInteractive = resolveInteractiveTarget(el);
+      if (!overlayInteractive) continue;
+      if (el.closest(OVERLAY_DOCK_SELECTOR) || !blockedByWorld) {
+        return overlayInteractive;
       }
     }
   }
 
+  const dockMatch = layoutInteractiveAtPoint(
+    searchRoot.querySelectorAll(OVERLAY_DOCK_SELECTOR),
+    clientX,
+    clientY,
+  );
+  if (dockMatch) return dockMatch;
+
   if (worldMovableOwnsPoint(searchRoot, clientX, clientY)) {
-    return null;
+    return layoutInteractiveAtPoint(
+      searchRoot.querySelectorAll(CANVAS_WORLD_SELECTOR),
+      clientX,
+      clientY,
+    );
   }
 
-  const roots = searchRoot.querySelectorAll(OVERLAY_INTERACTIVE_ROOT_SELECTOR);
-  let match: Element | null = null;
-  for (const root of roots) {
-    const candidates = root.querySelectorAll(INTERACTIVE_CANVAS_TARGET_SELECTOR);
-    for (const el of candidates) {
-      if (typeof el.getBoundingClientRect !== "function") continue;
-      const rect = el.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) continue;
-      if (!pointInRect(clientX, clientY, rect)) continue;
-      match = el;
-    }
-  }
-  return match
-    ? (match.closest(INTERACTIVE_CANVAS_TARGET_SELECTOR) ?? match)
-    : null;
+  return layoutInteractiveAtPoint(
+    searchRoot.querySelectorAll(OVERLAY_INTERACTIVE_ROOT_SELECTOR),
+    clientX,
+    clientY,
+  );
 }
 
 function worldMovableOwnsPoint(

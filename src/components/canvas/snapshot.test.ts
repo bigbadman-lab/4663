@@ -273,6 +273,8 @@ describe("SNAPSHOT PlayHTML same-origin CSS", () => {
     assert.ok(capture.includes('import { toBlob } from "html-to-image"'));
     assert.ok(capture.includes("toBlob"));
     assert.equal(capture.includes("skipFonts"), false);
+    assert.ok(capture.includes("imagePlaceholder"));
+    assert.ok(capture.includes("onImageErrorHandler"));
     assert.ok(capture.includes("Snapshot capture failed."));
     assert.ok(capture.includes("Canvas viewport is not available."));
   });
