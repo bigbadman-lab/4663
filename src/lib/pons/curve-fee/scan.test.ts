@@ -28,7 +28,6 @@ import {
   scanPonsV2CurveFeesRange,
   validatePonsV2CurveFeeScanRange,
 } from "@/lib/pons/curve-fee/scan";
-import type { PonsV2CurveFeeLogLike } from "@/lib/pons/curve-fee/types";
 import type { ChainRpc, RpcLog } from "@/lib/worker/chain/rpc";
 import { APPLY_PONS_V2_CURVE_FEES_RPC } from "@/lib/worker/repositories/pons-v2-fees";
 import type { WorkerSupabase } from "@/lib/worker/supabase";
@@ -66,7 +65,7 @@ function encodeCurveBuy(fee: bigint, tax: bigint) {
     ],
     data: encodeAbiParameters(
       parseAbiParameters("uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax"),
-      [1_000_000_000_000_000_000n, 42n, fee, tax],
+      [BigInt("1000000000000000000"), BigInt(42), fee, tax],
     ),
   };
 }
@@ -80,15 +79,15 @@ function encodeCurveSell(fee: bigint, tax: bigint) {
     ],
     data: encodeAbiParameters(
       parseAbiParameters("uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax"),
-      [42n, 900_000_000_000_000_000n, fee, tax],
+      [BigInt(42), BigInt("900000000000000000"), fee, tax],
     ),
   };
 }
 
 function buyLog(
-  overrides: Partial<PonsV2CurveFeeLogLike> = {},
+  overrides: Partial<RpcLog> = {},
 ): RpcLog {
-  const encoded = encodeCurveBuy(10n, 3n);
+  const encoded = encodeCurveBuy(BigInt(10), BigInt(3));
   return {
     address: CURVE,
     blockNumber: BigInt(100),
@@ -101,9 +100,9 @@ function buyLog(
 }
 
 function sellLog(
-  overrides: Partial<PonsV2CurveFeeLogLike> = {},
+  overrides: Partial<RpcLog> = {},
 ): RpcLog {
-  const encoded = encodeCurveSell(7n, 1n);
+  const encoded = encodeCurveSell(BigInt(7), BigInt(1));
   return {
     address: CURVE,
     blockNumber: BigInt(101),
@@ -303,9 +302,9 @@ describe("classifyPonsV2CurveFeeLogs", () => {
     assert.equal(classified.decodedBuys, 1);
     assert.equal(classified.decodedSells, 1);
     assert.equal(classified.malformed, 0);
-    assert.equal(classified.totalFee, 17n);
-    assert.equal(classified.totalTax, 4n);
-    assert.equal(classified.totalPaid, 21n);
+    assert.equal(classified.totalFee, BigInt(17));
+    assert.equal(classified.totalTax, BigInt(4));
+    assert.equal(classified.totalPaid, BigInt(21));
   });
 
   it("counts malformed / wrong-curve / bad-topic logs without applying them", () => {
@@ -326,7 +325,7 @@ describe("classifyPonsV2CurveFeeLogs", () => {
     assert.equal(classified.decodedBuys, 1);
     assert.equal(classified.decodedSells, 0);
     assert.equal(classified.malformed, 3);
-    assert.equal(classified.totalPaid, 13n);
+    assert.equal(classified.totalPaid, BigInt(13));
   });
 
   it("labels live companion BondingCurve events as wrong_topic0, not fees", () => {
@@ -340,7 +339,7 @@ describe("classifyPonsV2CurveFeeLogs", () => {
       [
         {
           address: CURVE,
-          blockNumber: 33_486_660n,
+          blockNumber: BigInt(33_486_660),
           transactionHash: TX_BUY,
           logIndex: 0,
           topics: [PONS_V2_CURVE_INITIALIZED_TOPIC0],
@@ -348,7 +347,7 @@ describe("classifyPonsV2CurveFeeLogs", () => {
         },
         {
           address: CURVE,
-          blockNumber: 33_486_660n,
+          blockNumber: BigInt(33_486_660),
           transactionHash: TX_BUY,
           logIndex: 1,
           topics: [
@@ -359,7 +358,7 @@ describe("classifyPonsV2CurveFeeLogs", () => {
         },
         {
           address: CURVE,
-          blockNumber: 33_486_660n,
+          blockNumber: BigInt(33_486_660),
           transactionHash: TX_BUY,
           logIndex: 2,
           topics: [
@@ -368,7 +367,7 @@ describe("classifyPonsV2CurveFeeLogs", () => {
           ],
           data: `0x${"00".repeat(32)}`,
         },
-        buyLog({ logIndex: 3, blockNumber: 33_486_660n }),
+        buyLog({ logIndex: 3, blockNumber: BigInt(33_486_660) }),
       ],
       CURVE,
       33_486_660,
@@ -409,8 +408,8 @@ describe("classifyPonsV2CurveFeeLogs", () => {
         },
       ],
     );
-    assert.equal(classified.totalFee, 10n);
-    assert.equal(classified.totalTax, 3n);
+    assert.equal(classified.totalFee, BigInt(10));
+    assert.equal(classified.totalTax, BigInt(3));
   });
 });
 
@@ -489,8 +488,8 @@ describe("scanPonsV2CurveFeesRange", () => {
         logIndex: 0,
         blockNumber: 50,
         side: "buy",
-        feeRaw: 100n,
-        taxRaw: 0n,
+        feeRaw: BigInt(100),
+        taxRaw: BigInt(0),
         quoteTokenAddress: QUOTE,
       },
     ]);
@@ -642,10 +641,10 @@ describe("scanPonsV2CurveFeesRange", () => {
 
 describe("native ETH display formatting", () => {
   it("formats 18-decimal ETH without floats", () => {
-    assert.equal(formatNativeQuoteWei18(0n), "0");
-    assert.equal(formatNativeQuoteWei18(1n), "0.000000000000000001");
-    assert.equal(formatNativeQuoteWei18(1_000_000_000_000_000_000n), "1");
-    assert.equal(formatNativeQuoteWei18(1_500_000_000_000_000_000n), "1.5");
+    assert.equal(formatNativeQuoteWei18(BigInt(0)), "0");
+    assert.equal(formatNativeQuoteWei18(BigInt(1)), "0.000000000000000001");
+    assert.equal(formatNativeQuoteWei18(BigInt("1000000000000000000")), "1");
+    assert.equal(formatNativeQuoteWei18(BigInt("1500000000000000000")), "1.5");
   });
 });
 

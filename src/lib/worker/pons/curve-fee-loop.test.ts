@@ -46,13 +46,13 @@ function encodeCurveBuy(fee: bigint, tax: bigint) {
     ],
     data: encodeAbiParameters(
       parseAbiParameters("uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax"),
-      [1_000_000_000_000_000_000n, 42n, fee, tax],
+      [BigInt("1000000000000000000"), BigInt(42), fee, tax],
     ),
   };
 }
 
 function buyLog(address = CURVE, block = 101): RpcLog {
-  const encoded = encodeCurveBuy(10n, 3n);
+  const encoded = encodeCurveBuy(BigInt(10), BigInt(3));
   return {
     address,
     blockNumber: BigInt(block),

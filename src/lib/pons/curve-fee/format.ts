@@ -12,7 +12,7 @@ export function isNativeQuoteToken(address: string): boolean {
 
 /** Exact 18-decimal display for native ETH wei. Does not float. */
 export function formatNativeQuoteWei18(raw: bigint): string {
-  const negative = raw < 0n;
+  const negative = raw < BigInt(0);
   const value = negative ? -raw : raw;
   const digits = value.toString(10).padStart(19, "0");
   const whole = digits.slice(0, -18).replace(/^0+(?=\d)/, "");

@@ -7,7 +7,7 @@ const UNSIGNED_DECIMAL_RE = /^[0-9]+$/;
 const NUMERIC_78_MAX_DIGITS = 78;
 
 export function uint256ToDecimalString(value: bigint): string {
-  if (value < 0n) {
+  if (value < BigInt(0)) {
     throw new Error("[pons-v2-fees] uint256 amount must be non-negative");
   }
   const text = value.toString(10);
@@ -31,7 +31,7 @@ export function decimalStringToUint256(value: string): bigint {
 }
 
 export function addQuoteAmounts(fee: bigint, tax: bigint): bigint {
-  if (fee < 0n || tax < 0n) {
+  if (fee < BigInt(0) || tax < BigInt(0)) {
     throw new Error("[pons-v2-fees] fee and tax must be non-negative");
   }
   return fee + tax;
@@ -71,7 +71,7 @@ export function mapDbNumericToDecimalString(
 
 export function parseFeeAmount(value: bigint | string): bigint {
   if (typeof value === "bigint") {
-    if (value < 0n) {
+    if (value < BigInt(0)) {
       throw new Error("[pons-v2-fees] fee amount must be non-negative");
     }
     uint256ToDecimalString(value);

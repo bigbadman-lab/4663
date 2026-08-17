@@ -29,8 +29,8 @@ const TX_3 =
 const TX_4 =
   "0x4444444444444444444444444444444444444444444444444444444444444444";
 
-const HUGE_FEE = 9_007_199_254_740_993_000_001n;
-const HUGE_TAX = 9_007_199_254_740_993_000_007n;
+const HUGE_FEE = BigInt("9007199254740993000001");
+const HUGE_TAX = BigInt("9007199254740993000007");
 
 function event(
   overrides: Partial<PonsV2CurveFeeApplyInput> &
@@ -41,8 +41,8 @@ function event(
     tokenAddress: TOKEN_A,
     curveAddress: CURVE_A,
     blockNumber: 100,
-    feeRaw: 10n,
-    taxRaw: 3n,
+    feeRaw: BigInt(10),
+    taxRaw: BigInt(3),
     quoteTokenAddress: QUOTE_ETH,
     ...overrides,
   };
@@ -52,7 +52,7 @@ describe("applyPonsV2CurveFeeBatchPure", () => {
   it("6. first event inserts a ledger row and updates the aggregate", () => {
     const store = createPonsV2CurveFeeStore();
     const result = applyPonsV2CurveFeeBatchPure(store, [
-      event({ txHash: TX_1, logIndex: 7, side: "buy", feeRaw: 10n, taxRaw: 3n }),
+      event({ txHash: TX_1, logIndex: 7, side: "buy", feeRaw: BigInt(10), taxRaw: BigInt(3) }),
     ]);
     assert.deepEqual(result, { status: "ok", applied: 1, skipped: 0 });
 
@@ -83,12 +83,12 @@ describe("applyPonsV2CurveFeeBatchPure", () => {
       txHash: TX_1,
       logIndex: 7,
       side: "buy",
-      feeRaw: 10n,
-      taxRaw: 3n,
+      feeRaw: BigInt(10),
+      taxRaw: BigInt(3),
     });
     applyPonsV2CurveFeeBatchPure(store, [first]);
     const replay = applyPonsV2CurveFeeBatchPure(store, [
-      { ...first, feeRaw: 99n, taxRaw: 99n, blockNumber: 999 },
+      { ...first, feeRaw: BigInt(99), taxRaw: BigInt(99), blockNumber: 999 },
     ]);
     assert.deepEqual(replay, { status: "ok", applied: 0, skipped: 1 });
 
@@ -103,8 +103,8 @@ describe("applyPonsV2CurveFeeBatchPure", () => {
   it("8. two buys accumulate correctly", () => {
     const store = createPonsV2CurveFeeStore();
     applyPonsV2CurveFeeBatchPure(store, [
-      event({ txHash: TX_1, logIndex: 1, side: "buy", feeRaw: 10n, taxRaw: 1n }),
-      event({ txHash: TX_2, logIndex: 2, side: "buy", feeRaw: 20n, taxRaw: 2n }),
+      event({ txHash: TX_1, logIndex: 1, side: "buy", feeRaw: BigInt(10), taxRaw: BigInt(1) }),
+      event({ txHash: TX_2, logIndex: 2, side: "buy", feeRaw: BigInt(20), taxRaw: BigInt(2) }),
     ]);
     const metrics = loadTokenFeeMetricsFromStore(store, CHAIN, TOKEN_A);
     assert.ok(metrics);
@@ -118,8 +118,8 @@ describe("applyPonsV2CurveFeeBatchPure", () => {
   it("9. buy + sell accumulate into global and separate side buckets", () => {
     const store = createPonsV2CurveFeeStore();
     applyPonsV2CurveFeeBatchPure(store, [
-      event({ txHash: TX_1, logIndex: 1, side: "buy", feeRaw: 10n, taxRaw: 5n }),
-      event({ txHash: TX_2, logIndex: 2, side: "sell", feeRaw: 7n, taxRaw: 1n }),
+      event({ txHash: TX_1, logIndex: 1, side: "buy", feeRaw: BigInt(10), taxRaw: BigInt(5) }),
+      event({ txHash: TX_2, logIndex: 2, side: "sell", feeRaw: BigInt(7), taxRaw: BigInt(1) }),
     ]);
     const metrics = loadTokenFeeMetricsFromStore(store, CHAIN, TOKEN_A);
     assert.ok(metrics);
@@ -139,8 +139,8 @@ describe("applyPonsV2CurveFeeBatchPure", () => {
         side: "buy",
         tokenAddress: TOKEN_A,
         curveAddress: CURVE_A,
-        feeRaw: 10n,
-        taxRaw: 0n,
+        feeRaw: BigInt(10),
+        taxRaw: BigInt(0),
       }),
       event({
         txHash: TX_2,
@@ -148,8 +148,8 @@ describe("applyPonsV2CurveFeeBatchPure", () => {
         side: "sell",
         tokenAddress: TOKEN_B,
         curveAddress: CURVE_B,
-        feeRaw: 4n,
-        taxRaw: 6n,
+        feeRaw: BigInt(4),
+        taxRaw: BigInt(6),
       }),
     ]);
     const a = loadTokenFeeMetricsFromStore(store, CHAIN, TOKEN_A);

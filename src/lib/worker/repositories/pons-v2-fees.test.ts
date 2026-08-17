@@ -41,7 +41,7 @@ function input(
     blockNumber: 42,
     side: "buy",
     feeRaw: BigInt(HUGE),
-    taxRaw: 7n,
+    taxRaw: BigInt(7),
     quoteTokenAddress: QUOTE,
     ...overrides,
   };
@@ -66,8 +66,8 @@ describe("pons-v2-fees repository", () => {
         chainId: 4663,
         logIndex: 12,
         blockNumber: 33_486_660,
-        feeRaw: 4_921_433_352_000_000n,
-        taxRaw: 685_436_400_000_000n,
+        feeRaw: BigInt(4_921_433_352_000_000),
+        taxRaw: BigInt(685_436_400_000_000),
       }),
     );
     assert.equal(typeof payload.chain_id, "number");
@@ -140,8 +140,8 @@ describe("pons-v2-fees repository", () => {
         chainId: 4663,
         logIndex: 12,
         blockNumber: 33_486_660,
-        feeRaw: 4_921_433_352_000_000n,
-        taxRaw: 685_436_400_000_000n,
+        feeRaw: BigInt(4_921_433_352_000_000),
+        taxRaw: BigInt(685_436_400_000_000),
       }),
     ]);
     const event = (
@@ -371,7 +371,7 @@ describe("pons-v2-fees repository", () => {
 
   it("pure apply remains the accumulation contract used by tests", () => {
     const store = createPonsV2CurveFeeStore();
-    applyPonsV2CurveFeeBatchPure(store, [input({ feeRaw: 10n, taxRaw: 3n })]);
+    applyPonsV2CurveFeeBatchPure(store, [input({ feeRaw: BigInt(10), taxRaw: BigInt(3) })]);
     const metrics = loadTokenFeeMetricsFromStore(store, 4663, TOKEN);
     assert.equal(metrics?.globalFeesPaidQuote, "13");
   });

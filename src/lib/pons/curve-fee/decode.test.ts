@@ -27,8 +27,8 @@ const TRANSFER_TOPIC0 =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 /** Above Number.MAX_SAFE_INTEGER; still well inside uint256 / numeric(78,0). */
-const HUGE_FEE = 9_007_199_254_740_993_000_001n;
-const HUGE_TAX = 9_007_199_254_740_993_000_007n;
+const HUGE_FEE = BigInt("9007199254740993000001");
+const HUGE_TAX = BigInt("9007199254740993000007");
 
 function encodeCurveBuy(fee: bigint, tax: bigint) {
   return {
@@ -39,7 +39,7 @@ function encodeCurveBuy(fee: bigint, tax: bigint) {
     ],
     data: encodeAbiParameters(
       parseAbiParameters("uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax"),
-      [1_000_000_000_000_000_000n, 42n, fee, tax],
+      [BigInt("1000000000000000000"), BigInt(42), fee, tax],
     ),
   };
 }
@@ -53,13 +53,13 @@ function encodeCurveSell(fee: bigint, tax: bigint) {
     ],
     data: encodeAbiParameters(
       parseAbiParameters("uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax"),
-      [42n, 900_000_000_000_000_000n, fee, tax],
+      [BigInt(42), BigInt("900000000000000000"), fee, tax],
     ),
   };
 }
 
 function buyLog(overrides: Partial<PonsV2CurveFeeLogLike> = {}) {
-  const encoded = encodeCurveBuy(1_000_000_000_000_000n, 2_000_000_000_000_000n);
+  const encoded = encodeCurveBuy(BigInt(1_000_000_000_000_000), BigInt(2_000_000_000_000_000));
   return {
     address: CURVE,
     blockNumber: 35_000_201,
@@ -72,7 +72,7 @@ function buyLog(overrides: Partial<PonsV2CurveFeeLogLike> = {}) {
 }
 
 function sellLog(overrides: Partial<PonsV2CurveFeeLogLike> = {}) {
-  const encoded = encodeCurveSell(3_000_000_000_000_000n, 4_000_000_000_000_000n);
+  const encoded = encodeCurveSell(BigInt(3_000_000_000_000_000), BigInt(4_000_000_000_000_000));
   return {
     address: CURVE,
     blockNumber: 35_000_202,
@@ -106,9 +106,9 @@ describe("decodePonsV2CurveFeeLog", () => {
     assert.equal(decoded.txHash, TX);
     assert.equal(decoded.logIndex, 4);
     assert.equal(decoded.blockNumber, 35_000_201);
-    assert.equal(decoded.fee, 1_000_000_000_000_000n);
-    assert.equal(decoded.tax, 2_000_000_000_000_000n);
-    assert.equal(decoded.totalFee, 3_000_000_000_000_000n);
+    assert.equal(decoded.fee, BigInt(1_000_000_000_000_000));
+    assert.equal(decoded.tax, BigInt(2_000_000_000_000_000));
+    assert.equal(decoded.totalFee, BigInt(3_000_000_000_000_000));
     assert.equal(decoded.feeRaw, "1000000000000000");
     assert.equal(decoded.taxRaw, "2000000000000000");
     assert.equal(decoded.totalFeeRaw, "3000000000000000");
@@ -125,9 +125,9 @@ describe("decodePonsV2CurveFeeLog", () => {
     assert.ok(decoded);
     assert.equal(decoded.side, "sell");
     assert.equal(decoded.curveAddress, CURVE);
-    assert.equal(decoded.fee, 3_000_000_000_000_000n);
-    assert.equal(decoded.tax, 4_000_000_000_000_000n);
-    assert.equal(decoded.totalFee, 7_000_000_000_000_000n);
+    assert.equal(decoded.fee, BigInt(3_000_000_000_000_000));
+    assert.equal(decoded.tax, BigInt(4_000_000_000_000_000));
+    assert.equal(decoded.totalFee, BigInt(7_000_000_000_000_000));
     assert.equal(decoded.totalFeeRaw, "7000000000000000");
   });
 

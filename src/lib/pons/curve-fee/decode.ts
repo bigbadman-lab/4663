@@ -45,7 +45,7 @@ function asTxHash(value: string): string | null {
 function asNonNegativeInt(value: bigint | number | null): number | null {
   if (value === null) return null;
   if (typeof value === "bigint") {
-    if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+    if (value < BigInt(0) || value > BigInt(Number.MAX_SAFE_INTEGER)) return null;
     return Number(value);
   }
   if (!Number.isInteger(value) || value < 0 || !Number.isSafeInteger(value)) {
@@ -55,7 +55,7 @@ function asNonNegativeInt(value: bigint | number | null): number | null {
 }
 
 function asUint256(value: unknown): bigint | null {
-  if (typeof value !== "bigint" || value < 0n) return null;
+  if (typeof value !== "bigint" || value < BigInt(0)) return null;
   try {
     uint256ToDecimalString(value);
     return value;

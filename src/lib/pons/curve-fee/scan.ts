@@ -225,8 +225,8 @@ export function classifyPonsV2CurveFeeLogs(
   const decoded: DecodedPonsV2CurveFee[] = [];
   const malformedLogs: MalformedCurveFeeLog[] = [];
   const seen = new Set<string>();
-  let totalFee = 0n;
-  let totalTax = 0n;
+  let totalFee = BigInt(0);
+  let totalTax = BigInt(0);
 
   for (const log of logs) {
     const topic0 = topic0OfLog(log);
@@ -424,7 +424,7 @@ export async function scanPonsV2CurveFeesRange(
   }
 
   let metricsAfter: TokenFeeMetricsRow | null = null;
-  let rangeLocalPaid = 0n;
+  let rangeLocalPaid = BigInt(0);
   try {
     metricsAfter = await loadTokenFeeMetrics(
       resolved.supabase,

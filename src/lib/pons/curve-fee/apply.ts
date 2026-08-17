@@ -142,8 +142,8 @@ export function applyPonsV2CurveFeeBatchPure(
 
     const metricsKey = tokenFeeMetricsKey(event.chainId, event.tokenAddress);
     const existing = store.metrics.get(metricsKey);
-    const buyDelta = event.side === "buy" ? event.totalFee : 0n;
-    const sellDelta = event.side === "sell" ? event.totalFee : 0n;
+    const buyDelta = event.side === "buy" ? event.totalFee : BigInt(0);
+    const sellDelta = event.side === "sell" ? event.totalFee : BigInt(0);
     const buyCountDelta = event.side === "buy" ? 1 : 0;
     const sellCountDelta = event.side === "sell" ? 1 : 0;
 
