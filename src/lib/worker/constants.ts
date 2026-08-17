@@ -16,6 +16,12 @@ export const FACTORY_POLL_INTERVAL_MS = 3_000 as const;
 export const POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE = 1 as const;
 
 /**
+ * Max PONS V2 fee outer ranges per worker cycle (startup + poll).
+ * Historical fee backlog must not delay PONS factories/transfers or POOLS.
+ */
+export const PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE = 1 as const;
+
+/**
  * Initial eth_getLogs window for dual-factory scans.
  * Matches pons-data-lab Alchemy Free tier behaviour (typically 10 blocks).
  * Adaptive growth/reduction is applied by the scanner.

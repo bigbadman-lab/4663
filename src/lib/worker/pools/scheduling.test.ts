@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE } from "@/lib/worker/constants";
+import { POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE, PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE } from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 
 const root = path.resolve(
@@ -47,22 +47,28 @@ describe("POOLS catch-up scheduling vs PONS", () => {
 
   it("bounds POOLS to one outer range per cycle", () => {
     assert.equal(POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE, 1);
+    assert.equal(PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE, 1);
   });
 
   it("startup: PONS factory then transfer then bounded Instant then bounded swap", () => {
-    const factory = startup.indexOf("catchUpFactoryCursor");
-    const transfer = startup.indexOf("catchUpTransferCursor");
-    const instant = startup.indexOf("catchUpPoolsInstantCursorIsolated");
-    const swap = startup.indexOf("catchUpPoolsSwapCursorIsolated");
+    const factory = startup.indexOf("catchUpFactoryCursor({");
+    const transfer = startup.indexOf("catchUpTransferCursor({");
+    const instant = startup.indexOf("catchUpPoolsInstantCursorIsolated({");
+    const swap = startup.indexOf("catchUpPoolsSwapCursorIsolated({");
+    const fees = startup.indexOf("catchUpPonsV2CurveFeesCursorIsolated({");
     assert.ok(factory >= 0 && transfer > factory);
     assert.ok(instant > transfer && swap > instant);
+    assert.ok(fees > swap);
 
     const instantCall = sliceCall(startup, "catchUpPoolsInstantCursorIsolated", 1);
     const swapCall = sliceCall(startup, "catchUpPoolsSwapCursorIsolated", 1);
+    const feeCall = sliceCall(startup, "catchUpPonsV2CurveFeesCursorIsolated", 1);
     assert.ok(instantCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
     assert.ok(swapCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
+    assert.ok(feeCall.includes("maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE"));
     assert.equal(instantCall.includes("once ? 1 : undefined"), false);
     assert.equal(swapCall.includes("once ? 1 : undefined"), false);
+    assert.equal(feeCall.includes("once ? 1 : undefined"), false);
   });
 
   it("startup: PONS catch-up stays unbounded in continuous mode", () => {
@@ -73,17 +79,21 @@ describe("POOLS catch-up scheduling vs PONS", () => {
   });
 
   it("poll: PONS then at most one Instant range and one swap range", () => {
-    const factory = poll.indexOf("catchUpFactoryCursor");
-    const transfer = poll.indexOf("catchUpTransferCursor");
-    const instant = poll.indexOf("catchUpPoolsInstantCursorIsolated");
-    const swap = poll.indexOf("catchUpPoolsSwapCursorIsolated");
+    const factory = poll.indexOf("catchUpFactoryCursor({");
+    const transfer = poll.indexOf("catchUpTransferCursor({");
+    const instant = poll.indexOf("catchUpPoolsInstantCursorIsolated({");
+    const swap = poll.indexOf("catchUpPoolsSwapCursorIsolated({");
+    const fees = poll.indexOf("catchUpPonsV2CurveFeesCursorIsolated({");
     assert.ok(factory >= 0 && transfer > factory);
     assert.ok(instant > transfer && swap > instant);
+    assert.ok(fees > swap);
 
     const instantCall = sliceCall(poll, "catchUpPoolsInstantCursorIsolated", 1);
     const swapCall = sliceCall(poll, "catchUpPoolsSwapCursorIsolated", 1);
+    const feeCall = sliceCall(poll, "catchUpPonsV2CurveFeesCursorIsolated", 1);
     assert.ok(instantCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
     assert.ok(swapCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
+    assert.ok(feeCall.includes("maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE"));
   });
 
   it("poll starts only after startup catch-up returns (no until-head POOLS wait)", () => {
@@ -146,6 +156,7 @@ describe("POOLS catch-up scheduling vs PONS", () => {
     assert.ok(startup.includes("catchUpPoolsSwapCursorIsolated"));
     assert.ok(poll.includes("catchUpPoolsInstantCursorIsolated"));
     assert.ok(poll.includes("catchUpPoolsSwapCursorIsolated"));
+    assert.ok(poll.includes("catchUpPonsV2CurveFeesCursorIsolated"));
     assert.ok(poll.includes("pollBusy = false"));
   });
 });

@@ -2,6 +2,7 @@ import {
   CURSOR_STREAM_PONS_FACTORIES,
   CURSOR_STREAM_PONS_TRANSFERS,
 } from "@/lib/pons/constants";
+import { CURSOR_STREAM_PONS_V2_CURVE_FEES } from "@/lib/pons/curve-fee/constants";
 import {
   CURSOR_STREAM_POOLS_INSTANT,
   CURSOR_STREAM_POOLS_SWAPS,
@@ -16,10 +17,15 @@ export const PONS_CURSOR_STREAMS: readonly PonsCursorStreamName[] = [
   CURSOR_STREAM_PONS_TRANSFERS,
 ];
 
-const KNOWN_STREAMS: readonly CursorStreamName[] = [
+/**
+ * All streams the worker knows how to load.
+ * pons_v2_curve_fees is independent: never in PONS_CURSOR_STREAMS.
+ */
+export const KNOWN_CURSOR_STREAMS: readonly CursorStreamName[] = [
   ...PONS_CURSOR_STREAMS,
   CURSOR_STREAM_POOLS_INSTANT,
   CURSOR_STREAM_POOLS_SWAPS,
+  CURSOR_STREAM_PONS_V2_CURVE_FEES,
 ];
 
 type CursorDbRow = {
@@ -68,7 +74,7 @@ export async function loadKnownCursors(
     .from("chain_cursors")
     .select("stream_name, chain_id, last_processed_block")
     .eq("chain_id", chainId)
-    .in("stream_name", [...KNOWN_STREAMS]);
+    .in("stream_name", [...KNOWN_CURSOR_STREAMS]);
 
   if (error) {
     throw new Error(
@@ -82,7 +88,7 @@ export async function loadKnownCursors(
     byStream.set(mapped.streamName, mapped);
   }
 
-  for (const stream of KNOWN_STREAMS) {
+  for (const stream of KNOWN_CURSOR_STREAMS) {
     result.set(stream, byStream.get(stream) ?? null);
   }
 

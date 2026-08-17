@@ -11,8 +11,12 @@ import {
   CURSOR_STREAM_PONS_FACTORIES,
   CURSOR_STREAM_PONS_TRANSFERS,
 } from "@/lib/pons/constants";
+import { CURSOR_STREAM_PONS_V2_CURVE_FEES } from "@/lib/pons/curve-fee/constants";
 import { CURSOR_STREAM_POOLS_INSTANT, CURSOR_STREAM_POOLS_SWAPS } from "@/lib/pools/constants";
-import { PONS_CURSOR_STREAMS } from "@/lib/worker/repositories/cursors";
+import {
+  KNOWN_CURSOR_STREAMS,
+  PONS_CURSOR_STREAMS,
+} from "@/lib/worker/repositories/cursors";
 import type { CursorStreamName } from "@/lib/pons/types";
 
 const root = path.resolve(
@@ -37,6 +41,7 @@ describe("cursor stream isolation", () => {
     assert.equal(CURSOR_STREAM_PONS_TRANSFERS, "pons_transfers");
     assert.equal(CURSOR_STREAM_POOLS_INSTANT, "pools_instant");
     assert.equal(CURSOR_STREAM_POOLS_SWAPS, "pools_swaps");
+    assert.equal(CURSOR_STREAM_PONS_V2_CURVE_FEES, "pons_v2_curve_fees");
     assert.deepEqual([...PONS_CURSOR_STREAMS], [
       "pons_factories",
       "pons_transfers",
@@ -49,6 +54,17 @@ describe("cursor stream isolation", () => {
       (PONS_CURSOR_STREAMS as readonly string[]).includes("pools_swaps"),
       false,
     );
+    assert.equal(
+      (PONS_CURSOR_STREAMS as readonly string[]).includes(
+        CURSOR_STREAM_PONS_V2_CURVE_FEES,
+      ),
+      false,
+    );
+    assert.ok(
+      (KNOWN_CURSOR_STREAMS as readonly string[]).includes(
+        CURSOR_STREAM_PONS_V2_CURVE_FEES,
+      ),
+    );
   });
 
   it("cutover SQL and plan mutate only PONS cursors", () => {
@@ -59,12 +75,14 @@ describe("cursor stream isolation", () => {
     assert.ok(sql.includes("'pons_transfers'"));
     assert.equal(sql.includes("pools_instant"), false);
     assert.equal(sql.includes("pools_swaps"), false);
+    assert.equal(sql.includes("pons_v2_curve_fees"), false);
 
     const plan = readSrc("src/lib/worker/cutover-plan.ts");
     assert.ok(plan.includes("pons_factories"));
     assert.ok(plan.includes("pons_transfers"));
     assert.equal(plan.includes("pools_instant"), false);
     assert.equal(plan.includes("pools_swaps"), false);
+    assert.equal(plan.includes("pons_v2_curve_fees"), false);
   });
 
   it("observation SQL does not reset or mention POOLS cursors", () => {
@@ -75,6 +93,7 @@ describe("cursor stream isolation", () => {
     assert.ok(sql.includes("stream_name = 'pons_transfers'"));
     assert.equal(sql.includes("pools_instant"), false);
     assert.equal(sql.includes("pools_swaps"), false);
+    assert.equal(sql.includes("pons_v2_curve_fees"), false);
   });
 
   it("PONS factory/transfer scanners never write POOLS cursors", () => {
@@ -125,5 +144,21 @@ describe("cursor stream isolation", () => {
     const worker = readSrc("scripts/worker.ts");
     assert.ok(worker.includes("catchUpPoolsSwapCursorIsolated"));
     assert.equal(worker.includes("scanPoolsSwapRange"), false);
+  });
+
+  it("fee loop only advances pons_v2_curve_fees; isolated from PONS and POOLS", () => {
+    const loop = readSrc("src/lib/worker/pons/curve-fee-loop.ts");
+    assert.ok(loop.includes("CURSOR_STREAM_PONS_V2_CURVE_FEES"));
+    assert.ok(loop.includes("catchUpPonsV2CurveFeesCursorIsolated"));
+    assert.ok(loop.includes("CURSOR_STREAM_PONS_FACTORIES"));
+    assert.equal(loop.includes("CURSOR_STREAM_PONS_TRANSFERS"), false);
+    assert.equal(loop.includes("CURSOR_STREAM_POOLS_INSTANT"), false);
+    assert.equal(loop.includes("CURSOR_STREAM_POOLS_SWAPS"), false);
+    assert.ok(loop.includes("factory.lastProcessedBlock < to"));
+
+    const worker = readSrc("scripts/worker.ts");
+    assert.ok(worker.includes("catchUpPonsV2CurveFeesCursorIsolated"));
+    assert.equal(worker.includes("scanPonsV2CurveFeesLiveRange"), false);
+    assert.equal(worker.includes("scanPonsV2CurveFeesRange"), false);
   });
 });

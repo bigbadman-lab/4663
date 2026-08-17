@@ -7,6 +7,7 @@ import {
   CURSOR_STREAM_PONS_TRANSFERS,
   WORKER_NAME,
 } from "@/lib/pons/constants";
+import { CURSOR_STREAM_PONS_V2_CURVE_FEES } from "@/lib/pons/curve-fee/constants";
 import { CURSOR_STREAM_POOLS_INSTANT, CURSOR_STREAM_POOLS_SWAPS } from "@/lib/pools/constants";
 import { loadKnownCursors } from "@/lib/worker/repositories/cursors";
 import { loadProductionState } from "@/lib/worker/repositories/production-state";
@@ -26,6 +27,10 @@ export type DurableStateSnapshot = {
   poolsInstantCursor: number | null;
   /** Independent Instant activity cursor; never aligned by cutover/observation. */
   poolsSwapsCursor: number | null;
+  /** Independent PONS V2 fee cursor; never aligned by cutover/observation. */
+  ponsV2CurveFeesCursor: number | null;
+  ponsV2CurveFeesCursorUpdatedAt: string | null;
+  trackedV2CurveCount: number;
   activeLaunchCount: number;
   firedLaunchCount: number;
   expiredLaunchCount: number;
@@ -77,6 +82,7 @@ export async function inspectDurableState(
     expiredLaunchCount,
     firstBuyerCount,
     eventCount,
+    trackedV2CurveCount,
   ] = await Promise.all([
     countWhere(supabase, "pons_launches", [
       { column: "chain_id", value: chainId },
@@ -94,6 +100,10 @@ export async function inspectDurableState(
       { column: "chain_id", value: chainId },
     ]),
     countWhere(supabase, "events", [{ column: "chain_id", value: chainId }]),
+    countWhere(supabase, "pons_launches", [
+      { column: "chain_id", value: chainId },
+      { column: "factory_version", value: "v2" },
+    ]),
   ]);
 
   const { data: activeBlocks, error: activeErr } = await supabase
@@ -173,6 +183,19 @@ export async function inspectDurableState(
     };
   }
 
+  const { data: feeCursorMeta, error: feeCursorErr } = await supabase
+    .from("chain_cursors")
+    .select("last_processed_block, updated_at")
+    .eq("stream_name", CURSOR_STREAM_PONS_V2_CURVE_FEES)
+    .eq("chain_id", chainId)
+    .maybeSingle();
+
+  if (feeCursorErr) {
+    throw new Error(
+      `[4663-worker] pons_v2_curve_fees cursor query failed: ${feeCursorErr.message}`,
+    );
+  }
+
   return {
     chainId,
     productionStartBlock: production?.productionStartBlock ?? null,
@@ -189,6 +212,14 @@ export async function inspectDurableState(
       cursors.get(CURSOR_STREAM_POOLS_INSTANT)?.lastProcessedBlock ?? null,
     poolsSwapsCursor:
       cursors.get(CURSOR_STREAM_POOLS_SWAPS)?.lastProcessedBlock ?? null,
+    ponsV2CurveFeesCursor:
+      cursors.get(CURSOR_STREAM_PONS_V2_CURVE_FEES)?.lastProcessedBlock ?? null,
+    ponsV2CurveFeesCursorUpdatedAt:
+      feeCursorMeta &&
+      typeof (feeCursorMeta as { updated_at?: unknown }).updated_at === "string"
+        ? (feeCursorMeta as { updated_at: string }).updated_at
+        : null,
+    trackedV2CurveCount,
     activeLaunchCount,
     firedLaunchCount,
     expiredLaunchCount,
@@ -219,6 +250,14 @@ export function formatDurableStateReport(
     `cursor pons_transfers=${snap.transferCursor ?? "NONE"}`,
     `cursor pools_instant=${snap.poolsInstantCursor ?? "NONE"}`,
     `cursor pools_swaps=${snap.poolsSwapsCursor ?? "NONE"}`,
+    `cursor pons_v2_curve_fees=${snap.ponsV2CurveFeesCursor ?? "NONE"}`,
+    `pons_v2_curve_fees_lag_blocks=${
+      opts?.chainHead != null && snap.ponsV2CurveFeesCursor != null
+        ? String(opts.chainHead - snap.ponsV2CurveFeesCursor)
+        : "n/a"
+    }`,
+    `pons_v2_curve_fees_updated_at=${snap.ponsV2CurveFeesCursorUpdatedAt ?? "NONE"}`,
+    `tracked_v2_curves=${snap.trackedV2CurveCount}`,
     `launches active=${snap.activeLaunchCount} fired=${snap.firedLaunchCount} expired=${snap.expiredLaunchCount}`,
     `pre_boundary_or_dev_active=${snap.preBoundaryActiveCount}`,
     `pre_observation_active=${snap.preObservationActiveCount}`,

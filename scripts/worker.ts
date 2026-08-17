@@ -26,10 +26,16 @@ import {
   FACTORY_POLL_INTERVAL_MS,
   HEARTBEAT_INTERVAL_MS,
   POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
+  PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
 } from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerError, workerLog } from "@/lib/worker/log";
+import { catchUpPonsV2CurveFeesCursorIsolated } from "@/lib/worker/pons/curve-fee-loop";
 import { catchUpFactoryCursor } from "@/lib/worker/pons/factory-loop";
+import {
+  addPonsV2LaunchToFeeIndex,
+  reconstructPonsV2FeeCurveIndex,
+} from "@/lib/pons/curve-fee/curve-map";
 import { catchUpTransferCursor } from "@/lib/worker/pons/transfer-loop";
 import { EVENT_SOURCE_POOLS } from "@/lib/pools/constants";
 import { catchUpPoolsInstantCursorIsolated } from "@/lib/worker/pools/instant-loop";
@@ -314,6 +320,12 @@ async function main(): Promise<void> {
     poolsMemory = reconstructPoolsWorkerMemory([], [], 0, new Set());
   }
 
+  const feeIndex = await reconstructPonsV2FeeCurveIndex(
+    supabase,
+    config.chainId,
+  );
+  workerLog(`pons v2 fee curves tracked=${feeIndex.byCurve.size}`);
+
   const onLaunch = (launch: {
     tokenAddress: string;
     marketAddress: string;
@@ -324,6 +336,7 @@ async function main(): Promise<void> {
     launchBlockTimestampIso: string;
   }) => {
     addActiveLaunchToMemory(memory, launch, watchBoundaryOpts);
+    addPonsV2LaunchToFeeIndex(feeIndex, launch);
   };
 
   const onPoolsLaunch = (row: PoolsInstantLaunchRow) => {
@@ -453,6 +466,24 @@ async function main(): Promise<void> {
         );
       }
 
+      const feeCatch = await catchUpPonsV2CurveFeesCursorIsolated({
+        rpc,
+        supabase,
+        chainId: config.chainId,
+        factories,
+        index: feeIndex,
+        startupRewind: true,
+        maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
+        productionStartBlock,
+        observationStartBlock,
+        onFactoryInserted: onLaunch,
+      });
+      if (feeCatch) {
+        workerLog(
+          `pons v2 fee catch-up: inserted=${feeCatch.inserted} duplicates=${feeCatch.skippedDuplicates} ranges=${feeCatch.rangesScanned} blocked=${feeCatch.blocked} curves=${feeIndex.byCurve.size}`,
+        );
+      }
+
       cursors = await loadKnownCursors(supabase, config.chainId);
       latestProcessedBlock = highestProcessed(
         cursors.get(CURSOR_STREAM_PONS_FACTORIES)?.lastProcessedBlock,
@@ -557,6 +588,18 @@ async function main(): Promise<void> {
           productionStartBlock,
           observationStartBlock,
           onInstantPersisted: onPoolsLaunch,
+        });
+        await catchUpPonsV2CurveFeesCursorIsolated({
+          rpc,
+          supabase,
+          chainId: config.chainId,
+          factories,
+          index: feeIndex,
+          startupRewind: false,
+          maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
+          productionStartBlock,
+          observationStartBlock,
+          onFactoryInserted: onLaunch,
         });
       } catch (error) {
         workerError("poll cycle failed", error);
