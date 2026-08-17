@@ -387,6 +387,7 @@ describe("radar alert detection (visible tokens[] membership)", () => {
       {
         eventId: ID_A,
         tokenAddress: TOKEN_A,
+        launchpad: "pons" as const,
         createdAtMs: 0,
         expiresAtMs: 100,
         leftPct: 1,
@@ -395,6 +396,7 @@ describe("radar alert detection (visible tokens[] membership)", () => {
       {
         eventId: ID_B,
         tokenAddress: TOKEN_B,
+        launchpad: "pons" as const,
         createdAtMs: 0,
         expiresAtMs: 200,
         leftPct: 3,

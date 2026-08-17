@@ -16,7 +16,7 @@ import {
 
 /** Confirmed live Instant launch. */
 const SPECIMEN_TOKEN =
-  "0x87380657B18Eb20B57B66d9759De4262d2531Fa2".toLowerCase();
+  "0x87380657B18Eb20B57B66d9759De4262d2531Fa2".toLowerCase() as `0x${string}`;
 const SPECIMEN_POOL_ID =
   "0xf880faadd73dd6eca13ee7d1e3958e6aef3e65a114b4123fb4007f6069406444";
 const FEE_SPLITTER =
