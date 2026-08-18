@@ -31,6 +31,7 @@ import {
   activateOverlayInteractiveTarget,
   overlayInteractiveTargetFromPoint,
 } from "@/lib/canvas/interactive-control";
+import { createCanvasPanFrameCoalescer } from "@/lib/canvas/canvas-pan-frame";
 import {
   canvasPanHasClaimedPointer,
   canvasPanMovementPx,
@@ -45,6 +46,7 @@ import {
   nextViewportCameraAction,
   readViewportClientSize,
 } from "@/lib/canvas/viewport-client-size";
+import { recordTapDebug, summarizeEventNode } from "@/lib/canvas/tap-debug";
 
 /** Module flag: empty-canvas click must ignore post-pan synthetic clicks. */
 let suppressEmptyCanvasClick = false;
@@ -92,7 +94,12 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     origin: CanvasCamera;
     active: boolean;
     captureEl: HTMLElement | null;
+    viewportWidth: number;
+    viewportHeight: number;
   } | null>(null);
+  const panFrameRef = useRef<ReturnType<
+    typeof createCanvasPanFrameCoalescer
+  > | null>(null);
   const overlayTapRef = useRef<{
     pointerId: number;
     startX: number;
@@ -101,25 +108,32 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     element: Element;
   } | null>(null);
 
-  const applyCamera = useCallback((next: CanvasCamera) => {
-    const viewport = viewportRef.current;
-    const size = readViewportClientSize(viewport);
-    const clamped =
-      size != null ? clampCamera(next, size.width, size.height) : next;
-    cameraRef.current = clamped;
-    const world = worldRef.current;
-    if (world) {
-      const style = worldTransformStyle(clamped);
-      world.style.width = `${style.width}px`;
-      world.style.height = `${style.height}px`;
-      world.style.transformOrigin = style.transformOrigin;
-      world.style.transform = style.transform;
-      world.setAttribute(WORLD_CAMERA_SCALE_ATTR, String(style.scale));
-    }
-  }, []);
+  const applyCamera = useCallback(
+    (next: CanvasCamera, options?: { writeLayout?: boolean }) => {
+      const viewport = viewportRef.current;
+      const size = readViewportClientSize(viewport);
+      const clamped =
+        size != null ? clampCamera(next, size.width, size.height) : next;
+      cameraRef.current = clamped;
+      const world = worldRef.current;
+      if (world) {
+        const style = worldTransformStyle(clamped);
+        // Pan rewrites transform every sample; width/height/origin are static.
+        if (options?.writeLayout !== false) {
+          world.style.width = `${style.width}px`;
+          world.style.height = `${style.height}px`;
+          world.style.transformOrigin = style.transformOrigin;
+        }
+        world.style.transform = style.transform;
+        world.setAttribute(WORLD_CAMERA_SCALE_ATTR, String(style.scale));
+      }
+    },
+    [],
+  );
 
   /** Drop in-progress pan so HOME / next drag start cleanly. */
   const cancelActivePan = useCallback(() => {
+    panFrameRef.current?.cancel();
     const pan = panRef.current;
     panRef.current = null;
     overlayTapRef.current = null;
@@ -205,6 +219,23 @@ export function useCanvasCamera(): UseCanvasCameraResult {
   }, []);
 
   useEffect(() => {
+    const applyPanSample = (sample: { dx: number; dy: number }) => {
+      const pan = panRef.current;
+      if (!pan) return;
+      applyCamera(
+        panCamera(
+          pan.origin,
+          sample.dx,
+          sample.dy,
+          pan.viewportWidth,
+          pan.viewportHeight,
+        ),
+        { writeLayout: false },
+      );
+    };
+    const panFrame = createCanvasPanFrameCoalescer(applyPanSample);
+    panFrameRef.current = panFrame;
+
     const onPointerMove = (event: PointerEvent) => {
       const overlayTap = overlayTapRef.current;
       if (overlayTap && event.pointerId === overlayTap.pointerId) {
@@ -232,21 +263,15 @@ export function useCanvasCamera(): UseCanvasCameraResult {
 
         // First real pan: leave fitted landing scale; keep viewport-center world point.
         if (normalizeCameraScale(pan.origin.scale) < 1) {
-          const viewport = viewportRef.current;
-          const size = readViewportClientSize(viewport);
-          const vw = size?.width ?? HOME_REGION_WIDTH_PX;
-          const vh = size?.height ?? HOME_REGION_HEIGHT_PX;
           pan.origin = normalizeCameraToScaleOnePreservingCenter(
             pan.origin,
-            vw,
-            vh,
+            pan.viewportWidth,
+            pan.viewportHeight,
           );
         }
       }
-      const size = readViewportClientSize(viewportRef.current);
-      const vw = size?.width ?? HOME_REGION_WIDTH_PX;
-      const vh = size?.height ?? HOME_REGION_HEIGHT_PX;
-      applyCamera(panCamera(pan.origin, dx, dy, vw, vh));
+      // Coalesce to one transform per frame; pointerup flushes the last sample.
+      panFrame.push({ dx, dy });
     };
 
     const endPan = (event: PointerEvent) => {
@@ -263,7 +288,16 @@ export function useCanvasCamera(): UseCanvasCameraResult {
             eventTarget: event.target,
           })
         ) {
+          recordTapDebug("handler", "overlay-recovery-click", {
+            target: summarizeEventNode(overlayTap.element),
+            path: "synthetic element.click() after viewport pointerup",
+          });
           activateOverlayInteractiveTarget(overlayTap.element);
+        } else {
+          recordTapDebug("handler", "overlay-recovery-skip", {
+            target: summarizeEventNode(overlayTap.element),
+            path: `type=${event.type} moved=${String(moved)}`,
+          });
         }
         window.setTimeout(() => {
           suppressEmptyCanvasClick = false;
@@ -274,6 +308,18 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       const pan = panRef.current;
       if (!pan || event.pointerId !== pan.pointerId) return;
       const wasActivePan = canvasPanHasClaimedPointer(pan);
+      const dx = event.clientX - pan.startX;
+      const dy = event.clientY - pan.startY;
+      // Flush while panRef still holds origin + viewport size.
+      if (wasActivePan) {
+        if (event.type === "pointercancel") {
+          panFrame.cancel();
+        } else {
+          panFrame.flush({ dx, dy });
+        }
+      } else {
+        panFrame.cancel();
+      }
       panRef.current = null;
       document.body.removeAttribute("data-4663-panning");
       if (pan.captureEl) {
@@ -284,7 +330,6 @@ export function useCanvasCamera(): UseCanvasCameraResult {
         }
       }
       if (wasActivePan) {
-        // Pan gesture: suppress the synthetic click that may follow pointerup.
         suppressEmptyCanvasClick = true;
         window.setTimeout(() => {
           suppressEmptyCanvasClick = false;
@@ -317,6 +362,8 @@ export function useCanvasCamera(): UseCanvasCameraResult {
     window.addEventListener("pointerup", endPan);
     window.addEventListener("pointercancel", endPan);
     return () => {
+      panFrame.cancel();
+      panFrameRef.current = null;
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", endPan);
       window.removeEventListener("pointercancel", endPan);
@@ -335,6 +382,10 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       typeof document !== "undefined" ? document : null,
     );
     if (overlayInteractive) {
+      recordTapDebug("handler", "overlay-recovery-down", {
+        target: summarizeEventNode(overlayInteractive),
+        path: "viewport pointerdown matched overlay control",
+      });
       overlayTapRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -370,10 +421,13 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       clientX: event.clientX,
       clientY: event.clientY,
     });
+    const size = readViewportClientSize(viewportRef.current);
     panRef.current = {
       ...gesture,
       origin: { ...cameraRef.current },
       captureEl: event.currentTarget,
+      viewportWidth: size?.width ?? HOME_REGION_WIDTH_PX,
+      viewportHeight: size?.height ?? HOME_REGION_HEIGHT_PX,
     };
   };
 

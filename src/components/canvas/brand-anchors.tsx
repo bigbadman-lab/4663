@@ -62,8 +62,8 @@ const HERO_TOOL_BUTTON =
 /**
  * H1 + subtitle — static layout grouping only (not a world/movable object).
  * Independent absolute origins so H1 stays optically at ~42% and subtitle at ~52%.
- * Tap H1 to cycle local text colour; HIDE sits on the title so empty canvas
- * above the hero stays tappable (not collaborative).
+ * Tap H1 to cycle local text colour; HIDE sits above the title (out of flow)
+ * so the glyphs stay clear and empty canvas around the hero stays tappable.
  */
 export function BrandHero() {
   const { preferences, cycleColor, hideHero } = useHeroPreferences();
@@ -93,9 +93,12 @@ export function BrandHero() {
         data-4663-hero-title
         data-4663-brand-anchor="title"
       >
-        <div className="relative mx-auto w-fit">
+        <div
+          className="relative mx-auto w-fit z-[3]"
+          data-4663-hero-title-paint
+        >
           <div
-            className="pointer-events-none absolute inset-x-0 top-0 z-[2] flex justify-center"
+            className="pointer-events-none absolute inset-x-0 bottom-full z-[2] flex justify-center"
             data-4663-hero-appearance-tools
           >
             <button

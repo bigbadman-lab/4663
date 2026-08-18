@@ -293,6 +293,10 @@ describe("Module Lab host", () => {
     assert.equal(picker.includes("h-2.5 w-2.5 rounded-full border"), false);
     assert.ok(picker.includes("data-4663-lab-color-swatch"));
     assert.ok(picker.includes("data-4663-lab-color-palette"));
+    assert.ok(picker.includes("PaperColorSwatch"));
+    const swatch = readSrc("src/components/paper-color-swatch.tsx");
+    assert.ok(swatch.includes("h-5 w-5"));
+    assert.ok(swatch.includes("rounded-full border"));
     assert.equal(picker.includes("note-state"), false);
     assert.equal(picker.includes("checklist-state"), false);
     const note = readSrc("src/modules/create/note/note-object.tsx");

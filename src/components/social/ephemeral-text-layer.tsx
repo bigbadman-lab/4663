@@ -3,12 +3,13 @@
 /**
  * Social 2A published TEXT + Social 2B live typing + Social 3A ephemeral DRAW
  * + Social 3B world BRUSH + Social 6 MARK create entry (durable marks; not session-ephemeral)
- * + LINK objects (PlayHTML page data snapshots).
+ * + LINK + TOKEN objects (PlayHTML page data snapshots).
  *
  * Published TEXT: PlayHTML usePageData("4663-ephemeral-texts")
  * Published DRAW: PlayHTML usePageData("4663-ephemeral-drawings")
  * Published BRUSH: PlayHTML usePageData("4663-ephemeral-brush-strokes")
  * Published LINK: PlayHTML usePageData("4663-canvas-links")
+ * Published TOKEN: PlayHTML usePageData("4663-canvas-tokens")
  * Live drafts (text + drawing + brush): Supabase Broadcast on 4663-social-broadcast
  * MARK: Postgres via /api/social/marks (survives LEAVE/RESET/Presence loss)
  */
@@ -24,6 +25,8 @@ import { CanvasCreateMenu } from "@/components/social/canvas-create-menu";
 import { CanvasDrawModeChooser } from "@/components/social/canvas-draw-mode-chooser";
 import { CanvasLinkComposer } from "@/components/social/canvas-link-composer";
 import { CanvasLinkObjectView } from "@/components/social/canvas-link-object";
+import { CanvasTokenComposer } from "@/components/social/canvas-token-composer";
+import { CanvasTokenObjectView } from "@/components/social/canvas-token-object";
 import { CanvasMarkObject } from "@/components/social/canvas-mark-object";
 import { DrawingSessionEditor } from "@/components/social/drawing-session-editor";
 import { EphemeralBrushLayer } from "@/components/social/ephemeral-brush-layer";
@@ -36,6 +39,7 @@ import { LiveTextDraftView } from "@/components/social/live-text-draft";
 import { MarkComposer } from "@/components/social/mark-composer";
 import { getBrowserSupabaseClient } from "@/lib/events/supabase-browser";
 import { beginLinkIfNamed } from "@/lib/social/canvas-link-actions";
+import { beginTokenIfNamed } from "@/lib/social/canvas-token-actions";
 import {
   CANVAS_LINK_LIMIT_MESSAGE,
   CANVAS_LINKS_PAGE_DATA_NAME,
@@ -51,6 +55,20 @@ import {
   type CanvasLinksPageData,
 } from "@/lib/social/canvas-link";
 import type { LinkPreview } from "@/lib/social/link-preview";
+import {
+  CANVAS_TOKEN_LIMIT_MESSAGE,
+  CANVAS_TOKENS_PAGE_DATA_NAME,
+  canPlaceCanvasToken,
+  commitCanvasTokenPublish,
+  createCanvasTokenObject,
+  EMPTY_CANVAS_TOKENS_PAGE_DATA,
+  normalizeCanvasTokensPageData,
+  removeCanvasToken,
+  removeCanvasTokensByOwner,
+  retainCanvasTokensForPresentOwners,
+  type CanvasTokensPageData,
+  type ResolvedCanvasToken,
+} from "@/lib/social/canvas-token";
 import { validateMarkBody, MARK_ENABLED } from "@/lib/social/canvas-mark";
 import { useCanvasMarks } from "@/lib/social/use-canvas-marks";
 import {
@@ -105,11 +123,13 @@ import {
   normalizeEphemeralDrawingsPageData,
   removeEphemeralDrawing,
   removeEphemeralDrawingsByOwner,
+  resizeEphemeralDrawing,
   retainEphemeralDrawingsForPresentOwners,
   upsertEphemeralDrawing,
   type DrawingStroke,
   type EphemeralDrawingsPageData,
 } from "@/lib/social/ephemeral-drawing";
+import { fitDrawingToVisibleInk } from "@/lib/social/drawing-ink-bounds";
 import {
   dockCreateWorldPct,
   homePctToWorldPct,
@@ -127,6 +147,7 @@ import {
   normalizeEphemeralTextsPageData,
   removeEphemeralText,
   removeEphemeralTextsByOwner,
+  resizeEphemeralText,
   retainEphemeralTextsForPresentOwners,
   upsertEphemeralText,
   type EphemeralTextsPageData,
@@ -192,6 +213,11 @@ type CreateUi =
       topPct: number;
     }
   | {
+      mode: "token";
+      leftPct: number;
+      topPct: number;
+    }
+  | {
       mode: "mark";
       leftPct: number;
       topPct: number;
@@ -220,6 +246,10 @@ export function EphemeralTextLayer() {
   const [linksPageData, setLinksPageData] = usePageData<CanvasLinksPageData>(
     CANVAS_LINKS_PAGE_DATA_NAME,
     EMPTY_CANVAS_LINKS_PAGE_DATA,
+  );
+  const [tokensPageData, setTokensPageData] = usePageData<CanvasTokensPageData>(
+    CANVAS_TOKENS_PAGE_DATA_NAME,
+    EMPTY_CANVAS_TOKENS_PAGE_DATA,
   );
   const { isLoading: playhtmlLoading, isProviderMissing } = usePlayContext();
   const [createUi, setCreateUi] = useState<CreateUi>(null);
@@ -251,6 +281,11 @@ export function EphemeralTextLayer() {
   linksPageDataRef.current = linksPageData;
   setLinksPageDataRef.current = setLinksPageData;
 
+  const tokensPageDataRef = useRef(tokensPageData);
+  const setTokensPageDataRef = useRef(setTokensPageData);
+  tokensPageDataRef.current = tokensPageData;
+  setTokensPageDataRef.current = setTokensPageData;
+
   const brushPageDataReadyRef = useRef(false);
   brushPageDataReadyRef.current = isBrushPageDataWritable({
     isLoading: playhtmlLoading,
@@ -258,6 +293,11 @@ export function EphemeralTextLayer() {
   });
   const linksPageDataReadyRef = useRef(false);
   linksPageDataReadyRef.current = isPlayhtmlPageDataWritable({
+    isLoading: playhtmlLoading,
+    isProviderMissing,
+  });
+  const tokensPageDataReadyRef = useRef(false);
+  tokensPageDataReadyRef.current = isPlayhtmlPageDataWritable({
     isLoading: playhtmlLoading,
     isProviderMissing,
   });
@@ -292,6 +332,7 @@ export function EphemeralTextLayer() {
   const brushDocuments =
     normalizeEphemeralBrushPageData(brushPageData).documents;
   const links = normalizeCanvasLinksPageData(linksPageData).links;
+  const tokens = normalizeCanvasTokensPageData(tokensPageData).tokens;
 
   const writePageData = (next: EphemeralTextsPageData) => {
     setPageDataRef.current(normalizeEphemeralTextsPageData(next));
@@ -307,6 +348,10 @@ export function EphemeralTextLayer() {
 
   const writeLinksPageData = (next: CanvasLinksPageData) => {
     setLinksPageDataRef.current(normalizeCanvasLinksPageData(next));
+  };
+
+  const writeTokensPageData = (next: CanvasTokensPageData) => {
+    setTokensPageDataRef.current(normalizeCanvasTokensPageData(next));
   };
 
   const clearLocalDraftBroadcast = (draftId: string, ownerSessionId: string) => {
@@ -462,6 +507,12 @@ export function EphemeralTextLayer() {
           sessionId,
         ),
       );
+      writeTokensPageData(
+        removeCanvasTokensByOwner(
+          normalizeCanvasTokensPageData(tokensPageDataRef.current),
+          sessionId,
+        ),
+      );
       setRemoteDrafts((prev) => removeTextDraftsByOwner(prev, sessionId));
       setRemoteDrawingDrafts((prev) =>
         removeDrawingDraftsByOwner(prev, sessionId),
@@ -529,6 +580,16 @@ export function EphemeralTextLayer() {
       const next = retainCanvasLinksForPresentOwners(currentLinks, present);
       if (next.links.length !== currentLinks.links.length) {
         writeLinksPageData(next);
+      }
+    }
+
+    const currentTokens = normalizeCanvasTokensPageData(
+      tokensPageDataRef.current,
+    );
+    if (currentTokens.tokens.length > 0) {
+      const next = retainCanvasTokensForPresentOwners(currentTokens, present);
+      if (next.tokens.length !== currentTokens.tokens.length) {
+        writeTokensPageData(next);
       }
     }
 
@@ -719,15 +780,24 @@ export function EphemeralTextLayer() {
     const ui = createUiRef.current;
     if (ui?.mode !== "draw") return;
 
-    const created = createEphemeralDrawingObject({
-      drawingId: ui.draftDrawingId,
-      ownerSessionId: self.sessionId,
+    const fitted = fitDrawingToVisibleInk({
       strokes,
       leftPct: ui.leftPct,
       topPct: ui.topPct,
       widthPct: ui.widthPct,
       heightPct: ui.heightPct,
-      aspectRatio: ui.aspectRatio,
+    });
+    if (!fitted) return;
+
+    const created = createEphemeralDrawingObject({
+      drawingId: ui.draftDrawingId,
+      ownerSessionId: self.sessionId,
+      strokes: fitted.strokes,
+      leftPct: fitted.leftPct,
+      topPct: fitted.topPct,
+      widthPct: fitted.widthPct,
+      heightPct: fitted.heightPct,
+      aspectRatio: fitted.aspectRatio,
     });
     if (!created.ok) return;
 
@@ -805,6 +875,14 @@ export function EphemeralTextLayer() {
     writePageData(removeEphemeralText(current, textId));
   };
 
+  const onResizeText = (textId: string, fontScale: number) => {
+    if (!self) return;
+    const current = normalizeEphemeralTextsPageData(pageDataRef.current);
+    const target = current.texts.find((t) => t.textId === textId);
+    if (!target || target.ownerSessionId !== self.sessionId) return;
+    writePageData(resizeEphemeralText(current, textId, fontScale));
+  };
+
   const onDeleteDrawing = (drawingId: string) => {
     if (!self) return;
     const current = normalizeEphemeralDrawingsPageData(
@@ -815,12 +893,30 @@ export function EphemeralTextLayer() {
     writeDrawingsPageData(removeEphemeralDrawing(current, drawingId));
   };
 
+  const onResizeDrawing = (drawingId: string, scale: number) => {
+    if (!self) return;
+    const current = normalizeEphemeralDrawingsPageData(
+      drawingsPageDataRef.current,
+    );
+    const target = current.drawings.find((d) => d.drawingId === drawingId);
+    if (!target || target.ownerSessionId !== self.sessionId) return;
+    writeDrawingsPageData(resizeEphemeralDrawing(current, drawingId, scale));
+  };
+
   const onDeleteLink = (linkId: string) => {
     if (!self) return;
     const current = normalizeCanvasLinksPageData(linksPageDataRef.current);
     const target = current.links.find((link) => link.linkId === linkId);
     if (!target || target.ownerSessionId !== self.sessionId) return;
     writeLinksPageData(removeCanvasLink(current, linkId));
+  };
+
+  const onDeleteToken = (tokenId: string) => {
+    if (!self) return;
+    const current = normalizeCanvasTokensPageData(tokensPageDataRef.current);
+    const target = current.tokens.find((token) => token.tokenId === tokenId);
+    if (!target || target.ownerSessionId !== self.sessionId) return;
+    writeTokensPageData(removeCanvasToken(current, tokenId));
   };
 
   const publishLink = (preview: LinkPreview) => {
@@ -848,6 +944,35 @@ export function EphemeralTextLayer() {
       return { ok: false as const, error: "Could not place link." };
     }
     writeLinksPageData(committed.pageData);
+    setCreateUi(null);
+    return { ok: true as const };
+  };
+
+  const publishToken = (preview: ResolvedCanvasToken) => {
+    if (!self) return { ok: false as const, error: "Enter to place a token." };
+    const ui = createUiRef.current;
+    if (ui?.mode !== "token") {
+      return { ok: false as const, error: "Nothing to place." };
+    }
+    const created = createCanvasTokenObject({
+      preview,
+      ownerSessionId: self.sessionId,
+      leftPct: ui.leftPct,
+      topPct: ui.topPct,
+    });
+    if (!created.ok) return created;
+    const committed = commitCanvasTokenPublish({
+      previous: normalizeCanvasTokensPageData(tokensPageDataRef.current),
+      token: created.token,
+      ready: tokensPageDataReadyRef.current,
+    });
+    if (!committed.ok) {
+      if (committed.reason === "limit") {
+        return { ok: false as const, error: CANVAS_TOKEN_LIMIT_MESSAGE };
+      }
+      return { ok: false as const, error: "Could not place token." };
+    }
+    writeTokensPageData(committed.pageData);
     setCreateUi(null);
     return { ok: true as const };
   };
@@ -1042,6 +1167,7 @@ export function EphemeralTextLayer() {
           text={text}
           isOwner={self?.sessionId === text.ownerSessionId}
           onDelete={onDeleteText}
+          onResize={onResizeText}
         />
       ))}
 
@@ -1051,6 +1177,7 @@ export function EphemeralTextLayer() {
           drawing={drawing}
           isOwner={self?.sessionId === drawing.ownerSessionId}
           onDelete={onDeleteDrawing}
+          onResize={onResizeDrawing}
         />
       ))}
 
@@ -1060,6 +1187,15 @@ export function EphemeralTextLayer() {
           link={link}
           isOwner={self?.sessionId === link.ownerSessionId}
           onDelete={onDeleteLink}
+        />
+      ))}
+
+      {tokens.map((token) => (
+        <CanvasTokenObjectView
+          key={token.tokenId}
+          token={token}
+          isOwner={self?.sessionId === token.ownerSessionId}
+          onDelete={onDeleteToken}
         />
       ))}
 
@@ -1107,6 +1243,20 @@ export function EphemeralTextLayer() {
                 onOpen: () => {
                   setCreateUi({
                     mode: "link",
+                    leftPct: createUi.leftPct,
+                    topPct: createUi.topPct,
+                  });
+                },
+              });
+            }}
+            onChooseToken={() => {
+              beginTokenIfNamed({
+                isNamedParticipant: Boolean(
+                  isParticipatingRef.current && selfRef.current,
+                ),
+                onOpen: () => {
+                  setCreateUi({
+                    mode: "token",
                     leftPct: createUi.leftPct,
                     topPct: createUi.topPct,
                   });
@@ -1165,6 +1315,21 @@ export function EphemeralTextLayer() {
               self.sessionId,
             )}
             onPlace={publishLink}
+            onCancel={abandonCreate}
+          />
+        </div>
+      ) : null}
+
+      {createUi?.mode === "token" && self ? (
+        <div className="pointer-events-auto">
+          <CanvasTokenComposer
+            leftPct={createUi.leftPct}
+            topPct={createUi.topPct}
+            canPlace={canPlaceCanvasToken(
+              normalizeCanvasTokensPageData(tokensPageData),
+              self.sessionId,
+            )}
+            onPlace={publishToken}
             onCancel={abandonCreate}
           />
         </div>

@@ -12,6 +12,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { DrawingStrokesSvg } from "@/components/social/drawing-strokes-svg";
+import { isUsableCanvasPointer } from "@/lib/canvas/canvas-pan-gesture";
+import { drawingHostWorldSizeFromAspect } from "@/lib/social/drawing-ink-bounds";
 import {
   DEFAULT_DRAWING_COLOUR,
   DRAW_COLOURS,
@@ -62,6 +64,8 @@ export function DrawingSessionEditor({
     onStrokesChange(next);
   };
 
+  const hostSize = drawingHostWorldSizeFromAspect(widthPct, aspectRatio);
+
   const pointerToNormalized = (
     clientX: number,
     clientY: number,
@@ -78,7 +82,7 @@ export function DrawingSessionEditor({
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
+    if (!isUsableCanvasPointer(event)) return;
     event.preventDefault();
     event.stopPropagation();
     const point = pointerToNormalized(event.clientX, event.clientY);
@@ -221,7 +225,11 @@ export function DrawingSessionEditor({
           onClick={(event) => event.stopPropagation()}
         >
           <div className="pointer-events-none absolute inset-0 border border-neutral-300/70 bg-white/10">
-            <DrawingStrokesSvg strokes={strokes} />
+            <DrawingStrokesSvg
+              strokes={strokes}
+              widthWorldPx={hostSize.width}
+              heightWorldPx={hostSize.height}
+            />
           </div>
         </div>
 

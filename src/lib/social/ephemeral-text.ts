@@ -3,6 +3,7 @@
  * Shared room state lives in PlayHTML usePageData (late-join safe).
  */
 
+import { clampObjectScale } from "@/lib/canvas/object-scale-resize";
 import {
   isUuid,
   normalizeSessionId,
@@ -10,6 +11,16 @@ import {
 
 export const EPHEMERAL_TEXT_MAX_LENGTH = 200 as const;
 export const EPHEMERAL_TEXTS_PAGE_DATA_NAME = "4663-ephemeral-texts" as const;
+
+/** Canonical published size (compact `text-[12px]`). Missing field → this. */
+export const TEXT_FONT_SCALE_DEFAULT = 1 as const;
+/** Still readable; host stays large enough to drag. */
+export const TEXT_FONT_SCALE_MIN = 0.75 as const;
+/** 36px / 42rem — large without covering the world. */
+export const TEXT_FONT_SCALE_MAX = 3 as const;
+export const TEXT_FONT_SIZE_PX = 12 as const;
+export const TEXT_MAX_WIDTH_REM = 14 as const;
+export const TEXT_MAX_WIDTH_VW = 70 as const;
 
 export type EphemeralTextObject = {
   textId: string;
@@ -19,6 +30,11 @@ export type EphemeralTextObject = {
   leftPct: number;
   /** CSS top % origin inside #4663-canvas. */
   topPct: number;
+  /**
+   * Visual scale of the whole text object (font + wrap width).
+   * Missing on legacy objects; normalize to TEXT_FONT_SCALE_DEFAULT.
+   */
+  fontScale: number;
   createdAt: string;
 };
 
@@ -59,6 +75,33 @@ function isFinitePct(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+export function clampTextFontScale(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return TEXT_FONT_SCALE_DEFAULT;
+  }
+  return clampObjectScale(
+    value,
+    TEXT_FONT_SCALE_MIN,
+    TEXT_FONT_SCALE_MAX,
+    TEXT_FONT_SCALE_DEFAULT,
+  );
+}
+
+export function textFontSizePx(fontScale: number): number {
+  return TEXT_FONT_SIZE_PX * clampTextFontScale(fontScale);
+}
+
+/** CSS max-width that scales with the font so wrapping stays proportional. */
+export function textMaxWidthCss(fontScale: number): string {
+  const scale = clampTextFontScale(fontScale);
+  return `min(${TEXT_MAX_WIDTH_REM * scale}rem, ${TEXT_MAX_WIDTH_VW * scale}vw)`;
+}
+
+/** max-width / font-size in rem-per-px; independent of scale. */
+export function textWrapRatio(): number {
+  return TEXT_MAX_WIDTH_REM / TEXT_FONT_SIZE_PX;
+}
+
 /** Clamp click % into a safe canvas band. */
 export function clampCanvasPct(value: number): number {
   if (!Number.isFinite(value)) return 50;
@@ -92,6 +135,7 @@ export function normalizeEphemeralTextObject(
     body: bodyResult.body,
     leftPct: record.leftPct,
     topPct: record.topPct,
+    fontScale: clampTextFontScale(record.fontScale),
     createdAt: record.createdAt,
   };
 }
@@ -153,6 +197,7 @@ export function createEphemeralTextObject(
       body: bodyResult.body,
       leftPct: clampCanvasPct(input.leftPct),
       topPct: clampCanvasPct(input.topPct),
+      fontScale: TEXT_FONT_SCALE_DEFAULT,
       createdAt: now().toISOString(),
     },
   };
@@ -164,6 +209,18 @@ export function upsertEphemeralText(
 ): EphemeralTextsPageData {
   const without = data.texts.filter((t) => t.textId !== text.textId);
   return { texts: [...without, text] };
+}
+
+export function resizeEphemeralText(
+  data: EphemeralTextsPageData,
+  textId: string,
+  fontScale: number,
+): EphemeralTextsPageData {
+  const target = data.texts.find((text) => text.textId === textId);
+  if (!target) return data;
+  const nextScale = clampTextFontScale(fontScale);
+  if (nextScale === target.fontScale) return data;
+  return upsertEphemeralText(data, { ...target, fontScale: nextScale });
 }
 
 export function removeEphemeralText(

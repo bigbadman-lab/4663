@@ -36,15 +36,32 @@ describe("Social 1B / 1C.1 participation control placement", () => {
     );
   });
 
-  it("hero-area UI renders the participation control", () => {
+  it("hero-area UI renders ENTER; named session + X are top-right", () => {
     const chrome = readSrc("src/components/canvas/canvas-chrome.tsx");
     assert.ok(chrome.includes("ParticipationEnterTrigger"));
     assert.ok(chrome.includes("ParticipationSessionControl"));
     assert.ok(chrome.includes("ParticipationEnterForm"));
     assert.ok(chrome.includes("data-4663-chrome-participation"));
+    assert.ok(chrome.includes("data-4663-chrome-identity"));
     assert.ok(chrome.includes("PARTICIPATION_CONTROL_DEFAULT_STYLE"));
     assert.ok(chrome.includes("useParticipation"));
     assert.equal(chrome.includes("CanMoveElement"), false);
+
+    const participation = chrome.slice(
+      chrome.indexOf("data-4663-chrome-participation"),
+      chrome.indexOf("data-4663-chrome-top-right"),
+    );
+    assert.ok(participation.includes("ParticipationEnterTrigger"));
+    assert.equal(participation.includes("ParticipationSessionControl"), false);
+
+    const topRight = chrome.slice(
+      chrome.indexOf("data-4663-chrome-top-right"),
+      chrome.indexOf("data-4663-chrome-presence"),
+    );
+    assert.ok(topRight.includes("ParticipationSessionControl"));
+    assert.ok(topRight.includes("CanvasXLink"));
+    assert.equal(topRight.includes("sm:top-6"), false);
+    assert.equal(topRight.includes("sm:right-6"), false);
 
     assert.equal(PARTICIPATION_CONTROL_DEFAULT_STYLE.left, "50%");
     assert.equal(

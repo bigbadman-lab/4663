@@ -39,12 +39,7 @@ const CanvasPlayTree = dynamic(
 );
 
 function useLiveObjectCap(): number {
-  const [cap, setCap] = useState(() => {
-    if (typeof window === "undefined") return LIVE_OBJECT_MAX_VISIBLE_DESKTOP;
-    return window.matchMedia("(max-width: 640px)").matches
-      ? LIVE_OBJECT_MAX_VISIBLE_NARROW
-      : LIVE_OBJECT_MAX_VISIBLE_DESKTOP;
-  });
+  const [cap, setCap] = useState(LIVE_OBJECT_MAX_VISIBLE_DESKTOP);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
@@ -55,6 +50,7 @@ function useLiveObjectCap(): number {
           : LIVE_OBJECT_MAX_VISIBLE_DESKTOP,
       );
     };
+    onChange();
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);

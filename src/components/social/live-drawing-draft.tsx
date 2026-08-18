@@ -5,6 +5,7 @@
  */
 
 import { DrawingStrokesSvg } from "@/components/social/drawing-strokes-svg";
+import { drawingHostWorldSizeFromAspect } from "@/lib/social/drawing-ink-bounds";
 import type { DrawingDraft } from "@/lib/social/drawing-draft";
 
 export type LiveDrawingDraftViewProps = {
@@ -12,6 +13,10 @@ export type LiveDrawingDraftViewProps = {
 };
 
 export function LiveDrawingDraftView({ draft }: LiveDrawingDraftViewProps) {
+  const hostSize = drawingHostWorldSizeFromAspect(
+    draft.widthPct,
+    draft.aspectRatio,
+  );
   return (
     <div
       className="pointer-events-none absolute z-[18]"
@@ -25,7 +30,12 @@ export function LiveDrawingDraftView({ draft }: LiveDrawingDraftViewProps) {
       data-4663-live-drawing-owner={draft.ownerSessionId}
     >
       <div className="h-full w-full">
-        <DrawingStrokesSvg strokes={draft.strokes} opacity={0.72} />
+        <DrawingStrokesSvg
+          strokes={draft.strokes}
+          opacity={0.72}
+          widthWorldPx={hostSize.width}
+          heightWorldPx={hostSize.height}
+        />
       </div>
     </div>
   );

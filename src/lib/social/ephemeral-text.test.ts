@@ -67,11 +67,13 @@ describe("Social 2A ephemeral text helpers", () => {
     assert.deepEqual(Object.keys(created.text).sort(), [
       "body",
       "createdAt",
+      "fontScale",
       "leftPct",
       "ownerSessionId",
       "textId",
       "topPct",
     ]);
+    assert.equal(created.text.fontScale, 1);
   });
 
   it("ignores malformed realtime/page payloads", () => {

@@ -45,8 +45,9 @@ export const HERO_SUBTITLE_DEFAULT_STYLE = {
 } as const;
 
 /**
- * Fixed chrome participation control ([ ENTER ] / [ NAME ]).
- * Anchored under the viewport subtitle — clear of brand copy on desktop/mobile.
+ * Fixed chrome ENTER control.
+ * Anchored under the viewport subtitle — clear of brand copy.
+ * Named session + X live in the top-right identity cluster.
  */
 export const PARTICIPATION_CONTROL_DEFAULT_STYLE = {
   left: "50%",

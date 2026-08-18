@@ -6,17 +6,27 @@
  * IC3.6 — input / send / ENTER / EVM copy use interactive-control protection.
  */
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { LiveChatResizeHandle } from "@/components/canvas/live-chat-resize-handle";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
 import { copyTextQuiet } from "@/lib/canvas/clipboard";
+import { DESKTOP_CHROME_MEDIA_QUERY } from "@/lib/canvas/canvas-chrome-layout";
 import { splitTextWithEvmAddresses } from "@/lib/canvas/format-address";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import {
   MOBILE_SAFE_COMPOSER_INPUT_CLASS,
   worldScaleCounterScale,
 } from "@/lib/canvas/mobile-form-control";
+import {
+  LIVE_CHAT_DEFAULT_SIZE,
+  clampLiveChatSize,
+  readLiveChatSize,
+  writeLiveChatSize,
+  type LiveChatSize,
+  type LiveChatViewport,
+} from "@/lib/social/live-chat-size";
 import {
   formatPresenceHereLabel,
 } from "@/lib/presence/format-presence";
@@ -49,8 +59,8 @@ export type LiveChatObjectProps = {
 
 export function liveChatHostClassName(movableChrome: boolean): string {
   return movableChrome
-    ? "pointer-events-auto absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
-    : "absolute z-[15] select-none";
+    ? "pointer-events-auto absolute z-[15] -translate-x-1/2 -translate-y-1/2 touch-manipulation select-none"
+    : "absolute z-[15] -translate-x-1/2 -translate-y-1/2 select-none";
 }
 
 function ChatMessageBody({ body }: { body: string }) {
@@ -236,6 +246,63 @@ function ChatComposer({
   );
 }
 
+function viewportFromWindow(): LiveChatViewport {
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+}
+
+function useDesktopCanvasChrome(): boolean {
+  const [desktop, setDesktop] = useState(false);
+
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia(DESKTOP_CHROME_MEDIA_QUERY);
+    const apply = () => setDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  return desktop;
+}
+
+function useDesktopLiveChatSize(desktopChrome: boolean): {
+  size: LiveChatSize;
+  onResize: (next: LiveChatSize) => void;
+  viewport: () => LiveChatViewport;
+} {
+  const [size, setSize] = useState<LiveChatSize>(LIVE_CHAT_DEFAULT_SIZE);
+
+  const viewport = useCallback((): LiveChatViewport => viewportFromWindow(), []);
+
+  useEffect(() => {
+    if (!desktopChrome) return;
+    setSize(readLiveChatSize(window.sessionStorage, viewportFromWindow()));
+  }, [desktopChrome]);
+
+  useEffect(() => {
+    if (!desktopChrome) return;
+    const onWindowResize = () => {
+      const nextViewport = viewportFromWindow();
+      setSize((current) => {
+        const next = clampLiveChatSize(current, nextViewport);
+        writeLiveChatSize(next, window.sessionStorage, nextViewport);
+        return next;
+      });
+    };
+    window.addEventListener("resize", onWindowResize);
+    return () => window.removeEventListener("resize", onWindowResize);
+  }, [desktopChrome]);
+
+  const onResize = useCallback((next: LiveChatSize) => {
+    setSize(next);
+  }, []);
+
+  return { size, onResize, viewport };
+}
+
 function useChatHereLabel(): string {
   const [summary, setSummary] = useState<PresenceSummaryResponse | null>(null);
 
@@ -258,7 +325,10 @@ export function LiveChatContent() {
   const { isParticipating, self } = useParticipation();
   const { messages, sending, sendError, send, clearSendError } = useLiveChat();
   const hereLabel = useChatHereLabel();
+  const desktopChrome = useDesktopCanvasChrome();
+  const { size, onResize, viewport } = useDesktopLiveChatSize(desktopChrome);
   const listRef = useInteractiveControlProtection<HTMLUListElement>();
+  const bodyRef = useInteractiveControlProtection<HTMLDivElement>();
   const stickToBottomRef = useRef(true);
   const named = isParticipating && self !== null;
 
@@ -270,13 +340,19 @@ export function LiveChatContent() {
 
   return (
     <section
-      className="pointer-events-auto flex h-[15rem] w-[min(22.5rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-sm border border-neutral-300/70 bg-[color:color-mix(in_srgb,var(--canvas-bg,#ffffff)_88%,#171717_12%)] px-3 py-2.5 font-mono text-neutral-800 sm:h-[16rem] sm:w-[23rem]"
+      className="pointer-events-auto relative flex h-[15rem] w-[min(22.5rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-sm border border-neutral-300/70 bg-[color:color-mix(in_srgb,var(--canvas-bg,#ffffff)_88%,#171717_12%)] font-mono text-neutral-800 sm:h-[16rem] sm:w-[23rem]"
       data-4663-live-chat
       aria-label="4663 live chat"
+      style={
+        desktopChrome
+          ? { width: `${size.width}px`, height: `${size.height}px` }
+          : undefined
+      }
     >
       <header
-        className="flex shrink-0 cursor-grab items-baseline justify-between gap-3 pb-2 active:cursor-grabbing"
+        className="flex shrink-0 cursor-grab items-baseline justify-between gap-3 px-3 pb-2 pt-2.5 active:cursor-grabbing"
         data-4663-live-chat-header
+        data-4663-live-chat-drag
       >
         <span
           className="text-[11px] tracking-wide text-neutral-800 sm:text-[12px]"
@@ -292,7 +368,15 @@ export function LiveChatContent() {
         </span>
       </header>
 
-      <ul
+      <div
+        ref={bodyRef}
+        className="flex min-h-0 flex-1 flex-col px-3 pb-2.5"
+        data-4663-live-chat-body
+        onPointerDown={stopPlayhtmlMoveStart}
+        onMouseDown={stopPlayhtmlMoveStart}
+        onTouchStart={stopPlayhtmlMoveStart}
+      >
+        <ul
         ref={listRef}
         className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain border-t border-neutral-300/50 pt-2.5 [scrollbar-width:thin] [scrollbar-color:rgb(212_212_212)_transparent]"
         data-4663-live-chat-list
@@ -321,7 +405,7 @@ export function LiveChatContent() {
       </ul>
 
       <div
-        className="mt-2 shrink-0 border-t border-neutral-300/50 pt-2"
+        className="mt-2 shrink-0 border-t border-neutral-300/50 pt-2 desktop-chrome:pr-6"
         data-4663-live-chat-footer
       >
         {named && self ? (
@@ -343,6 +427,14 @@ export function LiveChatContent() {
           <ChatEnterPrompt />
         )}
       </div>
+      </div>
+      {desktopChrome ? (
+        <LiveChatResizeHandle
+          size={size}
+          onResize={onResize}
+          viewport={viewport}
+        />
+      ) : null}
     </section>
   );
 }
@@ -355,9 +447,7 @@ export function LiveChatObject({ movableChrome = false }: LiveChatObjectProps) {
       style={LIVE_CHAT_DEFAULT_STYLE}
       data-4663-live-chat-host
     >
-      <div className="-translate-x-1/2 -translate-y-1/2">
-        <LiveChatContent />
-      </div>
+      <LiveChatContent />
     </div>
   );
 }

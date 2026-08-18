@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Fixed canvas chrome: brand anchors + intro/guide/legal (top-right),
- * hero-area participation, presence + bottom-right utilities (contract + clock).
+ * Fixed canvas chrome: brand anchors + top-right identity (username + X)
+ * with intro/guide/legal, hero-area ENTER, presence + bottom-right clock.
  * Outside PlayHTML / camera world — never movable.
  */
 
@@ -16,6 +16,7 @@ import { CanvasLegalNote } from "@/components/canvas/canvas-legal-note";
 import { CanvasLegalTrigger } from "@/components/canvas/canvas-legal-trigger";
 import { CanvasLiveClock } from "@/components/canvas/canvas-live-clock";
 import { CanvasToneControl } from "@/components/canvas/canvas-tone-control";
+import { CanvasXLink } from "@/components/canvas/canvas-x-link";
 import { OfficialContractControl } from "@/components/canvas/official-contract-control";
 import { useOfficialToken } from "@/components/canvas/use-official-token";
 import { ParticipationEnterForm } from "@/components/social/participation-enter-form";
@@ -23,6 +24,7 @@ import { ParticipationEnterTrigger } from "@/components/social/participation-ent
 import { ParticipationSessionControl } from "@/components/social/participation-session-control";
 import { PresenceStatus } from "@/components/presence-status";
 import { PARTICIPATION_CONTROL_DEFAULT_STYLE } from "@/lib/canvas/hero";
+import { recordTapDebug } from "@/lib/canvas/tap-debug";
 import { OPEN_PARTICIPATION_ENTER_EVENT } from "@/lib/social/request-participation-enter";
 import { useParticipation } from "@/lib/social/use-participation";
 
@@ -37,7 +39,13 @@ export function CanvasChrome() {
   const openGuide = useCallback(() => setInfoModal("guide"), []);
   const openLegal = useCallback(() => setInfoModal("legal"), []);
   const closeEnter = useCallback(() => setEnterOpen(false), []);
-  const openEnter = useCallback(() => setEnterOpen(true), []);
+  const openEnter = useCallback(() => {
+    recordTapDebug("state", "openEnter", {
+      target: "CanvasChrome.setEnterOpen(true)",
+      path: "openEnter",
+    });
+    setEnterOpen(true);
+  }, []);
   const { self, isParticipating, enter, leave } = useParticipation();
   const officialToken = useOfficialToken();
 
@@ -54,6 +62,16 @@ export function CanvasChrome() {
     };
   }, [isParticipating]);
 
+  useEffect(() => {
+    recordTapDebug("state", "enterOpen-render", {
+      target: `enterOpen=${String(enterOpen)} participating=${String(isParticipating)}`,
+      path:
+        enterOpen && !isParticipating
+          ? "will-render-ParticipationEnterForm"
+          : "form-not-rendered",
+    });
+  }, [enterOpen, isParticipating]);
+
   return (
     <>
       <div
@@ -68,23 +86,30 @@ export function CanvasChrome() {
           style={{ top: PARTICIPATION_CONTROL_DEFAULT_STYLE.top }}
           data-4663-chrome-participation
         >
-          <div className="pointer-events-auto">
+          {isParticipating && self ? null : (
+            <div className="pointer-events-auto">
+              <ParticipationEnterTrigger onOpen={openEnter} />
+            </div>
+          )}
+        </div>
+
+        <div
+          className="pointer-events-none absolute top-[max(1.25rem,env(safe-area-inset-top,0px))] right-[max(1.25rem,env(safe-area-inset-right,0px))] flex flex-col items-end gap-1 desktop-chrome:top-6 desktop-chrome:right-6"
+          data-4663-chrome-top-right
+        >
+          <div
+            className="pointer-events-auto flex items-center justify-end gap-2"
+            data-4663-chrome-identity
+          >
             {isParticipating && self ? (
               <ParticipationSessionControl
                 name={self.displayName}
                 colour={self.colour}
                 onLeave={leave}
               />
-            ) : (
-              <ParticipationEnterTrigger onOpen={openEnter} />
-            )}
+            ) : null}
+            <CanvasXLink />
           </div>
-        </div>
-
-        <div
-          className="pointer-events-auto absolute top-5 right-5 flex flex-col items-end gap-1 desktop-chrome:top-6 desktop-chrome:right-6"
-          data-4663-chrome-top-right
-        >
           <CanvasToneControl />
           <CanvasIntroTrigger onOpen={openIntro} />
           <CanvasGuideTrigger onOpen={openGuide} />
@@ -92,21 +117,25 @@ export function CanvasChrome() {
         </div>
 
         <div
-          className="pointer-events-auto absolute bottom-5 left-5 max-w-[min(16rem,calc(50%-0.75rem))] desktop-chrome:bottom-6 desktop-chrome:left-6 desktop-chrome:max-w-[16rem]"
+          className="pointer-events-none absolute bottom-5 left-5 max-w-[min(16rem,calc(50%-0.75rem))] desktop-chrome:bottom-6 desktop-chrome:left-6 desktop-chrome:max-w-[16rem]"
           data-4663-chrome-presence
         >
-          <PresenceStatus />
+          <div className="pointer-events-none">
+            <PresenceStatus />
+          </div>
         </div>
 
         <div
-          className="pointer-events-auto absolute right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] flex max-w-[min(11.5rem,calc(50%-0.75rem))] flex-col items-end gap-0.5 desktop-chrome:bottom-6 desktop-chrome:right-6 desktop-chrome:max-w-[min(18rem,calc(50%-0.75rem))] desktop-chrome:gap-1"
+          className="pointer-events-none absolute right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] flex max-w-[min(11.5rem,calc(50%-0.75rem))] flex-col items-end gap-0.5 desktop-chrome:bottom-6 desktop-chrome:right-6 desktop-chrome:max-w-[min(18rem,calc(50%-0.75rem))] desktop-chrome:gap-1"
           data-4663-chrome-bottom-right
           data-4663-chrome-clock
         >
           {officialToken?.active ? (
-            <OfficialContractControl
-              contractAddress={officialToken.contractAddress}
-            />
+            <div className="pointer-events-auto">
+              <OfficialContractControl
+                contractAddress={officialToken.contractAddress}
+              />
+            </div>
           ) : null}
           <CanvasLiveClock />
         </div>

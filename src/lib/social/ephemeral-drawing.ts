@@ -7,9 +7,12 @@
 import {
   DRAWING_ZONE_HEIGHT_WORLD_PCT,
   DRAWING_ZONE_WIDTH_WORLD_PCT,
+  WORLD_HEIGHT_PX,
+  WORLD_WIDTH_PX,
   drawingZoneAspectFromWorldPct,
   drawingZoneOriginFromWorldPct,
 } from "@/lib/canvas/world-camera";
+import { clampObjectScale } from "@/lib/canvas/object-scale-resize";
 import {
   DEFAULT_DRAWING_COLOUR,
   DRAW_COLOURS,
@@ -37,11 +40,17 @@ export const DRAWING_ZONE_WIDTH_PCT = DRAWING_ZONE_WIDTH_WORLD_PCT;
 export const DRAWING_ZONE_HEIGHT_PCT = DRAWING_ZONE_HEIGHT_WORLD_PCT;
 
 /**
- * Accepted width/height % for drafts + page-data (IC3.3).
- * Floor must allow IC2 world zones (~6.6% × ~6.1875%); ceiling keeps legacy ~22%.
+ * Accepted width/height % for drafts + page-data.
+ * Floor is the tight-ink host minimum (~0.35% ≈ 17×11 world px) so published
+ * doodles are not rejected; ceiling keeps legacy ~22% zones.
  */
-export const DRAWING_SIZE_PCT_MIN = 4 as const;
+export const DRAWING_SIZE_PCT_MIN = 0.35 as const;
 export const DRAWING_SIZE_PCT_MAX = 40 as const;
+
+/** Missing `scale` on legacy objects. Canonical ink box is scale 1. */
+export const DRAWING_OBJECT_SCALE_DEFAULT = 1 as const;
+/** Floor so a resized doodle stays visible and the handle stays usable. */
+export const DRAWING_RESIZE_MIN_WORLD_PX = 24 as const;
 
 /**
  * Frozen authoring aspect ratio bounds (pixel width / pixel height).
@@ -90,6 +99,12 @@ export type EphemeralDrawingObject = {
   heightPct: number;
   /** Pixel width / pixel height of the authoring surface (frozen). */
   aspectRatio: number;
+  /**
+   * Uniform visual scale of the tight ink host. Strokes stay 0–1 in the
+   * canonical box; display size and stroke width multiply by this.
+   * Missing on legacy objects; normalize to DRAWING_OBJECT_SCALE_DEFAULT.
+   */
+  scale: number;
   createdAt: string;
 };
 
@@ -273,6 +288,83 @@ export function hostPhysicalAspectFromWidthAndRatio(
   return hostWidthPx / hostHeightPx;
 }
 
+export function drawingHeightPctFromAspect(
+  widthPct: number,
+  aspectRatio: number,
+): number {
+  if (!Number.isFinite(widthPct) || !Number.isFinite(aspectRatio)) {
+    return DRAWING_SIZE_PCT_MIN;
+  }
+  if (aspectRatio <= 0) return widthPct;
+  return (widthPct * WORLD_WIDTH_PX) / (aspectRatio * WORLD_HEIGHT_PX);
+}
+
+export type DrawingScaleFrame = {
+  widthPct: number;
+  aspectRatio: number;
+  leftPct: number;
+  topPct: number;
+};
+
+export function drawingObjectScaleLimits(frame: DrawingScaleFrame): {
+  min: number;
+  max: number;
+} {
+  const widthPct = Math.max(frame.widthPct, DRAWING_SIZE_PCT_MIN);
+  const heightPct = Math.max(
+    drawingHeightPctFromAspect(widthPct, frame.aspectRatio),
+    DRAWING_SIZE_PCT_MIN,
+  );
+  const widthPx = (widthPct / 100) * WORLD_WIDTH_PX;
+  const heightPx = (heightPct / 100) * WORLD_HEIGHT_PX;
+  const min = Math.max(
+    DRAWING_SIZE_PCT_MIN / widthPct,
+    DRAWING_SIZE_PCT_MIN / heightPct,
+    DRAWING_RESIZE_MIN_WORLD_PX / Math.max(widthPx, 1e-6),
+    DRAWING_RESIZE_MIN_WORLD_PX / Math.max(heightPx, 1e-6),
+  );
+  const roomW = Math.max(DRAWING_SIZE_PCT_MIN, 100 - frame.leftPct);
+  const roomH = Math.max(DRAWING_SIZE_PCT_MIN, 100 - frame.topPct);
+  const max = Math.max(
+    min,
+    Math.min(
+      DRAWING_SIZE_PCT_MAX / widthPct,
+      DRAWING_SIZE_PCT_MAX / heightPct,
+      roomW / widthPct,
+      roomH / heightPct,
+    ),
+  );
+  return { min, max };
+}
+
+export function clampDrawingObjectScale(
+  value: unknown,
+  frame: DrawingScaleFrame,
+): number {
+  const { min, max } = drawingObjectScaleLimits(frame);
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return clampObjectScale(
+      DRAWING_OBJECT_SCALE_DEFAULT,
+      min,
+      max,
+      DRAWING_OBJECT_SCALE_DEFAULT,
+    );
+  }
+  return clampObjectScale(value, min, max, DRAWING_OBJECT_SCALE_DEFAULT);
+}
+
+export function drawingDisplaySize(
+  frame: DrawingScaleFrame & { scale?: number },
+): { widthPct: number; heightPct: number; scale: number } {
+  const scale = clampDrawingObjectScale(frame.scale, frame);
+  const widthPct = frame.widthPct * scale;
+  return {
+    widthPct,
+    heightPct: drawingHeightPctFromAspect(widthPct, frame.aspectRatio),
+    scale,
+  };
+}
+
 export function normalizeEphemeralDrawingObject(
   raw: unknown,
 ): EphemeralDrawingObject | null {
@@ -322,15 +414,23 @@ export function normalizeEphemeralDrawingObject(
   }
   if (!Number.isFinite(Date.parse(record.createdAt))) return null;
 
+  const frame = {
+    widthPct,
+    aspectRatio,
+    leftPct: clampCanvasPct(record.leftPct),
+    topPct: clampCanvasPct(record.topPct),
+  };
+
   return {
     drawingId: normalizeSessionId(record.drawingId),
     ownerSessionId: normalizeSessionId(record.ownerSessionId),
     strokes,
-    leftPct: clampCanvasPct(record.leftPct),
-    topPct: clampCanvasPct(record.topPct),
+    leftPct: frame.leftPct,
+    topPct: frame.topPct,
     widthPct,
     heightPct,
     aspectRatio,
+    scale: clampDrawingObjectScale(record.scale, frame),
     createdAt: record.createdAt,
   };
 }
@@ -448,6 +548,7 @@ export function createEphemeralDrawingObject(
       widthPct,
       heightPct,
       aspectRatio,
+      scale: DRAWING_OBJECT_SCALE_DEFAULT,
       createdAt: now().toISOString(),
     },
   };
@@ -461,6 +562,20 @@ export function upsertEphemeralDrawing(
     (d) => d.drawingId !== drawing.drawingId,
   );
   return { drawings: [...without, drawing] };
+}
+
+export function resizeEphemeralDrawing(
+  data: EphemeralDrawingsPageData,
+  drawingId: string,
+  scale: number,
+): EphemeralDrawingsPageData {
+  const target = data.drawings.find(
+    (drawing) => drawing.drawingId === drawingId,
+  );
+  if (!target) return data;
+  const nextScale = clampDrawingObjectScale(scale, target);
+  if (nextScale === target.scale) return data;
+  return upsertEphemeralDrawing(data, { ...target, scale: nextScale });
 }
 
 export function removeEphemeralDrawing(

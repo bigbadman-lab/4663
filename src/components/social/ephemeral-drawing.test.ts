@@ -59,6 +59,7 @@ describe("Social 3A ephemeral DRAW UI", () => {
     assert.ok(editor.includes("onPointerDown"));
     assert.ok(editor.includes("onPointerMove"));
     assert.ok(editor.includes("onPointerUp"));
+    assert.ok(editor.includes("isUsableCanvasPointer"));
     assert.ok(editor.includes("setPointerCapture"));
     assert.ok(editor.includes("DRAWING_BRUSH_SIZE"));
     assert.ok(editor.includes("DRAW_COLOURS"));
@@ -81,6 +82,7 @@ describe("Social 3A ephemeral DRAW UI", () => {
     assert.ok(editor.includes("disabled={!canDone}"));
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
     assert.ok(layer.includes("publishDrawing"));
+    assert.ok(layer.includes("fitDrawingToVisibleInk"));
     assert.ok(layer.includes("createEphemeralDrawingObject"));
     assert.ok(layer.includes("clearLocalDrawingDraftBroadcast"));
     assert.ok(layer.includes("upsertEphemeralDrawing"));
@@ -95,6 +97,9 @@ describe("Social 3A ephemeral DRAW UI", () => {
       "src/components/social/ephemeral-drawing-object.tsx",
     );
     assert.ok(/<CanMoveElement[^>]*>\s*<div\b/.test(object));
+    assert.ok(object.includes("CanMoveElement"));
+    assert.ok(object.includes("PlayhtmlMoveHitFill"));
+    assert.ok(object.includes("usePlayhtmlMoveForeground"));
     assert.ok(object.includes("playhtmlDrawingElementId"));
     assert.ok(object.includes("cursor-grab"));
     assert.ok(object.includes("pointer-events-none"));
@@ -166,6 +171,7 @@ describe("Social 3A ephemeral DRAW UI", () => {
     );
     assert.ok(object.includes("aspectRatio: String(drawing.aspectRatio)"));
     assert.equal(object.includes("height: `${drawing.heightPct}%`"), false);
+    assert.ok(object.includes("width: `${display.widthPct}%`"));
     assert.ok(object.includes("data-4663-ephemeral-drawing-delete"));
     assert.ok(object.includes("pointer-events-auto absolute z-[16]"));
     assert.ok(object.includes("pointer-events-none absolute z-[16]"));
@@ -178,8 +184,10 @@ describe("Social 3A ephemeral DRAW UI", () => {
     assert.ok(layer.includes("aspectRatio: ui.aspectRatio"));
 
     const svg = readSrc("src/components/social/drawing-strokes-svg.tsx");
-    assert.ok(svg.includes('viewBox="0 0 100 100"'));
+    assert.ok(svg.includes("viewBox={`0 0 ${vbW} ${vbH}`}"));
     assert.ok(svg.includes('preserveAspectRatio="none"'));
+    assert.ok(svg.includes("widthWorldPx"));
+    assert.ok(svg.includes("DRAWING_STROKE_WIDTH_WORLD_PX"));
   });
 
   it("TEXT / live typing / pills / SUMMON / PONS / patch unchanged", () => {

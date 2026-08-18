@@ -107,6 +107,7 @@ describe("Social 3A ephemeral drawing helpers", () => {
     if (!created.ok) return;
     assert.equal(created.drawing.drawingId, DRAW_A);
     assert.equal(created.drawing.aspectRatio, 1.6);
+    assert.equal(created.drawing.scale, 1);
     assert.equal(
       playhtmlDrawingElementId(created.drawing.drawingId),
       `4663-drawing-${DRAW_A}`,

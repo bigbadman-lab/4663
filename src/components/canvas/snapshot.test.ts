@@ -77,6 +77,7 @@ describe("SNAPSHOT control + preview wiring", () => {
       "src/components/social/canvas-create-menu.tsx",
       "src/components/social/ephemeral-text-composer.tsx",
       "src/components/social/canvas-link-composer.tsx",
+      "src/components/social/canvas-token-composer.tsx",
       "src/components/canvas/pons-monitoring-panel.tsx",
       "src/components/canvas/snapshot-preview.tsx",
       "src/components/canvas/snapshot-shortcut-hint.tsx",

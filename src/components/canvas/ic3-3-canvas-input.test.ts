@@ -178,7 +178,7 @@ describe("Stage IC3.3 DRAW world visibility", () => {
   it("8–12. world frame, layering, no legacy 22% leak into new zone helpers", () => {
     const object = readSrc("src/components/social/ephemeral-drawing-object.tsx");
     assert.ok(object.includes("left: `${drawing.leftPct}%`"));
-    assert.ok(object.includes("width: `${drawing.widthPct}%`"));
+    assert.ok(object.includes("width: `${display.widthPct}%`"));
     assert.ok(object.includes("PLAYHTML_CANVAS_BOUNDS_ID"));
 
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
@@ -205,8 +205,8 @@ describe("Stage IC3.3 DRAW world visibility", () => {
         strokes: [stroke],
         leftPct: 10,
         topPct: 10,
-        widthPct: 3,
-        heightPct: 3,
+        widthPct: 0.1,
+        heightPct: 0.1,
         aspectRatio: 1,
         createdAt: "2026-08-13T12:00:00.000Z",
       }),

@@ -63,6 +63,7 @@ body {
   min-height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  isolation: isolate;
   background-color: var(--canvas-bg);
   color: var(--canvas-fg);
   transition: background-color 200ms ease, color 200ms ease;
@@ -87,10 +88,15 @@ body {
 
 /**
  * Transformed #4663-world can composite above later siblings on older WebKit.
- * Promote overlay chrome so ENTER / dock remain hit-testable.
+ * Promote overlay chrome so ENTER / dock remain hit-testable, and isolate
+ * the root stacking context so chrome z-20 paints above world objects.
  */
 [data-4663-canvas-chrome],
 [data-4663-control-dock] {
+  transform: translateZ(0);
+}
+
+[data-4663-hero-title-paint] {
   transform: translateZ(0);
 }
 

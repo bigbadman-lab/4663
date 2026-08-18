@@ -79,6 +79,9 @@ describe("Social 2A ephemeral text UI", () => {
   it("owner delete affordance; remote has no delete control", () => {
     const object = readSrc("src/components/social/ephemeral-text-object.tsx");
     assert.ok(object.includes("data-4663-ephemeral-text-delete"));
+    assert.ok(object.includes("absolute -top-5 left-0"));
+    assert.ok(object.includes("whitespace-nowrap"));
+    assert.ok(object.includes("w-max"));
     assert.ok(object.includes("isOwner"));
     assert.ok(object.includes("[ × ]"));
     const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");

@@ -78,7 +78,7 @@ describe("Safari 15 coarse-pointer tablet chrome", () => {
     const surface = readSrc("src/components/canvas/canvas-surface.tsx");
     const css = readSrc("src/app/globals.css");
 
-    assert.ok(trigger.includes("onClick={onOpen}"));
+    assert.ok(trigger.includes("onClick={handleClick}"));
     assert.ok(trigger.includes('type="button"'));
     assert.ok(trigger.includes("touch-manipulation"));
     assert.ok(trigger.includes("data-4663-participation-enter-trigger"));

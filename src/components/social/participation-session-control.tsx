@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Named-session control under the hero: [ NAME ] → reveals [ LEAVE ].
+ * Named-session control in top-right chrome: [ NAME ] → reveals [ LEAVE ].
  * Not a profile/account menu.
  */
 
@@ -51,12 +51,12 @@ export function ParticipationSessionControl({
   return (
     <div
       ref={rootRef}
-      className="relative inline-flex flex-col items-center gap-1"
+      className="relative inline-flex flex-col items-end gap-1"
       data-4663-participation-session-control
     >
       <button
         type="button"
-        className="font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 sm:text-[11px]"
+        className="font-mono text-[10px] tracking-wide text-[color:var(--canvas-muted,#a3a3a3)] touch-manipulation transition-colors hover:text-[color:var(--canvas-fg,#171717)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 desktop-chrome:text-[11px]"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         data-4663-participation-self
@@ -70,7 +70,7 @@ export function ParticipationSessionControl({
         <div
           id={menuId}
           role="menu"
-          className="font-mono text-[10px] tracking-wide sm:text-[11px]"
+          className="font-mono text-[10px] tracking-wide desktop-chrome:text-[11px]"
           data-4663-participation-session-menu
         >
           <button

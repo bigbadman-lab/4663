@@ -31,7 +31,11 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     assert.ok(chrome.includes("bottom-5 left-5") || chrome.includes("bottom-6 left-6"));
     assert.ok(chrome.includes("desktop-chrome:bottom-6 desktop-chrome:left-6"));
     assert.equal(chrome.includes("sm:bottom-6 sm:left-6"), false);
-    assert.equal(chrome.includes("justify-end"), false);
+    const presenceBlock = chrome.slice(
+      chrome.indexOf("data-4663-chrome-presence"),
+      chrome.indexOf("data-4663-chrome-bottom-right"),
+    );
+    assert.equal(presenceBlock.includes("justify-end"), false);
 
     const presence = readSrc("src/components/presence-status.tsx");
     assert.ok(presence.includes("whitespace-nowrap"));
@@ -66,11 +70,15 @@ describe("Stage 10B.7 canvas chrome footer + intro", () => {
     assert.ok(clock.includes('aria-live="off"'));
     assert.ok(clock.includes("formatLocalClock"));
     assert.equal(clock.includes("fetch("), false);
-    assert.ok(clock.includes("https://x.com/4663live"));
-    assert.ok(clock.includes('data-4663-x-link'));
-    assert.ok(clock.includes('aria-label="4663 on X"'));
-    assert.ok(clock.includes('target="_blank"'));
-    assert.ok(clock.includes("noopener noreferrer"));
+    assert.equal(clock.includes("https://x.com/4663live"), false);
+    assert.equal(clock.includes("data-4663-x-link"), false);
+
+    const xLink = readSrc("src/components/canvas/canvas-x-link.tsx");
+    assert.ok(xLink.includes("https://x.com/4663live"));
+    assert.ok(xLink.includes('data-4663-x-link'));
+    assert.ok(xLink.includes('aria-label="4663 on X"'));
+    assert.ok(xLink.includes('target="_blank"'));
+    assert.ok(xLink.includes("noopener noreferrer"));
   });
 
   it("formatLocalClock is deterministic", () => {

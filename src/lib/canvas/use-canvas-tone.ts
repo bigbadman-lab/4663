@@ -2,6 +2,8 @@
 
 /**
  * Social 8A.2 — local canvas tone state (localStorage + document attribute).
+ * First paint uses DEFAULT so SSR HTML matches hydration; storage is applied
+ * after mount (boot script already set the document colour).
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -20,14 +22,13 @@ export type UseCanvasToneResult = {
 };
 
 export function useCanvasTone(): UseCanvasToneResult {
-  const [tone, setToneState] = useState<CanvasTone>(() => {
-    if (typeof window === "undefined") return DEFAULT_CANVAS_TONE;
-    return readCanvasTone();
-  });
+  const [tone, setToneState] = useState<CanvasTone>(DEFAULT_CANVAS_TONE);
 
   useEffect(() => {
-    applyCanvasToneToDocument(tone);
-  }, [tone]);
+    const stored = readCanvasTone();
+    setToneState(stored);
+    applyCanvasToneToDocument(stored);
+  }, []);
 
   // Cross-tab sync within same browser profile (localStorage storage event).
   useEffect(() => {

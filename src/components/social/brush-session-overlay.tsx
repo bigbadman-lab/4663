@@ -27,6 +27,7 @@ import {
   type BrushPoint,
   type BrushStroke,
 } from "@/lib/social/ephemeral-brush";
+import { isUsableCanvasPointer } from "@/lib/canvas/canvas-pan-gesture";
 import { isInteractiveCanvasControlTarget } from "@/lib/canvas/interactive-control";
 
 export type BrushSessionOverlayProps = {
@@ -74,7 +75,7 @@ export function BrushSessionOverlay({
     );
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
+    if (!isUsableCanvasPointer(event)) return;
     if (isInteractiveCanvasControlTarget(event.target)) return;
     event.preventDefault();
     event.stopPropagation();

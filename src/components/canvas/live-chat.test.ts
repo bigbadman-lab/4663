@@ -91,6 +91,27 @@ describe("Live chat object UI + PlayHTML", () => {
     assert.ok(content.includes("copyTextQuiet"));
   });
 
+  it("desktop resize is capability-gated and isolated from PlayHTML / pan", () => {
+    const content = readSrc("src/components/canvas/live-chat-object.tsx");
+    const handle = readSrc(
+      "src/components/canvas/live-chat-resize-handle.tsx",
+    );
+    assert.ok(content.includes("LiveChatResizeHandle"));
+    assert.ok(content.includes("DESKTOP_CHROME_MEDIA_QUERY"));
+    assert.ok(content.includes("sessionStorage"));
+    assert.ok(content.includes("desktop-chrome:pr-6"));
+    assert.ok(content.includes("-translate-x-1/2 -translate-y-1/2"));
+    assert.equal(
+      /<div className="-translate-x-1\/2 -translate-y-1\/2">/.test(content),
+      false,
+    );
+    assert.ok(handle.includes("data-4663-live-chat-resize"));
+    assert.ok(handle.includes("setCreateUiBlocksPan"));
+    assert.ok(handle.includes("setPointerCapture"));
+    assert.equal(handle.includes("use-interactive-control-protection"), false);
+    assert.equal(content.includes("localStorage"), false);
+  });
+
   it("IC3.7 mobile focus-zoom: shared ≥16px input class + world counter-scale", () => {
     const content = readSrc("src/components/canvas/live-chat-object.tsx");
     assert.ok(content.includes("MOBILE_SAFE_COMPOSER_INPUT_CLASS"));

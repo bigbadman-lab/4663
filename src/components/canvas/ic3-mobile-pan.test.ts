@@ -48,6 +48,9 @@ describe("Stage IC3 mobile pan + touch gesture ownership", () => {
     assert.ok(cam.includes("shouldPromoteCanvasPan"));
     assert.ok(cam.includes("overlayInteractiveTargetFromPoint"));
     assert.equal(cam.includes("preventDefault"), false);
+    assert.ok(cam.includes("createCanvasPanFrameCoalescer"));
+    assert.ok(cam.includes("panFrame.flush"));
+    assert.ok(cam.includes("writeLayout: false"));
   });
 
   it("3–5. tap vs pan thresholds; camera bounds", () => {

@@ -9,6 +9,7 @@
 
 import { CanMoveElement } from "@playhtml/react";
 import { useState } from "react";
+import { ObjectResizeHandle } from "@/components/canvas/object-resize-handle";
 import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
 import { PonsAddressCopyControl } from "@/components/canvas/pons-address-copy-control";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
@@ -20,6 +21,10 @@ import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import { colourFromSessionId } from "@/lib/social/colour";
 import {
   playhtmlTextElementId,
+  TEXT_FONT_SCALE_MAX,
+  TEXT_FONT_SCALE_MIN,
+  textFontSizePx,
+  textMaxWidthCss,
   type EphemeralTextObject,
 } from "@/lib/social/ephemeral-text";
 
@@ -27,14 +32,17 @@ export type EphemeralTextObjectViewProps = {
   text: EphemeralTextObject;
   isOwner: boolean;
   onDelete: (textId: string) => void;
+  onResize: (textId: string, fontScale: number) => void;
 };
 
 function EphemeralTextBody({
   body,
   colour,
+  fontScale,
 }: {
   body: string;
   colour: string;
+  fontScale: number;
 }) {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const segments = splitTextWithEvmAddresses(body);
@@ -50,8 +58,12 @@ function EphemeralTextBody({
 
   return (
     <p
-      className="whitespace-pre-wrap break-words font-mono text-[12px] leading-snug tracking-wide sm:text-[13px]"
-      style={{ color: colour }}
+      className="whitespace-pre-wrap break-words font-mono leading-snug tracking-wide"
+      style={{
+        color: colour,
+        fontSize: `${textFontSizePx(fontScale)}px`,
+        maxWidth: textMaxWidthCss(fontScale),
+      }}
       data-4663-ephemeral-text-body
     >
       {segments.map((segment, index) => {
@@ -95,7 +107,7 @@ function EphemeralTextDeleteButton({
     <button
       ref={ref}
       type="button"
-      className="mt-0.5 touch-manipulation font-mono text-[10px] tracking-wide text-neutral-400 opacity-0 transition-opacity hover:text-neutral-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 group-hover:opacity-100"
+      className="absolute -top-5 left-0 z-[3] w-max whitespace-nowrap touch-manipulation font-mono text-[10px] tracking-wide text-neutral-400 opacity-0 transition-opacity hover:text-neutral-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 group-hover:opacity-100"
       data-4663-ephemeral-text-delete
       aria-label="Delete text"
       onPointerDown={stopPlayhtmlMoveStart}
@@ -115,12 +127,13 @@ export function EphemeralTextObjectView({
   text,
   isOwner,
   onDelete,
+  onResize,
 }: EphemeralTextObjectViewProps) {
   const colour = colourFromSessionId(text.ownerSessionId);
   const move = usePlayhtmlMoveForeground<HTMLDivElement>();
   const hostClassName = isOwner
-    ? "pointer-events-auto absolute z-[16] max-w-[min(14rem,70vw)] cursor-grab touch-manipulation select-none active:cursor-grabbing"
-    : "pointer-events-none absolute z-[16] max-w-[min(14rem,70vw)] select-none";
+    ? "pointer-events-auto absolute z-[16] -translate-x-1/2 -translate-y-1/2 cursor-grab touch-manipulation select-none active:cursor-grabbing"
+    : "pointer-events-none absolute z-[16] -translate-x-1/2 -translate-y-1/2 select-none";
 
   return (
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
@@ -134,14 +147,18 @@ export function EphemeralTextObjectView({
         onPointerUp={move.onPointerUp}
         onPointerCancel={move.onPointerCancel}
       >
-        <div className="group relative -translate-x-1/2 -translate-y-1/2">
+        <div className="group relative">
           {isOwner ? <PlayhtmlMoveHitFill /> : null}
           <div
             className={
               isOwner ? "relative z-[1]" : "pointer-events-none relative z-[1]"
             }
           >
-            <EphemeralTextBody body={text.body} colour={colour} />
+            <EphemeralTextBody
+              body={text.body}
+              colour={colour}
+              fontScale={text.fontScale}
+            />
             {isOwner ? (
               <EphemeralTextDeleteButton
                 textId={text.textId}
@@ -149,6 +166,18 @@ export function EphemeralTextObjectView({
               />
             ) : null}
           </div>
+          {isOwner ? (
+            <ObjectResizeHandle
+              hostSelector="[data-4663-ephemeral-text]"
+              scale={text.fontScale}
+              minScale={TEXT_FONT_SCALE_MIN}
+              maxScale={TEXT_FONT_SCALE_MAX}
+              onResize={(fontScale) => onResize(text.textId, fontScale)}
+              ariaLabel="Resize text"
+              dataAttr="data-4663-ephemeral-text-resize"
+              positionClassName="-right-5 -bottom-5"
+            />
+          ) : null}
         </div>
       </div>
     </CanMoveElement>

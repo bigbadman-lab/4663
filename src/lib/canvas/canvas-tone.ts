@@ -18,16 +18,25 @@ export const CANVAS_TONE_LABELS: Record<CanvasTone, string> = {
   slate: "SLATE",
 };
 
-/** Curated light paper colours — presentation only. */
-export const CANVAS_TONE_COLORS: Record<
-  CanvasTone,
-  { bg: string; fg: string; muted: string }
-> = {
-  white: { bg: "#FFFFFF", fg: "#171717", muted: "#A3A3A3" },
-  bone: { bg: "#F3F0E7", fg: "#171717", muted: "#8A8578" },
-  mist: { bg: "#E8E8E4", fg: "#171717", muted: "#7A7A74" },
-  slate: { bg: "#D3D5D2", fg: "#171717", muted: "#6B6F6C" },
+export type CanvasToneColor = {
+  bg: string;
+  fg: string;
+  muted: string;
+  border: string;
 };
+
+/** Curated light paper colours — presentation only. */
+export const CANVAS_TONE_COLORS: Record<CanvasTone, CanvasToneColor> = {
+  white: { bg: "#FFFFFF", fg: "#171717", muted: "#A3A3A3", border: "#D4D4D4" },
+  bone: { bg: "#F3F0E7", fg: "#171717", muted: "#8A8578", border: "#D4CFC2" },
+  mist: { bg: "#E8E8E4", fg: "#171717", muted: "#7A7A74", border: "#C9C9C4" },
+  slate: { bg: "#D3D5D2", fg: "#171717", muted: "#6B6F6C", border: "#B4B7B3" },
+};
+
+export function canvasToneTitle(tone: CanvasTone): string {
+  const label = CANVAS_TONE_LABELS[tone];
+  return `${label.slice(0, 1)}${label.slice(1).toLowerCase()}`;
+}
 
 export function isCanvasTone(value: unknown): value is CanvasTone {
   return (

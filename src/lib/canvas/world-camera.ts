@@ -490,6 +490,23 @@ export function homeRegionStyle(): {
   };
 }
 
+/**
+ * True when the event target *is* the viewport or world shell — not a
+ * descendant. Used when overflow+transform hit-testing misses empty-hit
+ * near the clip (edges/corners) and the pointer lands on the container.
+ *
+ * Do not use closest() here: world objects live inside the viewport, so
+ * an ancestor match would steal object taps into pan.
+ */
+export function isCanvasPanShellTarget(target: EventTarget | null): boolean {
+  if (target == null || typeof target !== "object") return false;
+  const el = target as Element;
+  if (typeof el.matches !== "function") return false;
+  return el.matches(
+    "[data-4663-canvas-viewport], [data-4663-canvas-world]",
+  );
+}
+
 /** True when pointer event should be eligible to start desktop pan. */
 export function isCanvasPanHitTarget(target: EventTarget | null): boolean {
   if (target == null || typeof target !== "object") return false;
@@ -499,7 +516,10 @@ export function isCanvasPanHitTarget(target: EventTarget | null): boolean {
   const el = target as Element;
   // Buttons / links / inputs / explicit 4663 controls never start camera pan.
   if (isInteractiveCanvasTarget(el)) return false;
-  return Boolean(
-    el.closest("[data-4663-canvas-empty-hit],[data-4663-world-pan-hit]"),
-  );
+  if (
+    el.closest("[data-4663-canvas-empty-hit],[data-4663-world-pan-hit]")
+  ) {
+    return true;
+  }
+  return isCanvasPanShellTarget(el);
 }

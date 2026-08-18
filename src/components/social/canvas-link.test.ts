@@ -54,13 +54,14 @@ function mockClosest(tag: string, extra: Record<string, unknown> = {}) {
 }
 
 describe("LINK creation menu + guest gate", () => {
-  it("menu order is TEXT / DRAW / LINK", () => {
+  it("menu order is TEXT / DRAW / LINK before TOKEN", () => {
     const menu = readSrc("src/components/social/canvas-create-menu.tsx");
     const text = menu.indexOf("[ TEXT ]");
     const draw = menu.indexOf("[ DRAW ]");
     const link = menu.indexOf("[ LINK ]");
+    const token = menu.indexOf("[ TOKEN ]");
     const cancel = menu.indexOf("[ CANCEL ]");
-    assert.ok(text >= 0 && draw > text && link > draw && cancel > link);
+    assert.ok(text >= 0 && draw > text && link > draw && token > link && cancel > token);
     assert.ok(menu.includes("data-4663-canvas-create-link"));
     assert.ok(menu.includes("onChooseLink"));
   });

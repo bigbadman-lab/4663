@@ -72,8 +72,55 @@ describe("Stage IC1 world + camera helpers", () => {
     assert.equal(camerasApproximatelyEqual(origin, origin), true);
   });
 
-  it("pan hit only empty-hit / world-pan-hit", () => {
+  it("pan hit: empty-hit, viewport/world shells; not descendants of viewport", () => {
     assert.equal(isCanvasPanHitTarget(null), false);
+
+    const empty = {
+      matches() {
+        return false;
+      },
+      closest(sel: string) {
+        if (sel.includes("canvas-empty-hit") || sel.includes("world-pan-hit")) {
+          return this;
+        }
+        return null;
+      },
+    };
+    assert.equal(isCanvasPanHitTarget(empty as unknown as EventTarget), true);
+
+    const viewport = {
+      matches(sel: string) {
+        return sel.includes("canvas-viewport");
+      },
+      closest() {
+        return null;
+      },
+    };
+    assert.equal(isCanvasPanHitTarget(viewport as unknown as EventTarget), true);
+
+    const world = {
+      matches(sel: string) {
+        return sel.includes("canvas-world");
+      },
+      closest() {
+        return null;
+      },
+    };
+    assert.equal(isCanvasPanHitTarget(world as unknown as EventTarget), true);
+
+    const drawing = {
+      matches() {
+        return false;
+      },
+      closest(sel: string) {
+        if (sel.includes("button")) return null;
+        if (sel.includes("canvas-empty-hit") || sel.includes("world-pan-hit")) {
+          return null;
+        }
+        return null;
+      },
+    };
+    assert.equal(isCanvasPanHitTarget(drawing as unknown as EventTarget), false);
   });
 
   it("IC2 helpers: screen→world and dock mapping exist", () => {

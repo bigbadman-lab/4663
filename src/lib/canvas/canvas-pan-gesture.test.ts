@@ -19,8 +19,13 @@ import {
   CANVAS_PAN_DRAG_THRESHOLD_TOUCH_PX,
 } from "@/lib/canvas/world-camera";
 
-function closestMock(kind: "empty" | "button" | "button-child" | "div") {
+function closestMock(
+  kind: "empty" | "button" | "button-child" | "div" | "viewport" | "world",
+) {
   const buttonSelf = {
+    matches() {
+      return false;
+    },
     closest(sel: string) {
       if (sel.includes("button") || sel.includes("data-4663-interactive-control")) {
         return this;
@@ -30,10 +35,33 @@ function closestMock(kind: "empty" | "button" | "button-child" | "div") {
   };
   if (kind === "empty") {
     return {
+      matches() {
+        return false;
+      },
       closest(sel: string) {
         if (sel.includes("canvas-empty-hit") || sel.includes("world-pan-hit")) {
           return this;
         }
+        return null;
+      },
+    };
+  }
+  if (kind === "viewport") {
+    return {
+      matches(sel: string) {
+        return sel.includes("canvas-viewport");
+      },
+      closest() {
+        return null;
+      },
+    };
+  }
+  if (kind === "world") {
+    return {
+      matches(sel: string) {
+        return sel.includes("canvas-world");
+      },
+      closest() {
         return null;
       },
     };
@@ -101,6 +129,20 @@ describe("canvas pan gesture", () => {
     const empty = closestMock("empty") as unknown as EventTarget;
     assert.equal(
       shouldTrackCanvasPan({ ...baseDown, target: empty }),
+      true,
+    );
+    assert.equal(
+      shouldTrackCanvasPan({
+        ...baseDown,
+        target: closestMock("viewport") as unknown as EventTarget,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldTrackCanvasPan({
+        ...baseDown,
+        target: closestMock("world") as unknown as EventTarget,
+      }),
       true,
     );
     const mouse = createCanvasPanGesture({

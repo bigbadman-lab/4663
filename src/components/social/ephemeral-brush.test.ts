@@ -114,6 +114,7 @@ describe("Social 3B BRUSH UI wiring", () => {
     const layer = readSrc("src/components/social/ephemeral-brush-layer.tsx");
     const svg = readSrc("src/components/social/brush-strokes-svg.tsx");
     assert.ok(layer.includes("pointer-events-none"));
+    assert.ok(layer.includes("fitBrushInkBounds"));
     assert.equal(layer.includes("CanMoveElement"), false);
     assert.ok(svg.includes("WORLD_WIDTH_PX"));
     assert.ok(svg.includes("BRUSH_STROKE_WIDTH_WORLD_PX"));
@@ -190,7 +191,7 @@ describe("Social 3B BRUSH DONE does not silently delete", () => {
       "src/components/social/ephemeral-brush-layer.tsx",
     );
     assert.ok(published.includes("documents.map"));
-    assert.ok(published.includes("<BrushStrokesSvg strokes={doc.strokes} />"));
+    assert.ok(published.includes("<BrushStrokesSvg strokes={doc.strokes} bounds={bounds} />"));
   });
 
   it("OBJECT DRAW empty DONE still returns without cancel", () => {

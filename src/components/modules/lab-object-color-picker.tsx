@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
+import { PaperColorSwatch } from "@/components/paper-color-swatch";
 import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import {
   LAB_OBJECT_COLOR_IDS,
@@ -35,18 +36,16 @@ function ColorSwatch({
   const ref = useInteractiveControlProtection<HTMLButtonElement>();
   const visual = LAB_OBJECT_COLORS[color];
   return (
-    <button
+    <PaperColorSwatch
       ref={ref}
-      type="button"
       role="option"
-      aria-label={color.toUpperCase()}
+      ariaLabel={color.toUpperCase()}
       aria-selected={selected}
       data-4663-lab-color-swatch={color}
-      className="h-5 w-5 shrink-0 touch-manipulation rounded-full border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-400"
-      style={{
-        backgroundColor: visual.background,
-        borderColor: selected ? visual.foreground : visual.border,
-      }}
+      background={visual.background}
+      border={visual.border}
+      selectedBorder={visual.foreground}
+      selected={selected}
       onPointerDown={stopPlayhtmlMoveStart}
       onMouseDown={stopPlayhtmlMoveStart}
       onTouchStart={stopPlayhtmlMoveStart}
