@@ -968,6 +968,7 @@ describe("TEXT/DRAW multi-object isolation", () => {
     assert.ok(handle.includes("pointercancel"));
     assert.ok(move.includes("event.currentTarget"));
     assert.equal(move.includes("querySelector("), false);
+    assert.equal(move.includes("setPointerCapture"), false);
     assert.ok(text.includes("data-4663-ephemeral-text={text.textId}"));
     assert.ok(drawing.includes("data-4663-ephemeral-drawing={drawing.drawingId}"));
     const nearby = drawingVisibleRect({ left: 10, top: 10, width: 8, height: 6 });

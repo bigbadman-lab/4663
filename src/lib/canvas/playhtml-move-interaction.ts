@@ -1,12 +1,14 @@
 /**
- * Shared PlayHTML movable-host interaction: solid hit targeting, session
- * foreground z-order, and pointer capture for the duration of a drag.
+ * Session-only PlayHTML drag foreground + pointer capture.
+ * Does not persist z-order. Does not start a drag on protected controls.
  *
  * PlayHTML can-move listens for bubble-phase mousedown/touchstart on the host
  * and then document mousemove — it does not raise z-index or capture the
  * pointer. Decorative `pointer-events-none` children punch holes through the
  * host so overlapping objects (or the empty-hit pan layer) steal the next
  * pointerdown. This module closes that hole without changing PlayHTML data.
+ * Pointer capture is available for resize handles; move-start must not capture
+ * or PlayHTML never sees mousedown.
  */
 
 import { isInteractiveCanvasTarget } from "@/lib/canvas/interactive-control";
@@ -73,6 +75,10 @@ export function beginPlayhtmlMoveForeground(
 ): boolean {
   if (!shouldBeginPlayhtmlMoveForeground(input.target, element)) return false;
   applyPlayhtmlMoveForeground(element);
-  capturePlayhtmlMovePointer(element, input.pointerId);
+  // Do not setPointerCapture here. PlayHTML can-move starts on native
+  // mousedown/touchstart and then listens on document. Capturing during
+  // pointerdown suppresses that mousedown on macOS/Chrome, so the object
+  // raises z-index but never moves. Resize handles use pointer events and
+  // capture on the handle itself.
   return true;
 }

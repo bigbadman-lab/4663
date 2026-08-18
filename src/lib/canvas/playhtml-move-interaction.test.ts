@@ -111,7 +111,20 @@ describe("PlayHTML move foreground helpers", () => {
     assert.equal(host.hasPointerCapture(3), false);
   });
 
-  it("repeated begin after release still captures", () => {
+  it("begin move does not capture — PlayHTML needs mousedown", () => {
+    const host = mockHost();
+    assert.equal(
+      beginPlayhtmlMoveForeground(host as unknown as HTMLElement, {
+        target: null,
+        pointerId: 4,
+      }),
+      true,
+    );
+    assert.equal(host.hasPointerCapture(4), false);
+    assert.equal(host.style.zIndex, String(PLAYHTML_MOVE_FOREGROUND_Z_INDEX));
+  });
+
+  it("repeated begin still raises z-index without capturing the pointer", () => {
     const host = mockHost();
     const el = host as unknown as HTMLElement;
     assert.equal(
@@ -123,7 +136,7 @@ describe("PlayHTML move foreground helpers", () => {
       beginPlayhtmlMoveForeground(el, { target: null, pointerId: 2 }),
       true,
     );
-    assert.equal(host.hasPointerCapture(2), true);
+    assert.equal(host.hasPointerCapture(2), false);
     assert.equal(host.style.zIndex, String(PLAYHTML_MOVE_FOREGROUND_Z_INDEX));
   });
 
@@ -249,6 +262,7 @@ describe("PlayHTML move foreground hook", () => {
     );
     assert.ok(hook.includes("event.currentTarget"));
     assert.equal(hook.includes("useRef"), false);
+    assert.equal(hook.includes("setPointerCapture"), false);
     const playhtmlReact = readFileSync(
       path.join(root, "node_modules/@playhtml/react/dist/react-playhtml.es.js"),
       "utf8",

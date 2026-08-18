@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Session-only PlayHTML drag foreground + pointer capture.
+ * Session-only PlayHTML drag foreground.
  * Does not persist z-order. Does not start a drag on protected controls.
+ * Does not capture the pointer — PlayHTML owns mousedown → document mousemove.
  *
  * Use event.currentTarget — CanMoveElement cloneElement-overwrites child refs.
  */
