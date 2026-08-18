@@ -1,17 +1,18 @@
 /**
  * Operator bootstrap for the PONS V2 Global Fees Paid cursor only.
  *
- * Default (no origin flags) sets `pons_v2_curve_fees` to the current chain
- * head so the next normal scan begins at head + 1.
+ * An explicit origin is required. Production 24h cohort:
+ *   npm run worker:bootstrap-pons-v2-fees -- --lookback-hours 24
+ *
+ * Other origins:
+ *   npm run worker:bootstrap-pons-v2-fees -- --from-block 33486660
+ *   npm run worker:bootstrap-pons-v2-fees -- --lookback 500
+ *   npm run worker:bootstrap-pons-v2-fees -- --from-head
+ *
+ * Existing cursor: refused unless --force.
  *
  * Does NOT touch pons_factories, pons_transfers, or POOLS cursors.
  * Does NOT read production_state. Does NOT scan from genesis.
- *
- * Usage:
- *   npm run worker:bootstrap-pons-v2-fees
- *   npm run worker:bootstrap-pons-v2-fees -- --from-block 33486660
- *   npm run worker:bootstrap-pons-v2-fees -- --lookback 500
- *   npm run worker:bootstrap-pons-v2-fees -- --force
  */
 
 import { config as loadDotenv } from "dotenv";
@@ -25,6 +26,7 @@ import {
   parsePonsV2FeeBootstrapArgs,
   resolvePonsV2FeeBootstrapOrigin,
 } from "@/lib/pons/curve-fee/bootstrap";
+import { findBlockForLookbackHours } from "@/lib/pons/curve-fee/block-time";
 import { loadWorkerConfig } from "@/lib/worker/config";
 import { createChainRpc } from "@/lib/worker/chain/rpc";
 import { workerError, workerLog } from "@/lib/worker/log";
@@ -37,6 +39,10 @@ import {
   proveSupabaseConnectivity,
 } from "@/lib/worker/supabase";
 
+function isoFromUnix(unix: number): string {
+  return new Date(unix * 1000).toISOString();
+}
+
 async function main(): Promise<void> {
   const args = parsePonsV2FeeBootstrapArgs(process.argv.slice(2));
   const config = loadWorkerConfig();
@@ -45,14 +51,42 @@ async function main(): Promise<void> {
 
   const rpc = createChainRpc(config.alchemyRpcUrl);
   const head = await rpc.getBlockNumber();
-  workerLog(`chain head: ${head}`);
+  const headBlock = await rpc.getBlock(head);
 
-  const origin = resolvePonsV2FeeBootstrapOrigin({
-    head,
-    fromBlock: args.fromBlock,
-    lookback: args.lookback,
-  });
-  const lastProcessedBlock = origin.lastProcessedBlock;
+  workerLog(`chain_id=${config.chainId}`);
+  workerLog(`chain head=${head} timestamp=${isoFromUnix(headBlock.timestamp)}`);
+
+  let origin;
+  let startTimestamp: number | null = null;
+
+  if (args.lookbackHours !== null) {
+    const found = await findBlockForLookbackHours(
+      rpc,
+      head,
+      args.lookbackHours,
+    );
+    origin = {
+      ...resolvePonsV2FeeBootstrapOrigin({
+        head,
+        fromBlock: found.startBlock.number,
+      }),
+      reason: `--lookback-hours ${args.lookbackHours}`,
+    };
+    startTimestamp = found.startBlock.timestamp;
+    workerLog(
+      `lookback target unix=${found.targetUnix} (${isoFromUnix(found.targetUnix)})`,
+    );
+  } else {
+    origin = resolvePonsV2FeeBootstrapOrigin({
+      head,
+      fromBlock: args.fromBlock,
+      lookback: args.lookback,
+      fromHead: args.fromHead,
+    });
+    const startBlockNumber = Math.min(origin.nextScanFromBlock, head);
+    const startBlock = await rpc.getBlock(startBlockNumber);
+    startTimestamp = startBlock.timestamp;
+  }
 
   const existing = await loadCursor(
     supabase,
@@ -60,17 +94,34 @@ async function main(): Promise<void> {
     config.chainId,
   );
 
-  if (existing?.lastProcessedBlock === lastProcessedBlock && !args.force) {
-    workerLog(
-      `pons_v2_curve_fees already at last_processed_block=${lastProcessedBlock} (next=${origin.nextScanFromBlock}, ${origin.reason})`,
-    );
+  const catchUpBlocks = Math.max(0, head - origin.nextScanFromBlock + 1);
+
+  workerLog(`origin reason=${origin.reason}`);
+  workerLog(
+    `selected start block=${origin.nextScanFromBlock} timestamp=${
+      startTimestamp === null ? "unknown" : isoFromUnix(startTimestamp)
+    }`,
+  );
+  workerLog(
+    `cursor last_processed_block will be ${origin.lastProcessedBlock} (next scan ${origin.nextScanFromBlock})`,
+  );
+  workerLog(`estimated blocks to catch up=${catchUpBlocks}`);
+  workerLog(
+    `existing cursor=${
+      existing
+        ? `last_processed_block=${existing.lastProcessedBlock}`
+        : "ABSENT"
+    }`,
+  );
+
+  if (existing?.lastProcessedBlock === origin.lastProcessedBlock && !args.force) {
     workerLog("idempotent no-op; re-run with --force to rewrite");
     return;
   }
 
   if (existing && !args.force) {
     workerLog(
-      `pons_v2_curve_fees=${existing.lastProcessedBlock}; re-run with --force to overwrite this cursor only`,
+      `pons_v2_curve_fees already exists at ${existing.lastProcessedBlock}; re-run with --force to overwrite this cursor only`,
     );
     process.exit(2);
   }
@@ -78,11 +129,11 @@ async function main(): Promise<void> {
   const row = await upsertCursor(supabase, {
     streamName: CURSOR_STREAM_PONS_V2_CURVE_FEES,
     chainId: config.chainId,
-    lastProcessedBlock,
+    lastProcessedBlock: origin.lastProcessedBlock,
   });
 
   workerLog(
-    `bootstrapped ${CURSOR_STREAM_PONS_V2_CURVE_FEES}: last_processed_block=${row.lastProcessedBlock}`,
+    `final cursor ${CURSOR_STREAM_PONS_V2_CURVE_FEES} last_processed_block=${row.lastProcessedBlock}`,
   );
   workerLog(
     `next fee scan begins at ${row.lastProcessedBlock + 1} (${origin.reason})`,

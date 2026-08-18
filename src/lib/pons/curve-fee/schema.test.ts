@@ -106,6 +106,7 @@ describe("PONS V2 curve-fee Phase 1 schema", () => {
 
     const worker = readSrc("scripts/worker.ts");
     assert.ok(worker.includes("catchUpPonsV2CurveFeesCursorIsolated"));
+    assert.ok(worker.includes("formatPonsV2FeeCycleLog"));
     assert.equal(worker.includes("scanPonsV2CurveFeesRange"), false);
     assert.equal(worker.includes("apply_pons_v2_curve_fees"), false);
     assert.equal(worker.includes("@/lib/pons/continuation"), false);

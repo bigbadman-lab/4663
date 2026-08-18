@@ -18,8 +18,15 @@ export const POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE = 1 as const;
 /**
  * Max PONS V2 fee outer ranges per worker cycle (startup + poll).
  * Historical fee backlog must not delay PONS factories/transfers or POOLS.
+ * Each range is still FACTORY_SCAN_MAX_CHUNK_BLOCKS (adaptive inner getLogs).
  */
-export const PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE = 1 as const;
+export const PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE = 8 as const;
+
+/**
+ * Hard cap on fee-cursor blocks advanced per worker cycle.
+ * 8 × 2_000 = 16_000. Stops even if range size is lowered.
+ */
+export const PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE = 16_000 as const;
 
 /**
  * Initial eth_getLogs window for dual-factory scans.

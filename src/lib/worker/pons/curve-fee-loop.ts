@@ -18,6 +18,7 @@ import type { ResolvedPonsLaunch } from "@/lib/pons/launch-discovery";
 import type { ChainRpc } from "@/lib/worker/chain/rpc";
 import {
   FACTORY_SCAN_MAX_CHUNK_BLOCKS,
+  PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE,
   PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
 } from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
@@ -31,6 +32,7 @@ export type PonsV2CurveFeeCatchUpResult = {
   head: number;
   lastProcessedBlock: number | null;
   rangesScanned: number;
+  blocksScanned: number;
   rawLogs: number;
   decodedBuys: number;
   decodedSells: number;
@@ -41,8 +43,55 @@ export type PonsV2CurveFeeCatchUpResult = {
   feesAddedQuoteByTokenCount: number;
   advanced: boolean;
   blocked: boolean;
+  idle: boolean;
+  caughtUp: boolean;
+  lag: number | null;
   failures: string[];
 };
+
+export function formatPonsV2FeeCycleLog(
+  result: PonsV2CurveFeeCatchUpResult,
+  curvesTracked: number,
+): string {
+  if (result.idle) {
+    return (
+      "pons v2 fees idle cursor_missing — bootstrap: " +
+      "npm run worker:bootstrap-pons-v2-fees -- --lookback-hours 24"
+    );
+  }
+  const cursor = result.lastProcessedBlock ?? "null";
+  const lag = result.lag ?? "null";
+  const fail =
+    result.failures.length === 0 ? "none" : result.failures.join(" | ");
+  return (
+    `pons v2 fees cursor=${cursor} head=${result.head} lag=${lag} ` +
+    `ranges=${result.rangesScanned} blocks=${result.blocksScanned} ` +
+    `inserted=${result.inserted} dupes=${result.skippedDuplicates} ` +
+    `tokens=${result.feesAddedQuoteByTokenCount} curves=${curvesTracked} ` +
+    `caught_up=${result.caughtUp} blocked=${result.blocked} failures=${fail}`
+  );
+}
+
+function withProgress(
+  head: number,
+  partial: Omit<
+    PonsV2CurveFeeCatchUpResult,
+    "head" | "caughtUp" | "lag" | "idle" | "blocksScanned"
+  > & { idle?: boolean; blocksScanned?: number },
+): PonsV2CurveFeeCatchUpResult {
+  const last = partial.lastProcessedBlock;
+  const lag = last === null ? null : Math.max(0, head - last);
+  const idle = partial.idle ?? false;
+  const blocksScanned = partial.blocksScanned ?? 0;
+  return {
+    ...partial,
+    head,
+    idle,
+    blocksScanned,
+    caughtUp: !idle && last !== null && last >= head && partial.failures.length === 0,
+    lag,
+  };
+}
 
 export async function catchUpPonsV2CurveFeesCursor(input: {
   rpc: ChainRpc;
@@ -53,6 +102,7 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
   startupRewind: boolean;
   maxOuterRangeBlocks?: number;
   maxRanges?: number;
+  maxBlocks?: number;
   productionStartBlock?: number;
   observationStartBlock?: number | null;
   onFactoryInserted?: (launch: ResolvedPonsLaunch) => void;
@@ -66,10 +116,9 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
 
   if (!cursor) {
     workerLog(
-      "pons_v2_curve_fees cursor missing — fee stream idle until npm run worker:bootstrap-pons-v2-fees",
+      "pons_v2_curve_fees cursor missing — fee stream idle until npm run worker:bootstrap-pons-v2-fees -- --lookback-hours 24",
     );
-    return {
-      head,
+    return withProgress(head, {
       lastProcessedBlock: null,
       rangesScanned: 0,
       rawLogs: 0,
@@ -82,8 +131,9 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
       feesAddedQuoteByTokenCount: 0,
       advanced: false,
       blocked: false,
+      idle: true,
       failures: [],
-    };
+    });
   }
 
   let from: number;
@@ -100,8 +150,7 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
   }
 
   if (from > head) {
-    return {
-      head,
+    return withProgress(head, {
       lastProcessedBlock: cursor.lastProcessedBlock,
       rangesScanned: 0,
       rawLogs: 0,
@@ -115,12 +164,17 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
       advanced: false,
       blocked: false,
       failures: [],
-    };
+    });
   }
 
   const outer = input.maxOuterRangeBlocks ?? FACTORY_SCAN_MAX_CHUNK_BLOCKS;
+  const maxRanges =
+    input.maxRanges ?? PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE;
+  const maxBlocks =
+    input.maxBlocks ?? PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE;
   let durableN = cursor.lastProcessedBlock;
   let rangesScanned = 0;
+  let blocksScanned = 0;
   let rawLogs = 0;
   let decodedBuys = 0;
   let decodedSells = 0;
@@ -133,13 +187,31 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
   const failures: string[] = [];
   let next = from;
 
+  const snapshot = (blocked: boolean, extraFailures: string[] = []) =>
+    withProgress(head, {
+      lastProcessedBlock: durableN,
+      rangesScanned,
+      blocksScanned,
+      rawLogs,
+      decodedBuys,
+      decodedSells,
+      unknownCurves,
+      malformed,
+      inserted,
+      skippedDuplicates,
+      feesAddedQuoteByTokenCount,
+      advanced,
+      blocked,
+      failures: [...failures, ...extraFailures],
+    });
+
   const onFactoryInserted = (launch: ResolvedPonsLaunch) => {
     addPonsV2LaunchToFeeIndex(input.index, launch);
     input.onFactoryInserted?.(launch);
   };
 
   while (next <= head) {
-    if (input.maxRanges !== undefined && rangesScanned >= input.maxRanges) {
+    if (rangesScanned >= maxRanges || blocksScanned >= maxBlocks) {
       break;
     }
 
@@ -154,22 +226,7 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
       workerLog(
         "pons_factories cursor missing; cannot advance pons_v2_curve_fees safely",
       );
-      return {
-        head,
-        lastProcessedBlock: durableN,
-        rangesScanned,
-        rawLogs,
-        decodedBuys,
-        decodedSells,
-        unknownCurves,
-        malformed,
-        inserted,
-        skippedDuplicates,
-        feesAddedQuoteByTokenCount,
-        advanced,
-        blocked: true,
-        failures: ["pons_factories cursor missing"],
-      };
+      return snapshot(true, ["pons_factories cursor missing"]);
     }
 
     if (factory.lastProcessedBlock < to) {
@@ -183,7 +240,7 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
         factories: input.factories,
         startupRewind: false,
         maxOuterRangeBlocks: outer,
-        maxRanges: input.maxRanges ?? PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
+        maxRanges,
         targetThroughBlock: to,
         productionStartBlock: input.productionStartBlock,
         observationStartBlock: input.observationStartBlock,
@@ -202,36 +259,28 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
         workerLog(
           `pons_factories still behind after catch-up (have=${factoryAfter?.lastProcessedBlock ?? "null"} need=${to}); fees blocked`,
         );
-        return {
-          head,
-          lastProcessedBlock: durableN,
-          rangesScanned,
-          rawLogs,
-          decodedBuys,
-          decodedSells,
-          unknownCurves,
-          malformed,
-          inserted,
-          skippedDuplicates,
-          feesAddedQuoteByTokenCount,
-          advanced,
-          blocked: true,
-          failures: ["pons_factories lag"],
-        };
+        return snapshot(true, ["pons_factories lag"]);
       }
     }
 
-    workerLog(
-      `pons v2 fee scan ${next}-${to} head=${head} curves=${input.index.byCurve.size}`,
-    );
-    const result = await scanPonsV2CurveFeesLiveRange({
-      rpc: input.rpc,
-      supabase: input.supabase,
-      chainId: input.chainId,
-      fromBlock: next,
-      toBlock: to,
-      index: input.index,
-    });
+    let result: Awaited<ReturnType<typeof scanPonsV2CurveFeesLiveRange>>;
+    try {
+      result = await scanPonsV2CurveFeesLiveRange({
+        rpc: input.rpc,
+        supabase: input.supabase,
+        chainId: input.chainId,
+        fromBlock: next,
+        toBlock: to,
+        index: input.index,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      workerLog(
+        `pons v2 fee scan ${next}-${to} threw; cursor stays at ${durableN}: ${msg}`,
+      );
+      return snapshot(true, [`scan_failed: ${msg}`]);
+    }
+
     rangesScanned += 1;
     rawLogs += result.rawLogs;
     decodedBuys += result.decodedBuys;
@@ -242,31 +291,12 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
     skippedDuplicates += result.skippedDuplicates;
     feesAddedQuoteByTokenCount += result.feesAddedQuoteByTokenCount;
 
-    workerLog(
-      `pons v2 fee scan ${next}-${to} head=${head} rawLogs=${result.rawLogs} decodedBuys=${result.decodedBuys} decodedSells=${result.decodedSells} unknownCurves=${result.unknownCurves} malformed=${result.malformed} inserted=${result.inserted} duplicates=${result.skippedDuplicates} feesAddedQuoteByTokenCount=${result.feesAddedQuoteByTokenCount} failures=${result.failures.length}`,
-    );
-
     if (!result.fullyProcessed) {
       failures.push(...result.failures);
       workerLog(
         `pons v2 fee range incomplete; cursor stays at ${durableN}`,
       );
-      return {
-        head,
-        lastProcessedBlock: durableN,
-        rangesScanned,
-        rawLogs,
-        decodedBuys,
-        decodedSells,
-        unknownCurves,
-        malformed,
-        inserted,
-        skippedDuplicates,
-        feesAddedQuoteByTokenCount,
-        advanced,
-        blocked: true,
-        failures,
-      };
+      return snapshot(true);
     }
 
     const factoryFinal = await loadCursor(
@@ -278,22 +308,7 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
       workerLog(
         "pons_factories lag at commit barrier; not advancing pons_v2_curve_fees",
       );
-      return {
-        head,
-        lastProcessedBlock: durableN,
-        rangesScanned,
-        rawLogs,
-        decodedBuys,
-        decodedSells,
-        unknownCurves,
-        malformed,
-        inserted,
-        skippedDuplicates,
-        feesAddedQuoteByTokenCount,
-        advanced,
-        blocked: true,
-        failures: ["pons_factories lag at commit"],
-      };
+      return snapshot(true, ["pons_factories lag at commit"]);
     }
 
     const updated = await upsertCursor(input.supabase, {
@@ -303,26 +318,11 @@ export async function catchUpPonsV2CurveFeesCursor(input: {
     });
     durableN = updated.lastProcessedBlock;
     advanced = true;
-    workerLog(`cursor pons_v2_curve_fees -> ${durableN}`);
+    blocksScanned += to - next + 1;
     next = durableN + 1;
   }
 
-  return {
-    head,
-    lastProcessedBlock: durableN,
-    rangesScanned,
-    rawLogs,
-    decodedBuys,
-    decodedSells,
-    unknownCurves,
-    malformed,
-    inserted,
-    skippedDuplicates,
-    feesAddedQuoteByTokenCount,
-    advanced,
-    blocked: false,
-    failures,
-  };
+  return snapshot(false);
 }
 
 /**

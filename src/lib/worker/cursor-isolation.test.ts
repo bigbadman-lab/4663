@@ -158,6 +158,7 @@ describe("cursor stream isolation", () => {
 
     const worker = readSrc("scripts/worker.ts");
     assert.ok(worker.includes("catchUpPonsV2CurveFeesCursorIsolated"));
+    assert.ok(worker.includes("formatPonsV2FeeCycleLog"));
     assert.equal(worker.includes("scanPonsV2CurveFeesLiveRange"), false);
     assert.equal(worker.includes("scanPonsV2CurveFeesRange"), false);
   });

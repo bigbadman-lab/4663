@@ -243,4 +243,30 @@ describe("applyPonsV2CurveFeeBatchPure", () => {
     assert.equal(ledger.feeRaw, HUGE_FEE.toString(10));
     assert.equal(ledger.taxRaw, HUGE_TAX.toString(10));
   });
+
+  it("replay of the same fixture range does not double-count", () => {
+    const store = createPonsV2CurveFeeStore();
+    const fixture = [
+      event({ txHash: TX_1, logIndex: 1, side: "buy", feeRaw: BigInt("303733000000000000"), taxRaw: BigInt(0) }),
+      event({ txHash: TX_2, logIndex: 2, side: "sell", feeRaw: BigInt(7), taxRaw: BigInt(1) }),
+      event({ txHash: TX_3, logIndex: 3, side: "buy", feeRaw: BigInt(10), taxRaw: BigInt(3) }),
+    ];
+    const first = applyPonsV2CurveFeeBatchPure(store, fixture);
+    const afterFirst = loadTokenFeeMetricsFromStore(store, CHAIN, TOKEN_A);
+    assert.ok(afterFirst);
+    assert.equal(first.applied, 3);
+    assert.equal(store.events.size, 3);
+    const totalX = afterFirst.globalFeesPaidQuote;
+
+    const second = applyPonsV2CurveFeeBatchPure(store, fixture);
+    const afterSecond = loadTokenFeeMetricsFromStore(store, CHAIN, TOKEN_A);
+    assert.ok(afterSecond);
+    assert.equal(second.applied, 0);
+    assert.equal(second.skipped, 3);
+    assert.equal(store.events.size, 3);
+    assert.equal(afterSecond.globalFeesPaidQuote, totalX);
+    assert.equal(afterSecond.globalFeesPaidQuote, "303733000000000021");
+    assert.equal(afterSecond.buyCount, 2);
+    assert.equal(afterSecond.sellCount, 1);
+  });
 });

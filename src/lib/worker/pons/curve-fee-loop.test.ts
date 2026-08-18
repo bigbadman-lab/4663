@@ -188,10 +188,12 @@ describe("catchUpPonsV2CurveFeesCursor", () => {
     assert.equal(result.lastProcessedBlock, null);
     assert.equal(result.rangesScanned, 0);
     assert.equal(result.advanced, false);
+    assert.equal(result.idle, true);
+    assert.equal(result.caughtUp, false);
     assert.equal(cursors.pons_v2_curve_fees, null);
   });
 
-  it("a large backlog scans only one outer range", async () => {
+  it("a large backlog scans only the requested bounded ranges", async () => {
     const stored = 10;
     const { supabase, cursors } = createFeeSupabase({
       factory: 10_000,
@@ -214,10 +216,11 @@ describe("catchUpPonsV2CurveFeesCursor", () => {
       index: feeIndexWithQuote(),
       startupRewind: false,
       maxOuterRangeBlocks: 10,
-      maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
+      maxRanges: 1,
     });
     assert.equal(result.rangesScanned, 1);
     assert.equal(result.advanced, true);
+    assert.equal(result.idle, false);
     assert.equal(result.lastProcessedBlock, stored + 10);
     assert.equal(cursors.pons_v2_curve_fees, stored + 10);
     assert.equal(getLogsCalls[0]!.address, undefined);
@@ -456,5 +459,97 @@ describe("catchUpPonsV2CurveFeesCursor", () => {
       maxRanges: 1,
     });
     assert.equal(result, null);
+  });
+
+  it("default catch-up stays bounded to PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE", async () => {
+    const stored = 10;
+    const { supabase, cursors } = createFeeSupabase({
+      factory: 10_000,
+      fees: stored,
+    });
+    const result = await catchUpPonsV2CurveFeesCursor({
+      rpc: {
+        async getBlockNumber() {
+          return 10_000;
+        },
+        async getLogs() {
+          return [];
+        },
+      } as unknown as ChainRpc,
+      supabase,
+      chainId: CHAIN,
+      factories: FACTORIES,
+      index: feeIndexWithQuote(),
+      startupRewind: false,
+      maxOuterRangeBlocks: 10,
+    });
+    assert.equal(result.rangesScanned, PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE);
+    assert.equal(
+      cursors.pons_v2_curve_fees,
+      stored + 10 * PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
+    );
+    assert.equal(result.caughtUp, false);
+    assert.ok((result.lag ?? 0) > 0);
+  });
+
+  it("maxBlocks stops catch-up even when maxRanges would allow more", async () => {
+    const stored = 10;
+    const { supabase, cursors } = createFeeSupabase({
+      factory: 10_000,
+      fees: stored,
+    });
+    const result = await catchUpPonsV2CurveFeesCursor({
+      rpc: {
+        async getBlockNumber() {
+          return 10_000;
+        },
+        async getLogs() {
+          return [];
+        },
+      } as unknown as ChainRpc,
+      supabase,
+      chainId: CHAIN,
+      factories: FACTORIES,
+      index: feeIndexWithQuote(),
+      startupRewind: false,
+      maxOuterRangeBlocks: 10,
+      maxRanges: 100,
+      maxBlocks: 25,
+    });
+    assert.equal(result.rangesScanned, 3);
+    assert.equal(result.blocksScanned, 30);
+    assert.equal(cursors.pons_v2_curve_fees, 40);
+  });
+
+  it("getLogs failure does not advance the fee cursor", async () => {
+    const { supabase, cursors, upserts } = createFeeSupabase({
+      factory: 200,
+      fees: 100,
+    });
+    const result = await catchUpPonsV2CurveFeesCursor({
+      rpc: {
+        async getBlockNumber() {
+          return 200;
+        },
+        async getLogs() {
+          throw new Error("eth_getLogs timeout");
+        },
+      } as unknown as ChainRpc,
+      supabase,
+      chainId: CHAIN,
+      factories: FACTORIES,
+      index: feeIndexWithQuote(),
+      startupRewind: false,
+      maxOuterRangeBlocks: 50,
+      maxRanges: 1,
+    });
+    assert.equal(result.advanced, false);
+    assert.equal(result.blocked, true);
+    assert.equal(cursors.pons_v2_curve_fees, 100);
+    assert.equal(
+      upserts.some((u) => u.stream_name === "pons_v2_curve_fees"),
+      false,
+    );
+    assert.ok(result.failures[0]?.startsWith("scan_failed:"));
   });
 });

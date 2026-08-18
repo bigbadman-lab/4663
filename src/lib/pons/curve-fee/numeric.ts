@@ -42,9 +42,10 @@ export function addQuoteAmounts(fee: bigint, tax: bigint): bigint {
  *
  * Apply payloads MUST send fee_raw/tax_raw as JSON strings.
  * PostgREST SELECT of numeric(78,0) often returns a JSON *number* when the
- * value fits in IEEE-754 (live specimen global_fees_paid_quote=5606869752000000).
- * Accept only non-negative safe integers in that case; unsafe/float numbers
- * cannot represent uint256 amounts and are rejected.
+ * value fits in IEEE-754. Application reads MUST request `column::text` so
+ * values above Number.MAX_SAFE_INTEGER (e.g. 303733000000000000) stay exact.
+ * This mapper still accepts safe JSON integers for older mocks; unsafe
+ * numbers are rejected rather than rounded.
  */
 export function mapDbNumericToDecimalString(
   value: unknown,

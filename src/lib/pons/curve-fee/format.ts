@@ -6,6 +6,15 @@
 import { NATIVE_QUOTE_TOKEN_ADDRESS } from "@/lib/pons/curve-fee/constants";
 import { normalizeAddress } from "@/lib/worker/normalize";
 
+export type QuoteAmountKind = "native_eth" | "non_native";
+
+export type QuoteAmountDisplay = {
+  raw: string;
+  /** Set only for native ETH (zero-address pairToken). Never guessed. */
+  formatted: string | null;
+  quoteKind: QuoteAmountKind;
+};
+
 export function isNativeQuoteToken(address: string): boolean {
   return normalizeAddress(address) === NATIVE_QUOTE_TOKEN_ADDRESS;
 }
@@ -24,10 +33,14 @@ export function formatNativeQuoteWei18(raw: bigint): string {
 export function formatQuoteAmountForDisplay(
   quoteTokenAddress: string,
   raw: bigint,
-): { raw: string; formatted: string | null } {
+): QuoteAmountDisplay {
   const rawText = raw.toString(10);
   if (!isNativeQuoteToken(quoteTokenAddress)) {
-    return { raw: rawText, formatted: null };
+    return { raw: rawText, formatted: null, quoteKind: "non_native" };
   }
-  return { raw: rawText, formatted: formatNativeQuoteWei18(raw) };
+  return {
+    raw: rawText,
+    formatted: formatNativeQuoteWei18(raw),
+    quoteKind: "native_eth",
+  };
 }

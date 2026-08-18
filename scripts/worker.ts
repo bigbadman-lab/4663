@@ -26,11 +26,15 @@ import {
   FACTORY_POLL_INTERVAL_MS,
   HEARTBEAT_INTERVAL_MS,
   POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE,
+  PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE,
   PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
 } from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 import { workerError, workerLog } from "@/lib/worker/log";
-import { catchUpPonsV2CurveFeesCursorIsolated } from "@/lib/worker/pons/curve-fee-loop";
+import {
+  catchUpPonsV2CurveFeesCursorIsolated,
+  formatPonsV2FeeCycleLog,
+} from "@/lib/worker/pons/curve-fee-loop";
 import { catchUpFactoryCursor } from "@/lib/worker/pons/factory-loop";
 import {
   addPonsV2LaunchToFeeIndex,
@@ -474,13 +478,16 @@ async function main(): Promise<void> {
         index: feeIndex,
         startupRewind: true,
         maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
+        maxBlocks: PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE,
         productionStartBlock,
         observationStartBlock,
         onFactoryInserted: onLaunch,
       });
       if (feeCatch) {
+        workerLog(formatPonsV2FeeCycleLog(feeCatch, feeIndex.byCurve.size));
+      } else {
         workerLog(
-          `pons v2 fee catch-up: inserted=${feeCatch.inserted} duplicates=${feeCatch.skippedDuplicates} ranges=${feeCatch.rangesScanned} blocked=${feeCatch.blocked} curves=${feeIndex.byCurve.size}`,
+          "pons v2 fees cycle_error isolated=true other_streams_continue",
         );
       }
 
@@ -589,7 +596,7 @@ async function main(): Promise<void> {
           observationStartBlock,
           onInstantPersisted: onPoolsLaunch,
         });
-        await catchUpPonsV2CurveFeesCursorIsolated({
+        const feeCatch = await catchUpPonsV2CurveFeesCursorIsolated({
           rpc,
           supabase,
           chainId: config.chainId,
@@ -597,10 +604,18 @@ async function main(): Promise<void> {
           index: feeIndex,
           startupRewind: false,
           maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE,
+          maxBlocks: PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE,
           productionStartBlock,
           observationStartBlock,
           onFactoryInserted: onLaunch,
         });
+        if (feeCatch) {
+          workerLog(formatPonsV2FeeCycleLog(feeCatch, feeIndex.byCurve.size));
+        } else {
+          workerLog(
+            "pons v2 fees cycle_error isolated=true other_streams_continue",
+          );
+        }
       } catch (error) {
         workerError("poll cycle failed", error);
       } finally {

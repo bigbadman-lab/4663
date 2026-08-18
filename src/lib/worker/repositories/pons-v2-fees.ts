@@ -196,6 +196,20 @@ export async function applyPonsV2CurveFeeBatch(
   };
 }
 
+export const TOKEN_FEE_METRICS_SELECT = [
+  "chain_id",
+  "token_address",
+  "launchpad",
+  "factory_version",
+  "quote_token_address",
+  "global_fees_paid_quote::text",
+  "buy_fees_quote::text",
+  "sell_fees_quote::text",
+  "buy_count",
+  "sell_count",
+  "last_fee_block",
+].join(", ");
+
 export async function loadTokenFeeMetrics(
   supabase: WorkerSupabase,
   chainId: number,
@@ -203,21 +217,7 @@ export async function loadTokenFeeMetrics(
 ): Promise<TokenFeeMetricsRow | null> {
   const { data, error } = await supabase
     .from("token_fee_metrics")
-    .select(
-      [
-        "chain_id",
-        "token_address",
-        "launchpad",
-        "factory_version",
-        "quote_token_address",
-        "global_fees_paid_quote",
-        "buy_fees_quote",
-        "sell_fees_quote",
-        "buy_count",
-        "sell_count",
-        "last_fee_block",
-      ].join(", "),
-    )
+    .select(TOKEN_FEE_METRICS_SELECT)
     .eq("chain_id", chainId)
     .eq("token_address", normalizeAddress(tokenAddress))
     .maybeSingle();
@@ -233,7 +233,7 @@ export async function loadTokenFeeMetrics(
 
 export const CURVE_FEE_EVENTS_RANGE_PAGE_SIZE = 500 as const;
 
-const CURVE_FEE_EVENT_COLUMNS = [
+export const CURVE_FEE_EVENT_COLUMNS = [
   "chain_id",
   "token_address",
   "curve_address",
@@ -241,9 +241,9 @@ const CURVE_FEE_EVENT_COLUMNS = [
   "log_index",
   "block_number",
   "side",
-  "fee_raw",
-  "tax_raw",
-  "total_fee_raw",
+  "fee_raw::text",
+  "tax_raw::text",
+  "total_fee_raw::text",
   "venue",
 ].join(", ");
 

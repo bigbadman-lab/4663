@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE, PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE } from "@/lib/worker/constants";
+import { POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE, PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE, PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE } from "@/lib/worker/constants";
 import { prepareStartupCursors } from "@/lib/worker/cursor-runtime";
 
 const root = path.resolve(
@@ -45,9 +45,15 @@ describe("POOLS catch-up scheduling vs PONS", () => {
   const poll = worker.slice(pollIdx);
   const swapLoop = readSrc("src/lib/worker/pools/swap-loop.ts");
 
-  it("bounds POOLS to one outer range per cycle", () => {
+  it("bounds POOLS to one outer range per cycle and fees to a small bounded burst", () => {
     assert.equal(POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE, 1);
-    assert.equal(PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE, 1);
+    assert.equal(PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE, 8);
+    assert.equal(PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE, 16_000);
+    assert.ok(
+      PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE *
+        2_000 <=
+        PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE,
+    );
   });
 
   it("startup: PONS factory then transfer then bounded Instant then bounded swap", () => {
@@ -66,6 +72,7 @@ describe("POOLS catch-up scheduling vs PONS", () => {
     assert.ok(instantCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
     assert.ok(swapCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
     assert.ok(feeCall.includes("maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE"));
+    assert.ok(feeCall.includes("maxBlocks: PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE"));
     assert.equal(instantCall.includes("once ? 1 : undefined"), false);
     assert.equal(swapCall.includes("once ? 1 : undefined"), false);
     assert.equal(feeCall.includes("once ? 1 : undefined"), false);
@@ -94,6 +101,7 @@ describe("POOLS catch-up scheduling vs PONS", () => {
     assert.ok(instantCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
     assert.ok(swapCall.includes("maxRanges: POOLS_CATCH_UP_MAX_RANGES_PER_CYCLE"));
     assert.ok(feeCall.includes("maxRanges: PONS_V2_FEE_CATCH_UP_MAX_RANGES_PER_CYCLE"));
+    assert.ok(feeCall.includes("maxBlocks: PONS_V2_FEE_CATCH_UP_MAX_BLOCKS_PER_CYCLE"));
   });
 
   it("poll starts only after startup catch-up returns (no until-head POOLS wait)", () => {
@@ -157,6 +165,7 @@ describe("POOLS catch-up scheduling vs PONS", () => {
     assert.ok(poll.includes("catchUpPoolsInstantCursorIsolated"));
     assert.ok(poll.includes("catchUpPoolsSwapCursorIsolated"));
     assert.ok(poll.includes("catchUpPonsV2CurveFeesCursorIsolated"));
+    assert.ok(poll.includes("formatPonsV2FeeCycleLog"));
     assert.ok(poll.includes("pollBusy = false"));
   });
 });

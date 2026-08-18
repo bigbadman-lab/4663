@@ -15,11 +15,13 @@ import type { WorkerSupabase } from "@/lib/worker/supabase";
 import {
   APPLY_PONS_V2_CURVE_FEES_RPC,
   applyPonsV2CurveFeeBatch,
+  CURVE_FEE_EVENT_COLUMNS,
   loadPonsV2CurveFeeEvent,
   loadTokenFeeMetrics,
   mapCurveFeeEventRow,
   mapTokenFeeMetricsRow,
   toApplyPonsV2CurveFeesPayload,
+  TOKEN_FEE_METRICS_SELECT,
 } from "@/lib/worker/repositories/pons-v2-fees";
 
 const TOKEN = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -280,6 +282,39 @@ describe("pons-v2-fees repository", () => {
       }
       assert.equal(threw, true, `expected reject for ${String(value)}`);
     }
+  });
+
+  it("round-trips 303733000000000000 exactly as a decimal string", () => {
+    const exact = "303733000000000000";
+    assert.equal(mapDbNumericToDecimalString(exact, "global_fees_paid_quote"), exact);
+    assert.ok(BigInt(exact) > BigInt(Number.MAX_SAFE_INTEGER));
+    assert.equal(Number.isSafeInteger(Number(exact)), false);
+    const metrics = mapTokenFeeMetricsRow({
+      chain_id: 4663,
+      token_address: TOKEN,
+      launchpad: "pons",
+      factory_version: "v2",
+      quote_token_address: QUOTE,
+      global_fees_paid_quote: exact,
+      buy_fees_quote: exact,
+      sell_fees_quote: "0",
+      buy_count: 1,
+      sell_count: 0,
+      last_fee_block: 1,
+    });
+    assert.equal(metrics.globalFeesPaidQuote, exact);
+    assert.throws(
+      () => mapDbNumericToDecimalString(Number(exact), "global_fees_paid_quote"),
+    );
+  });
+
+  it("SELECT lists cast uint256 numerics to text", () => {
+    assert.ok(TOKEN_FEE_METRICS_SELECT.includes("global_fees_paid_quote::text"));
+    assert.ok(TOKEN_FEE_METRICS_SELECT.includes("buy_fees_quote::text"));
+    assert.ok(TOKEN_FEE_METRICS_SELECT.includes("sell_fees_quote::text"));
+    assert.ok(CURVE_FEE_EVENT_COLUMNS.includes("fee_raw::text"));
+    assert.ok(CURVE_FEE_EVENT_COLUMNS.includes("tax_raw::text"));
+    assert.ok(CURVE_FEE_EVENT_COLUMNS.includes("total_fee_raw::text"));
   });
 
   it("load helpers query the dedicated tables", async () => {
