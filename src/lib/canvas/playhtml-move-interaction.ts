@@ -10,6 +10,10 @@
  */
 
 import { isInteractiveCanvasTarget } from "@/lib/canvas/interactive-control";
+import {
+  isPlayhtmlDragHandleTarget,
+  playhtmlHostHasDragHandle,
+} from "@/lib/canvas/playhtml-drag-handle";
 
 /** Session-only; competes with sibling hosts inside the same stacking context. */
 export const PLAYHTML_MOVE_FOREGROUND_Z_INDEX = 50 as const;
@@ -19,10 +23,19 @@ export const PLAYHTML_MOVE_FOREGROUND_ATTR =
 
 export const PLAYHTML_MOVE_HIT_ATTR = "data-4663-playhtml-move-hit" as const;
 
+/**
+ * Begin move unless the target is a nested control. When the host opts into
+ * a visible drag handle, only that handle starts the move.
+ */
 export function shouldBeginPlayhtmlMoveForeground(
   target: EventTarget | null,
+  host?: Element | null,
 ): boolean {
-  return !isInteractiveCanvasTarget(target);
+  if (isInteractiveCanvasTarget(target)) return false;
+  if (playhtmlHostHasDragHandle(host) && !isPlayhtmlDragHandleTarget(target)) {
+    return false;
+  }
+  return true;
 }
 
 export function applyPlayhtmlMoveForeground(element: HTMLElement): void {
@@ -58,7 +71,7 @@ export function beginPlayhtmlMoveForeground(
   element: HTMLElement,
   input: { target: EventTarget | null; pointerId: number },
 ): boolean {
-  if (!shouldBeginPlayhtmlMoveForeground(input.target)) return false;
+  if (!shouldBeginPlayhtmlMoveForeground(input.target, element)) return false;
   applyPlayhtmlMoveForeground(element);
   capturePlayhtmlMovePointer(element, input.pointerId);
   return true;

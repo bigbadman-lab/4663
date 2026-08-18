@@ -11,6 +11,11 @@ import {
   INTERACTIVE_CONTROL_ATTR,
 } from "@/lib/canvas/interactive-control";
 import {
+  PLAYHTML_DRAG_HANDLE_SELECTOR,
+  isPlayhtmlDragHandleTarget,
+  playhtmlHostHasDragHandle,
+} from "@/lib/canvas/playhtml-drag-handle";
+import {
   PLAYHTML_MOVE_FOREGROUND_ATTR,
   PLAYHTML_MOVE_FOREGROUND_Z_INDEX,
   PLAYHTML_MOVE_HIT_ATTR,
@@ -140,6 +145,69 @@ describe("PlayHTML move foreground helpers", () => {
       false,
     );
     assert.equal(host.captured.size, 0);
+  });
+
+  it("hosts with a drag handle only begin move from that handle", () => {
+    const handle = {
+      closest(selector: string) {
+        return selector === PLAYHTML_DRAG_HANDLE_SELECTOR ? this : null;
+      },
+    };
+    const body = {
+      closest() {
+        return null;
+      },
+    };
+    const host = {
+      querySelector(selector: string) {
+        return selector === PLAYHTML_DRAG_HANDLE_SELECTOR ? handle : null;
+      },
+      style: { zIndex: "" },
+      setAttribute() {},
+      setPointerCapture() {},
+      hasPointerCapture() {
+        return false;
+      },
+      releasePointerCapture() {},
+    };
+    assert.equal(playhtmlHostHasDragHandle(host as unknown as Element), true);
+    assert.equal(
+      isPlayhtmlDragHandleTarget(handle as unknown as EventTarget),
+      true,
+    );
+    assert.equal(
+      shouldBeginPlayhtmlMoveForeground(
+        handle as unknown as EventTarget,
+        host as unknown as Element,
+      ),
+      true,
+    );
+    assert.equal(
+      shouldBeginPlayhtmlMoveForeground(
+        body as unknown as EventTarget,
+        host as unknown as Element,
+      ),
+      false,
+    );
+    assert.equal(
+      beginPlayhtmlMoveForeground(host as unknown as HTMLElement, {
+        target: body as unknown as EventTarget,
+        pointerId: 3,
+      }),
+      false,
+    );
+  });
+
+  it("hosts without a drag handle keep full-box move", () => {
+    const surface = {
+      closest() {
+        return null;
+      },
+    };
+    assert.equal(
+      shouldBeginPlayhtmlMoveForeground(surface as unknown as EventTarget),
+      true,
+    );
   });
 
   it("capture helpers swallow setPointerCapture failure", () => {

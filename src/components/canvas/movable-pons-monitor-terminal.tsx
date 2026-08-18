@@ -3,6 +3,9 @@
 /**
  * PlayHTML-movable wrapper for the live PONS monitoring terminal.
  * Import only under PlayProvider.
+ *
+ * Centering translate lives on this host so the hittable box matches the
+ * visible panel (not an inner wrapper that leaves an empty host quadrant).
  */
 
 import { CanMoveElement } from "@playhtml/react";
@@ -28,9 +31,7 @@ export function MovablePonsMonitorTerminal() {
         onPointerUp={move.onPointerUp}
         onPointerCancel={move.onPointerCancel}
       >
-        <div className="-translate-x-1/2 -translate-y-1/2">
-          <PonsMonitorTerminalContent />
-        </div>
+        <PonsMonitorTerminalContent />
       </div>
     </CanMoveElement>
   );

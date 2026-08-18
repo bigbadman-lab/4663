@@ -3,11 +3,17 @@
 /**
  * Live PONS monitoring terminal — telemetry only.
  * Separate from the curated continuation watchlist object.
+ *
+ * Centering translate lives on the PlayHTML host so the hittable box matches
+ * the visible panel (not an inner wrapper that leaves an empty host quadrant).
+ * Only the header strip starts a move.
  */
 
 import { PlayhtmlMoveHitFill } from "@/components/canvas/playhtml-move-hit-fill";
+import { useInteractiveControlProtection } from "@/components/canvas/use-interactive-control-protection";
 import { usePonsMonitor } from "@/components/canvas/use-pons-monitor";
 import { formatShortAddress } from "@/lib/canvas/format-address";
+import { stopPlayhtmlMoveStart } from "@/lib/canvas/interactive-control";
 import { CHAIN_ID } from "@/lib/pons/constants";
 import type { PonsMonitorItem } from "@/lib/pons/monitor";
 
@@ -29,8 +35,8 @@ export function ponsMonitorTerminalHostClassName(
   movableChrome: boolean,
 ): string {
   return movableChrome
-    ? "pointer-events-auto absolute z-[15] cursor-grab touch-manipulation select-none active:cursor-grabbing"
-    : "absolute z-[15] select-none";
+    ? "pointer-events-auto absolute z-[15] -translate-x-1/2 -translate-y-1/2 touch-manipulation select-none"
+    : "absolute z-[15] -translate-x-1/2 -translate-y-1/2 select-none";
 }
 
 function formatUtcClock(iso: string | null): string {
@@ -51,16 +57,22 @@ function statusLabel(status: PonsMonitorItem["status"]): string {
 
 export function PonsMonitorTerminalContent() {
   const { items, activeCount, chainHead, status } = usePonsMonitor();
+  const bodyRef = useInteractiveControlProtection<HTMLDivElement>();
   const live = status !== "error" || items.length > 0;
 
   return (
     <section
-      className="relative pointer-events-none flex h-[13.5rem] w-[20rem] flex-col overflow-hidden rounded-md border border-neutral-700/80 bg-neutral-950/90 px-3 py-2.5 font-mono text-[10px] leading-relaxed text-neutral-200 shadow-sm backdrop-blur-[1px] sm:h-[14rem] sm:w-[21rem] sm:text-[11px]"
+      className="relative flex h-[13.5rem] w-[20rem] flex-col overflow-hidden rounded-md border border-neutral-700/80 bg-neutral-950/90 font-mono text-[10px] leading-relaxed text-neutral-200 shadow-sm backdrop-blur-[1px] sm:h-[14rem] sm:w-[21rem] sm:text-[11px]"
       data-4663-pons-monitor-terminal
       aria-label="4663 PONS live monitor"
     >
       <PlayhtmlMoveHitFill />
-      <header className="flex shrink-0 items-baseline justify-between gap-2 border-b border-neutral-800 pb-1.5 tracking-wide">
+      <header
+        className="relative z-[1] flex shrink-0 cursor-grab items-baseline justify-between gap-2 border-b border-neutral-800 px-3 pb-1.5 pt-2.5 tracking-wide active:cursor-grabbing"
+        data-4663-pons-monitor-header
+        data-4663-pons-monitor-drag
+        data-4663-playhtml-drag-handle="true"
+      >
         <span className="text-neutral-100" data-4663-pons-monitor-title>
           4663 / PONS MONITOR
         </span>
@@ -69,69 +81,78 @@ export function PonsMonitorTerminalContent() {
         </span>
       </header>
 
-      <div className="mt-1.5 flex shrink-0 items-center gap-2 tracking-wide">
-        <span
-          className={`inline-block h-1.5 w-1.5 rounded-full ${
-            live ? "bg-emerald-500/90" : "bg-neutral-500"
-          }`}
-          aria-hidden
-          data-4663-pons-monitor-live-dot
-        />
-        <span
-          className={live ? "text-neutral-300" : "text-neutral-500"}
-          data-4663-pons-monitor-live-label
-        >
-          {live ? "LIVE" : "OFFLINE"}
-        </span>
-      </div>
-
       <div
-        className="mt-2 min-h-0 flex-1 overflow-hidden transition-opacity duration-300"
-        data-4663-pons-monitor-rows
+        ref={bodyRef}
+        className="relative z-[1] flex min-h-0 flex-1 flex-col px-3 pb-2.5"
+        data-4663-pons-monitor-body
+        onPointerDown={stopPlayhtmlMoveStart}
+        onMouseDown={stopPlayhtmlMoveStart}
+        onTouchStart={stopPlayhtmlMoveStart}
       >
-        {items.length === 0 ? (
-          <div
-            className="flex h-full flex-col justify-center gap-1 text-neutral-500"
-            data-4663-pons-monitor-empty
+        <div className="mt-1.5 flex shrink-0 items-center gap-2 tracking-wide">
+          <span
+            className={`inline-block h-1.5 w-1.5 rounded-full ${
+              live ? "bg-emerald-500/90" : "bg-neutral-500"
+            }`}
+            aria-hidden
+            data-4663-pons-monitor-live-dot
+          />
+          <span
+            className={live ? "text-neutral-300" : "text-neutral-500"}
+            data-4663-pons-monitor-live-label
           >
-            <span>NO ACTIVE LAUNCHES</span>
-            <span>MONITORING PONS…</span>
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-0.5">
-            {items.map((item) => (
-              <li
-                key={item.tokenAddress}
-                className="flex items-baseline gap-2 tabular-nums text-neutral-300"
-                data-4663-pons-monitor-row={item.tokenAddress}
-                data-4663-pons-monitor-row-status={item.status}
-              >
-                <span className="w-[4.5rem] shrink-0 text-neutral-500">
-                  {formatUtcClock(item.launchTimestamp)}
-                </span>
-                <span className="min-w-0 flex-1 truncate">
-                  {formatShortAddress(item.tokenAddress)}
-                </span>
-                <span className="shrink-0 text-neutral-400">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+            {live ? "LIVE" : "OFFLINE"}
+          </span>
+        </div>
 
-      <footer
-        className="mt-2 flex shrink-0 items-baseline justify-between gap-2 border-t border-neutral-800 pt-1.5 tracking-wide text-neutral-500"
-        data-4663-pons-monitor-footer
-      >
-        <span data-4663-pons-monitor-count>
-          WATCHING {activeCount}
-        </span>
-        <span data-4663-pons-monitor-head>
-          HEAD {formatHead(chainHead)}
-        </span>
-      </footer>
+        <div
+          className="mt-2 min-h-0 flex-1 overflow-hidden transition-opacity duration-300"
+          data-4663-pons-monitor-rows
+        >
+          {items.length === 0 ? (
+            <div
+              className="flex h-full flex-col justify-center gap-1 text-neutral-500"
+              data-4663-pons-monitor-empty
+            >
+              <span>NO ACTIVE LAUNCHES</span>
+              <span>MONITORING PONS…</span>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-0.5">
+              {items.map((item) => (
+                <li
+                  key={item.tokenAddress}
+                  className="flex items-baseline gap-2 tabular-nums text-neutral-300"
+                  data-4663-pons-monitor-row={item.tokenAddress}
+                  data-4663-pons-monitor-row-status={item.status}
+                >
+                  <span className="w-[4.5rem] shrink-0 text-neutral-500">
+                    {formatUtcClock(item.launchTimestamp)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {formatShortAddress(item.tokenAddress)}
+                  </span>
+                  <span className="shrink-0 text-neutral-400">
+                    {statusLabel(item.status)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <footer
+          className="mt-2 flex shrink-0 items-baseline justify-between gap-2 border-t border-neutral-800 pt-1.5 tracking-wide text-neutral-500"
+          data-4663-pons-monitor-footer
+        >
+          <span data-4663-pons-monitor-count>
+            WATCHING {activeCount}
+          </span>
+          <span data-4663-pons-monitor-head>
+            HEAD {formatHead(chainHead)}
+          </span>
+        </footer>
+      </div>
     </section>
   );
 }
@@ -147,9 +168,7 @@ export function PonsMonitorTerminal({
       style={PONS_MONITOR_TERMINAL_DEFAULT_STYLE}
       data-4663-pons-monitor-terminal-host
     >
-      <div className="-translate-x-1/2 -translate-y-1/2">
-        <PonsMonitorTerminalContent />
-      </div>
+      <PonsMonitorTerminalContent />
     </div>
   );
 }
