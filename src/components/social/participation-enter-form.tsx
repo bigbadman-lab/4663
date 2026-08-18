@@ -8,7 +8,6 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/social/display-name";
-import { recordTapDebug } from "@/lib/canvas/tap-debug";
 
 type ParticipationEnterFormProps = {
   onClose: () => void;
@@ -33,18 +32,6 @@ export function ParticipationEnterForm({
         ? document.activeElement
         : null;
     inputRef.current?.focus();
-    const input = inputRef.current;
-    const rect = input?.getBoundingClientRect();
-    recordTapDebug("form", "form-mounted", {
-      target: "ParticipationEnterForm",
-      path: `input=${input ? "yes" : "no"} active=${
-        document.activeElement === input ? "yes" : "no"
-      } rect=${
-        rect
-          ? `${Math.round(rect.width)}x${Math.round(rect.height)}@${Math.round(rect.left)},${Math.round(rect.top)}`
-          : "none"
-      } z=30`,
-    });
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {

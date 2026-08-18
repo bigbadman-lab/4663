@@ -46,7 +46,6 @@ import {
   nextViewportCameraAction,
   readViewportClientSize,
 } from "@/lib/canvas/viewport-client-size";
-import { recordTapDebug, summarizeEventNode } from "@/lib/canvas/tap-debug";
 
 /** Module flag: empty-canvas click must ignore post-pan synthetic clicks. */
 let suppressEmptyCanvasClick = false;
@@ -288,16 +287,7 @@ export function useCanvasCamera(): UseCanvasCameraResult {
             eventTarget: event.target,
           })
         ) {
-          recordTapDebug("handler", "overlay-recovery-click", {
-            target: summarizeEventNode(overlayTap.element),
-            path: "synthetic element.click() after viewport pointerup",
-          });
           activateOverlayInteractiveTarget(overlayTap.element);
-        } else {
-          recordTapDebug("handler", "overlay-recovery-skip", {
-            target: summarizeEventNode(overlayTap.element),
-            path: `type=${event.type} moved=${String(moved)}`,
-          });
         }
         window.setTimeout(() => {
           suppressEmptyCanvasClick = false;
@@ -382,10 +372,6 @@ export function useCanvasCamera(): UseCanvasCameraResult {
       typeof document !== "undefined" ? document : null,
     );
     if (overlayInteractive) {
-      recordTapDebug("handler", "overlay-recovery-down", {
-        target: summarizeEventNode(overlayInteractive),
-        path: "viewport pointerdown matched overlay control",
-      });
       overlayTapRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,

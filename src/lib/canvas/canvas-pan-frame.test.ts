@@ -14,16 +14,16 @@ import {
 describe("canvas pan frame coalescer", () => {
   it("collapses rapid pointermove samples to one apply per animation frame", () => {
     const applied: Array<{ dx: number; dy: number }> = [];
-    let queued: FrameRequestCallback | null = null;
+    const queued: { cb: FrameRequestCallback | null } = { cb: null };
     const coalescer = createCanvasPanFrameCoalescer((sample) => {
       applied.push(sample);
     }, {
       requestAnimationFrame(cb) {
-        queued = cb;
+        queued.cb = cb;
         return 1;
       },
       cancelAnimationFrame() {
-        queued = null;
+        queued.cb = null;
       },
     });
 
@@ -33,7 +33,7 @@ describe("canvas pan frame coalescer", () => {
     assert.equal(applied.length, 0);
     assert.deepEqual(coalescer.pending(), { dx: 14, dy: -3 });
 
-    queued?.(0);
+    queued.cb?.(0);
     assert.equal(applied.length, 1);
     assert.deepEqual(applied[0], { dx: 14, dy: -3 });
     assert.equal(coalescer.pending(), null);
@@ -41,22 +41,22 @@ describe("canvas pan frame coalescer", () => {
 
   it("flush applies the pointerup sample even if a frame is pending", () => {
     const applied: Array<{ dx: number; dy: number }> = [];
-    let queued: FrameRequestCallback | null = null;
+    const queued: { cb: FrameRequestCallback | null } = { cb: null };
     const coalescer = createCanvasPanFrameCoalescer((sample) => {
       applied.push(sample);
     }, {
       requestAnimationFrame(cb) {
-        queued = cb;
+        queued.cb = cb;
         return 7;
       },
       cancelAnimationFrame() {
-        queued = null;
+        queued.cb = null;
       },
     });
 
     coalescer.push({ dx: 10, dy: 2 });
     coalescer.flush({ dx: 16, dy: 4 });
-    assert.equal(queued, null);
+    assert.equal(queued.cb, null);
     assert.deepEqual(applied, [{ dx: 16, dy: 4 }]);
     assert.equal(coalescer.pending(), null);
   });

@@ -24,7 +24,6 @@ import { ParticipationEnterTrigger } from "@/components/social/participation-ent
 import { ParticipationSessionControl } from "@/components/social/participation-session-control";
 import { PresenceStatus } from "@/components/presence-status";
 import { PARTICIPATION_CONTROL_DEFAULT_STYLE } from "@/lib/canvas/hero";
-import { recordTapDebug } from "@/lib/canvas/tap-debug";
 import { OPEN_PARTICIPATION_ENTER_EVENT } from "@/lib/social/request-participation-enter";
 import { useParticipation } from "@/lib/social/use-participation";
 
@@ -40,10 +39,6 @@ export function CanvasChrome() {
   const openLegal = useCallback(() => setInfoModal("legal"), []);
   const closeEnter = useCallback(() => setEnterOpen(false), []);
   const openEnter = useCallback(() => {
-    recordTapDebug("state", "openEnter", {
-      target: "CanvasChrome.setEnterOpen(true)",
-      path: "openEnter",
-    });
     setEnterOpen(true);
   }, []);
   const { self, isParticipating, enter, leave } = useParticipation();
@@ -61,16 +56,6 @@ export function CanvasChrome() {
       );
     };
   }, [isParticipating]);
-
-  useEffect(() => {
-    recordTapDebug("state", "enterOpen-render", {
-      target: `enterOpen=${String(enterOpen)} participating=${String(isParticipating)}`,
-      path:
-        enterOpen && !isParticipating
-          ? "will-render-ParticipationEnterForm"
-          : "form-not-rendered",
-    });
-  }, [enterOpen, isParticipating]);
 
   return (
     <>
