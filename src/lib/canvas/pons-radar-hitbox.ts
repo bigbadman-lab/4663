@@ -109,11 +109,21 @@ export function ponsRadarOverlapHit(input: {
   return canvasObjectOverlapHit(input);
 }
 
-/** Only the visible header/top strip starts PlayHTML move. */
+/** PONS MONITOR / terminal: only the visible header/top strip starts PlayHTML move. */
 export function ponsRadarRegionStartsMove(
   region: PonsRadarPointerRegion,
 ): boolean {
   return region === "header";
+}
+
+/**
+ * Ephemeral RADAR alert: the visible card (header + decorative body) starts
+ * a move. OPEN / outside do not.
+ */
+export function radarAlertRegionStartsMove(
+  region: PonsRadarPointerRegion,
+): boolean {
+  return region === "header" || region === "body";
 }
 
 /**

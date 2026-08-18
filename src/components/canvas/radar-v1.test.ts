@@ -113,7 +113,7 @@ describe("RADAR V1 canvas alert + explorers", () => {
     assert.ok(readSrc("public/radar.json").includes('"v"'));
   });
 
-  it("alert header is movable; only TAKE A LOOK opens RADAR", () => {
+  it("alert card is movable; only TAKE A LOOK opens RADAR", () => {
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     assert.ok(alert.includes("CanMoveElement"));
     assert.ok(alert.includes("PLAYHTML_CANVAS_BOUNDS_ID"));
@@ -124,6 +124,7 @@ describe("RADAR V1 canvas alert + explorers", () => {
     assert.ok(alert.includes("stopPlayhtmlMoveStart"));
     assert.ok(alert.includes("data-4663-radar-alert-drag"));
     assert.ok(alert.includes("data-4663-radar-alert-body"));
+    assert.equal(alert.includes('data-4663-playhtml-drag-handle="true"'), false);
 
     // CTA is the open control — not a whole-card button wrapper.
     assert.ok(alert.includes('data-4663-radar-alert-open'));
@@ -140,11 +141,15 @@ describe("RADAR V1 canvas alert + explorers", () => {
     assert.equal(hostBlock.includes("onOpen("), false);
     assert.equal(hostBlock.includes("onClick"), false);
 
-    // Lottie stays non-interactive; body isolates move-start.
+    // Lottie / body stay non-interactive so hits reach the move fill.
     const lottieIdx = alert.indexOf("data-4663-radar-lottie");
     assert.ok(lottieIdx > 0);
     const lottieWindow = alert.slice(Math.max(0, lottieIdx - 120), lottieIdx + 40);
     assert.ok(lottieWindow.includes("pointer-events-none"));
+    const bodyIdx = alert.indexOf("data-4663-radar-alert-body");
+    const bodyWindow = alert.slice(Math.max(0, bodyIdx - 180), bodyIdx + 80);
+    assert.ok(bodyWindow.includes("pointer-events-none"));
+    assert.equal(bodyWindow.includes("stopPlayhtmlMoveStart"), false);
 
     // CTA isolates move-start (IC3.6 pattern) and keeps a mobile tap target.
     assert.ok(alert.includes("min-h-11"));

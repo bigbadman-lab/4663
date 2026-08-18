@@ -34,6 +34,7 @@ import {
   ponsRadarOverlapHit,
   ponsRadarOversizedInnerTranslateHostRect,
   ponsRadarRegionStartsMove,
+  radarAlertRegionStartsMove,
   pointInPonsRadarRect,
   pointJustOutsidePonsRadar,
 } from "@/lib/canvas/pons-radar-hitbox";
@@ -333,12 +334,13 @@ describe("RADAR tight hitbox + header drag + OPEN isolation", () => {
       alert.indexOf("data-4663-radar-alert"),
     );
     assert.ok(hostClass.includes("-translate-x-1/2 -translate-y-1/2"));
-    assert.equal(hostClass.includes("cursor-grab"), false);
+    assert.ok(hostClass.includes("cursor-grab"));
     assert.equal(RADAR_CARD_MIN_WIDTH_PX < RADAR_CARD_MAX_WIDTH_PX, true);
   });
 
   it("11. Header starts drag", () => {
     assert.equal(ponsRadarRegionStartsMove("header"), true);
+    assert.equal(radarAlertRegionStartsMove("header"), true);
     const card = readSrc("src/components/canvas/pons-monitoring-object.tsx");
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     assert.ok(card.includes("data-4663-pons-monitoring-drag"));
@@ -346,7 +348,7 @@ describe("RADAR tight hitbox + header drag + OPEN isolation", () => {
     assert.ok(alert.includes("data-4663-radar-alert-drag"));
     assert.ok(alert.includes("data-4663-radar-alert-header"));
     assert.ok(card.includes(`${PLAYHTML_DRAG_HANDLE_ATTR}="true"`));
-    assert.ok(alert.includes(`${PLAYHTML_DRAG_HANDLE_ATTR}="true"`));
+    assert.equal(alert.includes(`${PLAYHTML_DRAG_HANDLE_ATTR}="true"`), false);
     const cardHeader = card.slice(
       Math.max(0, card.indexOf("data-4663-pons-monitoring-header") - 220),
       card.indexOf("data-4663-pons-monitoring-body"),
@@ -357,12 +359,13 @@ describe("RADAR tight hitbox + header drag + OPEN isolation", () => {
       Math.max(0, alert.indexOf("data-4663-radar-alert-header") - 220),
       alert.indexOf("data-4663-radar-alert-body"),
     );
-    assert.ok(alertHeader.includes("cursor-grab"));
+    assert.ok(alertHeader.includes("pointer-events-none"));
     assert.equal(alertHeader.includes("stopPlayhtmlMoveStart"), false);
   });
 
-  it("12. Alert/body area does not start drag", () => {
+  it("12. Alert body starts drag; PONS MONITOR body does not", () => {
     assert.equal(ponsRadarRegionStartsMove("body"), false);
+    assert.equal(radarAlertRegionStartsMove("body"), true);
     const card = readSrc("src/components/canvas/pons-monitoring-object.tsx");
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     assert.ok(card.includes("data-4663-pons-monitoring-body"));
@@ -371,20 +374,34 @@ describe("RADAR tight hitbox + header drag + OPEN isolation", () => {
       card.indexOf("data-4663-pons-monitoring-body"),
     );
     assert.ok(cardBody.includes("onPointerDown={stopPlayhtmlMoveStart}"));
-    const alertBody = alert.slice(alert.indexOf("data-4663-radar-alert-body"));
-    assert.ok(alertBody.includes("onPointerDown={stopPlayhtmlMoveStart}"));
-    const host = handleHost(true);
+    const alertBody = alert.slice(
+      Math.max(0, alert.indexOf("data-4663-radar-alert-body") - 180),
+      alert.indexOf("data-4663-radar-alert-open"),
+    );
+    assert.ok(alertBody.includes("pointer-events-none"));
+    assert.equal(alertBody.includes("stopPlayhtmlMoveStart"), false);
+    assert.equal(alertBody.includes("useInteractiveControlProtection"), false);
+    const ponsHost = handleHost(true);
     assert.equal(
       shouldBeginPlayhtmlMoveForeground(
         bodyTarget() as unknown as EventTarget,
-        host as unknown as Element,
+        ponsHost as unknown as Element,
       ),
       false,
+    );
+    const alertHost = handleHost(false);
+    assert.equal(
+      shouldBeginPlayhtmlMoveForeground(
+        bodyTarget() as unknown as EventTarget,
+        alertHost as unknown as Element,
+      ),
+      true,
     );
   });
 
   it("13. OPEN does not start drag", () => {
     assert.equal(ponsRadarRegionStartsMove("control"), false);
+    assert.equal(radarAlertRegionStartsMove("control"), false);
     const card = readSrc("src/components/canvas/pons-monitoring-object.tsx");
     const alert = readSrc("src/components/canvas/radar-alert-object.tsx");
     const cardOpen = card.slice(
@@ -539,7 +556,7 @@ describe("PONS / RADAR shared pointer routing", () => {
     assert.equal(ponsRadarRegionStartsMove("header"), true);
   });
 
-  it("20. Body click does not initiate object drag", () => {
+  it("20. PONS MONITOR body click does not initiate object drag", () => {
     assert.equal(ponsRadarRegionStartsMove("body"), false);
     const host = handleHost(true);
     assert.equal(playhtmlHostHasDragHandle(host as unknown as Element), true);
@@ -614,6 +631,7 @@ describe("PONS / RADAR shared pointer routing", () => {
 
   it("24. Empty canvas immediately outside object remains interactive", () => {
     assert.equal(ponsRadarRegionStartsMove("outside"), false);
+    assert.equal(radarAlertRegionStartsMove("outside"), false);
     for (const rect of [PONS_RECT, RADAR_CARD_RECT, RADAR_ALERT_RECT]) {
       for (const edge of ["left", "right", "top", "bottom"] as const) {
         const point = pointJustOutsidePonsRadar(rect, edge);

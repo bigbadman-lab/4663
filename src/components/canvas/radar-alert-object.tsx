@@ -2,7 +2,7 @@
 
 /**
  * Ephemeral RADAR canvas alert — Lottie radar + locked copy.
- * PlayHTML-movable host; only the header strip starts a move.
+ * PlayHTML-movable host; the visible card is the move surface.
  * Only [ TAKE A LOOK ] opens token detail.
  */
 
@@ -75,14 +75,13 @@ export function RadarAlertObject({
   const reducedMotion = usePrefersReducedMotion();
   const animationData = useRadarAnimationData();
   const ctaRef = useInteractiveControlProtection<HTMLButtonElement>();
-  const bodyRef = useInteractiveControlProtection<HTMLDivElement>();
   const move = usePlayhtmlMoveForeground<HTMLDivElement>();
 
   return (
     <CanMoveElement bounds={PLAYHTML_CANVAS_BOUNDS_ID}>
       <div
         id={playhtmlRadarAlertElementId(alert.eventId)}
-        className="pointer-events-auto absolute z-[16] -translate-x-1/2 -translate-y-1/2 touch-manipulation select-none"
+        className="pointer-events-auto absolute z-[16] -translate-x-1/2 -translate-y-1/2 cursor-grab touch-manipulation select-none active:cursor-grabbing"
         style={{ left: `${alert.leftPct}%`, top: `${alert.topPct}%` }}
         data-4663-radar-alert
         data-4663-radar-alert-event={alert.eventId}
@@ -93,23 +92,18 @@ export function RadarAlertObject({
         <article className="relative flex w-[10.5rem] flex-col items-stretch border border-neutral-300 bg-white shadow-sm sm:w-[11.5rem]">
           <PlayhtmlMoveHitFill />
           <header
-            className="relative z-[1] flex items-baseline justify-between gap-2 px-2 pt-2 cursor-grab active:cursor-grabbing"
+            className="pointer-events-none relative z-[1] flex items-baseline justify-between gap-2 px-2 pt-2"
             data-4663-radar-alert-header
             data-4663-radar-alert-drag
-            data-4663-playhtml-drag-handle="true"
           >
-            <span className="pointer-events-none font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
+            <span className="font-mono text-[10px] font-semibold leading-snug tracking-wide text-neutral-900 sm:text-[11px]">
               {RADAR_ALERT_COPY.title}
             </span>
             <RadarLaunchpadLabel launchpad={alert.launchpad} />
           </header>
           <div
-            ref={bodyRef}
-            className="relative z-[1] flex flex-col items-stretch gap-1.5 px-2 pt-1.5"
+            className="pointer-events-none relative z-[1] flex flex-col items-stretch gap-1.5 px-2 pt-1.5"
             data-4663-radar-alert-body
-            onPointerDown={stopPlayhtmlMoveStart}
-            onMouseDown={stopPlayhtmlMoveStart}
-            onTouchStart={stopPlayhtmlMoveStart}
           >
             <div
               className="pointer-events-none relative mx-auto h-[5.5rem] w-[5.5rem] sm:h-[6.5rem] sm:w-[6.5rem]"
