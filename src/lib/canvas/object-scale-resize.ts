@@ -51,6 +51,7 @@ export function objectScaleFromCornerDelta(input: {
 
 export type ObjectScaleResizeGesture = {
   pointerId: number;
+  objectId: string;
   startClientX: number;
   startClientY: number;
   startScale: number;
@@ -63,6 +64,7 @@ export type ObjectScaleResizeGesture = {
 
 export function beginObjectScaleResize(input: {
   pointerId: number;
+  objectId: string;
   clientX: number;
   clientY: number;
   scale: number;
@@ -74,6 +76,7 @@ export function beginObjectScaleResize(input: {
   const scale = clampObjectScale(input.scale, input.minScale, input.maxScale);
   return {
     pointerId: input.pointerId,
+    objectId: input.objectId,
     startClientX: input.clientX,
     startClientY: input.clientY,
     startScale: scale,
@@ -112,11 +115,13 @@ export function moveObjectScaleResize(
   gesture: ObjectScaleResizeGesture,
   input: {
     pointerId: number;
+    objectId?: string;
     deltaX: number;
     deltaY: number;
   },
 ): ObjectScaleResizeGesture | null {
   if (input.pointerId !== gesture.pointerId) return null;
+  if (input.objectId != null && input.objectId !== gesture.objectId) return null;
   return {
     ...gesture,
     scale: objectScaleFromPointer({
@@ -136,11 +141,15 @@ export function finishObjectScaleResize(
   input: {
     type: string;
     pointerId: number;
+    objectId?: string;
     deltaX: number;
     deltaY: number;
   },
 ): number {
   if (input.pointerId !== gesture.pointerId) return gesture.scale;
+  if (input.objectId != null && input.objectId !== gesture.objectId) {
+    return gesture.scale;
+  }
   if (input.type === "pointercancel") return gesture.scale;
   return objectScaleFromPointer({
     gesture,

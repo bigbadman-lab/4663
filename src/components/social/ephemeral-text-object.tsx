@@ -168,7 +168,8 @@ export function EphemeralTextObjectView({
           </div>
           {isOwner ? (
             <ObjectResizeHandle
-              hostSelector="[data-4663-ephemeral-text]"
+              objectId={text.textId}
+              hostSelector={`[data-4663-ephemeral-text="${text.textId}"]`}
               scale={text.fontScale}
               minScale={TEXT_FONT_SCALE_MIN}
               maxScale={TEXT_FONT_SCALE_MAX}

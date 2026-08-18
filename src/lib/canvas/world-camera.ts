@@ -134,6 +134,38 @@ export function screenPointToWorldPoint(
   };
 }
 
+/**
+ * Screen box of the painted world (`translate(-x*s, -y*s) scale(s)` at origin
+ * 0,0 inside the viewport). Ink overlays that fill the world must use this
+ * box — not a second camera conversion — so strokes land under the pointer.
+ */
+export function paintedWorldRectFromCamera(
+  viewport: ViewportRect,
+  camera: CanvasCamera,
+): ViewportRect {
+  const scale = normalizeCameraScale(camera.scale);
+  return {
+    left: viewport.left - camera.x * scale,
+    top: viewport.top - camera.y * scale,
+    width: WORLD_WIDTH_PX * scale,
+    height: WORLD_HEIGHT_PX * scale,
+  };
+}
+
+/** Inverse of the painted world box: local 0–1 of the world element → world px. */
+export function clientPointToWorldPointFromPaintedRect(
+  clientX: number,
+  clientY: number,
+  painted: ViewportRect,
+): WorldPoint {
+  const width = painted.width || 1;
+  const height = painted.height || 1;
+  return {
+    x: ((clientX - painted.left) / width) * WORLD_WIDTH_PX,
+    y: ((clientY - painted.top) / height) * WORLD_HEIGHT_PX,
+  };
+}
+
 export function worldPointToWorldPct(point: WorldPoint): WorldPct {
   return {
     leftPct: clampWorldPct((point.x / WORLD_WIDTH_PX) * 100),

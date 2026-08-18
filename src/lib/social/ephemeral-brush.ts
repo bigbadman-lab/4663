@@ -13,9 +13,12 @@ import {
   type DrawingColour,
 } from "@/lib/social/ephemeral-drawing";
 import {
-  DRAWING_ZONE_WIDTH_WORLD_PCT,
-  WORLD_WIDTH_PX,
   clampWorldPct,
+  clientPointToWorldPointFromPaintedRect,
+  DRAWING_ZONE_WIDTH_WORLD_PCT,
+  paintedWorldRectFromCamera,
+  WORLD_HEIGHT_PX,
+  WORLD_WIDTH_PX,
 } from "@/lib/canvas/world-camera";
 import {
   isUuid,
@@ -407,6 +410,20 @@ export function brushStrokeToSvgPoints(
     .join(" ");
 }
 
+/** Map a client point through the painted world box into world %. */
+export function clientPointToBrushWorldPctFromPaintedRect(
+  clientX: number,
+  clientY: number,
+  painted: { left: number; top: number; width: number; height: number } | null,
+): BrushPoint | null {
+  if (!painted || painted.width <= 0 || painted.height <= 0) return null;
+  const world = clientPointToWorldPointFromPaintedRect(clientX, clientY, painted);
+  return {
+    x: clampWorldPctLoose((world.x / WORLD_WIDTH_PX) * 100),
+    y: clampWorldPctLoose((world.y / WORLD_HEIGHT_PX) * 100),
+  };
+}
+
 /** Map a client point through the canonical camera into world %. */
 export function clientPointToBrushWorldPct(
   clientX: number,
@@ -423,6 +440,16 @@ export function clientPointToBrushWorldPct(
   } | null,
 ): BrushPoint | null {
   if (!snapshot) return null;
+  const painted = paintedWorldRectFromCamera(
+    snapshot.viewport,
+    snapshot.camera,
+  );
+  const fromPainted = clientPointToBrushWorldPctFromPaintedRect(
+    clientX,
+    clientY,
+    painted,
+  );
+  if (fromPainted) return fromPainted;
   const pct = screenPointToWorldPctFn(
     clientX,
     clientY,

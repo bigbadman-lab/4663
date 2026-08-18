@@ -12,7 +12,7 @@ import {
   INTERACTIVE_CANVAS_TARGET_SELECTOR,
   isInteractiveCanvasTarget,
 } from "@/lib/canvas/interactive-control";
-import { objectScaleFromCornerDelta } from "@/lib/canvas/object-scale-resize";
+import { objectScaleFromCornerDelta, beginObjectScaleResize, finishObjectScaleResize, moveObjectScaleResize } from "@/lib/canvas/object-scale-resize";
 import { shouldBeginPlayhtmlMoveForeground } from "@/lib/canvas/playhtml-move-interaction";
 import { isCanvasPanHitTarget, WORLD_HEIGHT_PX, WORLD_WIDTH_PX } from "@/lib/canvas/world-camera";
 import {
@@ -35,12 +35,14 @@ import {
   drawingHeightPctFromAspect,
   drawingObjectScaleLimits,
   normalizeEphemeralDrawingObject,
+  playhtmlDrawingElementId,
   resizeEphemeralDrawing,
   upsertEphemeralDrawing,
 } from "@/lib/social/ephemeral-drawing";
 import {
   createEphemeralTextObject,
   normalizeEphemeralTextObject,
+  playhtmlTextElementId,
   resizeEphemeralText,
   TEXT_FONT_SCALE_DEFAULT,
   TEXT_FONT_SCALE_MAX,
@@ -621,10 +623,14 @@ describe("TEXT/DRAW resize chrome", () => {
       "src/components/social/ephemeral-drawing-object.tsx",
     );
     const handle = readSrc("src/components/canvas/object-resize-handle.tsx");
-    assert.ok(text.includes('hostSelector="[data-4663-ephemeral-text]"'));
+    assert.ok(text.includes('hostSelector={`[data-4663-ephemeral-text="${text.textId}"]`}'));
     assert.ok(
-      drawing.includes('hostSelector="[data-4663-ephemeral-drawing]"'),
+      drawing.includes(
+        'hostSelector={`[data-4663-ephemeral-drawing="${drawing.drawingId}"]`}',
+      ),
     );
+    assert.ok(text.includes("objectId={text.textId}"));
+    assert.ok(drawing.includes("objectId={drawing.drawingId}"));
     assert.equal(text.includes("hostSelector={`#"), false);
     assert.equal(drawing.includes("hostSelector={`#"), false);
     assert.ok(handle.includes("the id starts with a digit"));
@@ -687,5 +693,297 @@ describe("TEXT/DRAW resize chrome", () => {
     let texts = upsertEphemeralText({ texts: [] }, textA);
     texts = resizeEphemeralText(texts, textA.textId, 2);
     assert.equal(texts.texts[0]?.fontScale, 2);
+  });
+});
+
+describe("TEXT/DRAW multi-object isolation", () => {
+  const TEXT_B = "8c9e6679-7425-40de-944b-e07fc1f90ae8";
+  const TEXT_C = "9c9e6679-7425-40de-944b-e07fc1f90ae9";
+  const DRAW_B = "ac9e6679-7425-40de-944b-e07fc1f90aea";
+  const DRAW_C = "bc9e6679-7425-40de-944b-e07fc1f90aeb";
+
+  function textAt(id: string, leftPct: number, topPct: number) {
+    const created = createEphemeralTextObject({
+      body: id.slice(0, 8),
+      ownerSessionId: OWNER_A,
+      leftPct,
+      topPct,
+      randomUUID: () => id,
+      now: () => new Date("2026-08-18T00:00:00.000Z"),
+    });
+    assert.equal(created.ok, true);
+    if (!created.ok) throw new Error("expected text");
+    return created.text;
+  }
+
+  function drawingAt(
+    id: string,
+    leftPct: number,
+    topPct: number,
+    strokes = [stroke],
+  ) {
+    const created = createEphemeralDrawingObject({
+      drawingId: id,
+      ownerSessionId: OWNER_A,
+      strokes,
+      leftPct,
+      topPct,
+      widthPct: 4,
+      heightPct: 3,
+      aspectRatio: 1.5,
+      now: () => new Date("2026-08-18T00:00:00.000Z"),
+    });
+    assert.equal(created.ok, true);
+    if (!created.ok) throw new Error("expected drawing");
+    return created.drawing;
+  }
+
+  it("TEXT A/B/C resize and move stay isolated; order is preserved", () => {
+    const a = textAt(TEXT_A, 10, 10);
+    const b = textAt(TEXT_B, 30, 12);
+    const c = textAt(TEXT_C, 50, 14);
+    let data = upsertEphemeralText(
+      upsertEphemeralText(upsertEphemeralText({ texts: [] }, a), b),
+      c,
+    );
+    const ids = () => data.texts.map((t) => t.textId);
+
+    data = resizeEphemeralText(data, a.textId, 2);
+    assert.deepEqual(ids(), [TEXT_A, TEXT_B, TEXT_C]);
+    assert.equal(data.texts[0]?.fontScale, 2);
+    assert.equal(data.texts[1]?.fontScale, 1);
+    assert.equal(data.texts[2]?.fontScale, 1);
+
+    data = resizeEphemeralText(data, b.textId, 1.5);
+    assert.equal(data.texts[0]?.fontScale, 2);
+    assert.equal(data.texts[1]?.fontScale, 1.5);
+    assert.equal(data.texts[2]?.fontScale, 1);
+
+    data = resizeEphemeralText(data, c.textId, 0.8);
+    assert.equal(data.texts[0]?.fontScale, 2);
+    assert.equal(data.texts[1]?.fontScale, 1.5);
+    assert.equal(data.texts[2]?.fontScale, 0.8);
+
+    // Move is origin-only; sibling scales stay put.
+    data = upsertEphemeralText(data, { ...data.texts[0]!, leftPct: 18, topPct: 22 });
+    assert.equal(data.texts[0]?.leftPct, 18);
+    assert.equal(data.texts[1]?.leftPct, 30);
+    assert.equal(data.texts[2]?.leftPct, 50);
+    assert.equal(data.texts[1]?.fontScale, 1.5);
+
+    data = upsertEphemeralText(data, { ...data.texts[1]!, leftPct: 36, topPct: 40 });
+    assert.equal(data.texts[0]?.leftPct, 18);
+    assert.equal(data.texts[1]?.leftPct, 36);
+    assert.equal(data.texts[2]?.leftPct, 50);
+
+    // Resize A after interacting with B still changes only A.
+    data = resizeEphemeralText(data, a.textId, 2.5);
+    assert.equal(data.texts[0]?.fontScale, 2.5);
+    assert.equal(data.texts[1]?.fontScale, 1.5);
+    assert.equal(data.texts[1]?.leftPct, 36);
+
+    // Movement after resize / resize after movement.
+    data = upsertEphemeralText(data, { ...data.texts[0]!, leftPct: 12, topPct: 16 });
+    data = resizeEphemeralText(data, a.textId, 1.2);
+    assert.equal(data.texts[0]?.leftPct, 12);
+    assert.equal(data.texts[0]?.fontScale, 1.2);
+    assert.equal(data.texts[1]?.fontScale, 1.5);
+    assert.deepEqual(ids(), [TEXT_A, TEXT_B, TEXT_C]);
+  });
+
+  it("DRAW A/B/C resize and move stay isolated; strokes/AABB stay with owner", () => {
+    const strokeB = {
+      colour: "#171717" as const,
+      points: [
+        { x: 0.1, y: 0.9 },
+        { x: 0.9, y: 0.1 },
+      ],
+    };
+    const a = drawingAt(DRAW_A, 12, 20);
+    const b = drawingAt(DRAW_B, 28, 22, [strokeB]);
+    const c = drawingAt(DRAW_C, 44, 24);
+    let data = upsertEphemeralDrawing(
+      upsertEphemeralDrawing(upsertEphemeralDrawing({ drawings: [] }, a), b),
+      c,
+    );
+    const ids = () => data.drawings.map((d) => d.drawingId);
+
+    data = resizeEphemeralDrawing(data, a.drawingId, 2);
+    assert.deepEqual(ids(), [DRAW_A, DRAW_B, DRAW_C]);
+    assert.equal(data.drawings[0]?.scale, 2);
+    assert.equal(data.drawings[1]?.scale, 1);
+    assert.equal(data.drawings[2]?.scale, 1);
+    assert.deepEqual(data.drawings[1]?.strokes, [strokeB]);
+
+    data = resizeEphemeralDrawing(data, b.drawingId, 1.4);
+    assert.equal(data.drawings[0]?.scale, 2);
+    assert.equal(data.drawings[1]?.scale, 1.4);
+    assert.deepEqual(data.drawings[0]?.strokes, [stroke]);
+
+    data = upsertEphemeralDrawing(data, {
+      ...data.drawings[0]!,
+      leftPct: 15,
+      topPct: 30,
+    });
+    assert.equal(data.drawings[0]?.leftPct, 15);
+    assert.equal(data.drawings[1]?.leftPct, 28);
+    assert.equal(data.drawings[1]?.scale, 1.4);
+
+    data = upsertEphemeralDrawing(data, {
+      ...data.drawings[1]!,
+      leftPct: 33,
+      topPct: 35,
+    });
+    assert.equal(data.drawings[0]?.leftPct, 15);
+    assert.equal(data.drawings[1]?.leftPct, 33);
+    assert.equal(data.drawings[0]?.scale, 2);
+
+    const displayA = drawingDisplaySize(data.drawings[0]!);
+    const displayB = drawingDisplaySize(data.drawings[1]!);
+    assert.ok(displayA.widthPct !== displayB.widthPct);
+    const hostA = drawingVisibleRect({
+      left: data.drawings[0]!.leftPct,
+      top: data.drawings[0]!.topPct,
+      width: displayA.widthPct,
+      height: displayA.heightPct,
+    });
+    const hostB = drawingVisibleRect({
+      left: data.drawings[1]!.leftPct,
+      top: data.drawings[1]!.topPct,
+      width: displayB.widthPct,
+      height: displayB.heightPct,
+    });
+    assert.equal(hostMatchesVisible(hostA, hostA), true);
+    assert.equal(hostMatchesVisible(hostB, hostB), true);
+  });
+
+  it("mixed TEXT/DRAW alternating ops never cross-mutate", () => {
+    const textA = textAt(TEXT_A, 10, 10);
+    const drawA = drawingAt(DRAW_A, 20, 20);
+    const textB = textAt(TEXT_B, 40, 10);
+    const drawB = drawingAt(DRAW_B, 50, 20);
+    let texts = upsertEphemeralText(upsertEphemeralText({ texts: [] }, textA), textB);
+    let drawings = upsertEphemeralDrawing(
+      upsertEphemeralDrawing({ drawings: [] }, drawA),
+      drawB,
+    );
+
+    texts = resizeEphemeralText(texts, textA.textId, 2);
+    drawings = upsertEphemeralDrawing(drawings, {
+      ...drawings.drawings[0]!,
+      leftPct: 22,
+    });
+    texts = upsertEphemeralText(texts, { ...texts.texts[1]!, leftPct: 44 });
+    drawings = resizeEphemeralDrawing(drawings, drawB.drawingId, 1.8);
+    texts = resizeEphemeralText(texts, textB.textId, 1.3);
+    drawings = upsertEphemeralDrawing(drawings, {
+      ...drawings.drawings[1]!,
+      leftPct: 55,
+    });
+    texts = upsertEphemeralText(texts, { ...texts.texts[0]!, leftPct: 11 });
+    drawings = resizeEphemeralDrawing(drawings, drawA.drawingId, 1.1);
+
+    assert.equal(texts.texts.find((t) => t.textId === TEXT_A)?.fontScale, 2);
+    assert.equal(texts.texts.find((t) => t.textId === TEXT_A)?.leftPct, 11);
+    assert.equal(texts.texts.find((t) => t.textId === TEXT_B)?.fontScale, 1.3);
+    assert.equal(texts.texts.find((t) => t.textId === TEXT_B)?.leftPct, 44);
+    assert.equal(drawings.drawings.find((d) => d.drawingId === DRAW_A)?.scale, 1.1);
+    assert.equal(drawings.drawings.find((d) => d.drawingId === DRAW_A)?.leftPct, 22);
+    assert.equal(drawings.drawings.find((d) => d.drawingId === DRAW_B)?.scale, 1.8);
+    assert.equal(drawings.drawings.find((d) => d.drawingId === DRAW_B)?.leftPct, 55);
+  });
+
+  it("rapid object switch and pointercancel keep sessions bound to initiator", () => {
+    const sessionA = beginObjectScaleResize({
+      pointerId: 11,
+      objectId: TEXT_A,
+      clientX: 10,
+      clientY: 10,
+      scale: 1,
+      widthPx: 80,
+      heightPx: 40,
+      minScale: 0.5,
+      maxScale: 4,
+    });
+    assert.equal(
+      moveObjectScaleResize(sessionA, {
+        pointerId: 11,
+        objectId: TEXT_B,
+        deltaX: 40,
+        deltaY: 20,
+      }),
+      null,
+    );
+    const cancelled = finishObjectScaleResize(sessionA, {
+      type: "pointercancel",
+      pointerId: 11,
+      objectId: TEXT_A,
+      deltaX: 0,
+      deltaY: 0,
+    });
+    assert.equal(cancelled, 1);
+
+    const sessionB = beginObjectScaleResize({
+      pointerId: 12,
+      objectId: TEXT_B,
+      clientX: 40,
+      clientY: 40,
+      scale: 1,
+      widthPx: 80,
+      heightPx: 40,
+      minScale: 0.5,
+      maxScale: 4,
+    });
+    const movedB = moveObjectScaleResize(sessionB, {
+      pointerId: 12,
+      objectId: TEXT_B,
+      deltaX: 80,
+      deltaY: 40,
+    });
+    assert.equal(movedB?.objectId, TEXT_B);
+    assert.equal(movedB?.scale, 2);
+    assert.equal(sessionA.objectId, TEXT_A);
+    assert.equal(sessionA.scale, 1);
+  });
+
+  it("PlayHTML ids, keys, and resize handles are unique per instance", () => {
+    assert.notEqual(playhtmlTextElementId(TEXT_A), playhtmlTextElementId(TEXT_B));
+    assert.notEqual(
+      playhtmlDrawingElementId(DRAW_A),
+      playhtmlDrawingElementId(DRAW_B),
+    );
+    const text = readSrc("src/components/social/ephemeral-text-object.tsx");
+    const drawing = readSrc("src/components/social/ephemeral-drawing-object.tsx");
+    const layer = readSrc("src/components/social/ephemeral-text-layer.tsx");
+    const handle = readSrc("src/components/canvas/object-resize-handle.tsx");
+    const move = readSrc("src/components/canvas/use-playhtml-move-foreground.ts");
+    assert.ok(text.includes("key={text.textId}") === false);
+    assert.ok(layer.includes("key={text.textId}"));
+    assert.ok(layer.includes("key={drawing.drawingId}"));
+    assert.ok(layer.includes("pageDataRef.current = normalized"));
+    assert.ok(layer.includes("drawingsPageDataRef.current = normalized"));
+    assert.ok(handle.includes("objectId: objectIdRef.current"));
+    assert.ok(handle.includes("setPointerCapture"));
+    assert.ok(handle.includes("releasePointerCapture"));
+    assert.ok(handle.includes("pointercancel"));
+    assert.ok(move.includes("event.currentTarget"));
+    assert.equal(move.includes("querySelector("), false);
+    assert.ok(text.includes("data-4663-ephemeral-text={text.textId}"));
+    assert.ok(drawing.includes("data-4663-ephemeral-drawing={drawing.drawingId}"));
+    const nearby = drawingVisibleRect({ left: 10, top: 10, width: 8, height: 6 });
+    const neighbour = drawingVisibleRect({
+      left: 18.5,
+      top: 10,
+      width: 6,
+      height: 6,
+    });
+    assert.equal(
+      canvasObjectOverlapHit({
+        object: nearby,
+        other: neighbour,
+        point: { x: 20, y: 13 },
+      }),
+      "other",
+    );
   });
 });

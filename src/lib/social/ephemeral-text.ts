@@ -207,8 +207,13 @@ export function upsertEphemeralText(
   data: EphemeralTextsPageData,
   text: EphemeralTextObject,
 ): EphemeralTextsPageData {
-  const without = data.texts.filter((t) => t.textId !== text.textId);
-  return { texts: [...without, text] };
+  const index = data.texts.findIndex((t) => t.textId === text.textId);
+  if (index === -1) {
+    return { texts: [...data.texts, text] };
+  }
+  const texts = data.texts.slice();
+  texts[index] = text;
+  return { texts };
 }
 
 export function resizeEphemeralText(

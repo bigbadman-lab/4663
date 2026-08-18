@@ -50,6 +50,7 @@ describe("object scale resize session", () => {
   it("pointerup commits the final sample; pointercancel keeps last move", () => {
     const gesture = beginObjectScaleResize({
       pointerId: 4,
+      objectId: "text-a",
       clientX: 200,
       clientY: 200,
       scale: 1,
@@ -86,6 +87,7 @@ describe("object scale resize session", () => {
   it("ignores a mismatched pointer id", () => {
     const gesture = beginObjectScaleResize({
       pointerId: 1,
+      objectId: "text-a",
       clientX: 0,
       clientY: 0,
       scale: 1,
@@ -107,5 +109,46 @@ describe("object scale resize session", () => {
       }),
       1,
     );
+  });
+
+  it("pointermove for a different objectId does not mutate the session", () => {
+    const gesture = beginObjectScaleResize({
+      pointerId: 7,
+      objectId: "draw-a",
+      clientX: 10,
+      clientY: 10,
+      scale: 1,
+      widthPx: 80,
+      heightPx: 40,
+      minScale: 0.5,
+      maxScale: 4,
+    });
+    assert.equal(
+      moveObjectScaleResize(gesture, {
+        pointerId: 7,
+        objectId: "draw-b",
+        deltaX: 80,
+        deltaY: 40,
+      }),
+      null,
+    );
+    assert.equal(
+      finishObjectScaleResize(gesture, {
+        type: "pointerup",
+        pointerId: 7,
+        objectId: "draw-b",
+        deltaX: 80,
+        deltaY: 40,
+      }),
+      1,
+    );
+    const own = moveObjectScaleResize(gesture, {
+      pointerId: 7,
+      objectId: "draw-a",
+      deltaX: 80,
+      deltaY: 40,
+    });
+    assert.equal(own?.objectId, "draw-a");
+    assert.equal(own?.scale, 2);
   });
 });

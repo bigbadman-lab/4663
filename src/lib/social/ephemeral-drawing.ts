@@ -558,10 +558,15 @@ export function upsertEphemeralDrawing(
   data: EphemeralDrawingsPageData,
   drawing: EphemeralDrawingObject,
 ): EphemeralDrawingsPageData {
-  const without = data.drawings.filter(
-    (d) => d.drawingId !== drawing.drawingId,
+  const index = data.drawings.findIndex(
+    (d) => d.drawingId === drawing.drawingId,
   );
-  return { drawings: [...without, drawing] };
+  if (index === -1) {
+    return { drawings: [...data.drawings, drawing] };
+  }
+  const drawings = data.drawings.slice();
+  drawings[index] = drawing;
+  return { drawings };
 }
 
 export function resizeEphemeralDrawing(

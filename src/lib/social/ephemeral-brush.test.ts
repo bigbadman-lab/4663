@@ -28,6 +28,7 @@ import {
   BRUSH_POINT_MIN_DELTA_WORLD_PCT,
   BRUSH_STROKE_WIDTH_WORLD_PX,
   clientPointToBrushWorldPct,
+  clientPointToBrushWorldPctFromPaintedRect,
   commitBrushPublish,
   countBrushPoints,
   createEphemeralBrushDocument,
@@ -54,7 +55,11 @@ import {
   DRAWING_MAX_TOTAL_POINTS,
 } from "@/lib/social/ephemeral-drawing";
 import {
+  homeCameraForViewport,
+  paintedWorldRectFromCamera,
   screenPointToWorldPct,
+  WORLD_HEIGHT_PX,
+  WORLD_WIDTH_PX,
   type CanvasCamera,
   type ViewportRect,
 } from "@/lib/canvas/world-camera";
@@ -168,6 +173,106 @@ describe("Social 3B BRUSH data model", () => {
     );
     assert.ok(panned);
     assert.notEqual(panned!.x, point!.x);
+  });
+
+  it("BRUSH pointer mapping: HOME / pan / scale, no horizontal offset, sequential points", () => {
+    const viewport: ViewportRect = {
+      left: 96,
+      top: 24,
+      width: 1440,
+      height: 900,
+    };
+    const home = homeCameraForViewport(viewport.width, viewport.height);
+    const panned: CanvasCamera = {
+      ...home,
+      x: home.x + 240,
+      y: home.y - 80,
+    };
+    const scaled: CanvasCamera = { ...home, scale: 1.5 };
+    const cameras = { HOME: home, PANNED: panned, SCALED: scaled };
+
+    function samplesFor(camera: CanvasCamera) {
+      return [
+        {
+          name: "centre",
+          clientX: viewport.left + viewport.width / 2,
+          clientY: viewport.top + viewport.height / 2,
+        },
+        {
+          name: "left",
+          clientX: viewport.left + 40,
+          clientY: viewport.top + viewport.height / 2,
+        },
+        {
+          name: "right",
+          clientX: viewport.left + viewport.width - 40,
+          clientY: viewport.top + viewport.height / 2,
+        },
+        {
+          name: "top",
+          clientX: viewport.left + viewport.width / 2,
+          clientY: viewport.top + 30,
+        },
+        {
+          name: "bottom",
+          clientX: viewport.left + viewport.width / 2,
+          clientY: viewport.top + viewport.height - 30,
+        },
+      ].map((sample) => {
+        const painted = paintedWorldRectFromCamera(viewport, camera);
+        const stored = clientPointToBrushWorldPctFromPaintedRect(
+          sample.clientX,
+          sample.clientY,
+          painted,
+        );
+        assert.ok(stored, sample.name);
+        const viaCamera = clientPointToBrushWorldPct(
+          sample.clientX,
+          sample.clientY,
+          screenPointToWorldPct,
+          { viewport, camera },
+        );
+        assert.ok(viaCamera);
+        assert.ok(Math.abs(stored!.x - viaCamera!.x) < 1e-9);
+        assert.ok(Math.abs(stored!.y - viaCamera!.y) < 1e-9);
+        const renderedX = painted.left + (stored!.x / 100) * painted.width;
+        const renderedY = painted.top + (stored!.y / 100) * painted.height;
+        assert.ok(
+          Math.abs(renderedX - sample.clientX) < 1e-6,
+          `${sample.name} x offset ${renderedX - sample.clientX}`,
+        );
+        assert.ok(
+          Math.abs(renderedY - sample.clientY) < 1e-6,
+          `${sample.name} y offset ${renderedY - sample.clientY}`,
+        );
+        return stored!;
+      });
+    }
+
+    for (const [label, camera] of Object.entries(cameras)) {
+      const points = samplesFor(camera);
+      assert.equal(points.length, 5, label);
+      // Sequential points stay under the pointer (no accumulating X drift).
+      const painted = paintedWorldRectFromCamera(viewport, camera);
+      const stroke = [
+        { clientX: viewport.left + 200, clientY: viewport.top + 300 },
+        { clientX: viewport.left + 260, clientY: viewport.top + 310 },
+        { clientX: viewport.left + 320, clientY: viewport.top + 305 },
+      ];
+      for (const sample of stroke) {
+        const stored = clientPointToBrushWorldPctFromPaintedRect(
+          sample.clientX,
+          sample.clientY,
+          painted,
+        );
+        assert.ok(stored);
+        const renderedX = painted.left + (stored!.x / 100) * painted.width;
+        assert.ok(Math.abs(renderedX - sample.clientX) < 1e-6);
+      }
+    }
+
+    assert.equal(WORLD_WIDTH_PX, 4800);
+    assert.equal(WORLD_HEIGHT_PX, 3200);
   });
 
   it("session-owned upsert merges strokes; owners stay isolated", () => {

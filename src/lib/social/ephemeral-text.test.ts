@@ -187,4 +187,32 @@ describe("Social 2A ephemeral text helpers", () => {
     assert.equal(joined.texts.length, 1);
     assert.equal(joined.texts[0]?.body, "already here");
   });
+
+  it("upsert updates in place and does not reorder siblings", () => {
+    const a = createEphemeralTextObject({
+      body: "alex",
+      ownerSessionId: OWNER_A,
+      leftPct: 10,
+      topPct: 10,
+      randomUUID: () => TEXT_A,
+      now: () => new Date("2026-08-13T00:00:00.000Z"),
+    });
+    const bId = "8c9e6679-7425-40de-944b-e07fc1f90ae8";
+    const b = createEphemeralTextObject({
+      body: "bob",
+      ownerSessionId: OWNER_B,
+      leftPct: 20,
+      topPct: 20,
+      randomUUID: () => bId,
+      now: () => new Date("2026-08-13T00:01:00.000Z"),
+    });
+    assert.equal(a.ok && b.ok, true);
+    if (!a.ok || !b.ok) return;
+    let data = upsertEphemeralText(upsertEphemeralText({ texts: [] }, a.text), b.text);
+    data = upsertEphemeralText(data, { ...a.text, fontScale: 2 });
+    assert.equal(data.texts[0]?.textId, TEXT_A);
+    assert.equal(data.texts[0]?.fontScale, 2);
+    assert.equal(data.texts[1]?.textId, bId);
+    assert.equal(data.texts[1]?.body, "bob");
+  });
 });

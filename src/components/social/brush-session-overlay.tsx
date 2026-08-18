@@ -2,7 +2,7 @@
 
 /**
  * Armed BRUSH session — full-world draw surface + fixed-in-viewport tools.
- * Points sampled via screen → world % (canonical camera). Pan blocked by createUi.
+ * Points sampled from the painted overlay rect (same space the SVG occupies).
  */
 
 import {
@@ -12,23 +12,21 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { BrushStrokesSvg } from "@/components/social/brush-strokes-svg";
-import { getCanvasPlacementSnapshot } from "@/components/canvas/use-canvas-camera";
-import { screenPointToWorldPct } from "@/lib/canvas/world-camera";
+import { isUsableCanvasPointer } from "@/lib/canvas/canvas-pan-gesture";
+import { isInteractiveCanvasControlTarget } from "@/lib/canvas/interactive-control";
 import { brushDraftCanPublish } from "@/lib/social/brush-draft";
 import {
   BRUSH_COLOURS,
   BRUSH_MAX_POINTS_PER_STROKE,
   BRUSH_MAX_STROKES,
   DEFAULT_BRUSH_COLOUR,
-  clientPointToBrushWorldPct,
+  clientPointToBrushWorldPctFromPaintedRect,
   resolveBrushDoneIntent,
   shouldAppendBrushPoint,
   type BrushColour,
   type BrushPoint,
   type BrushStroke,
 } from "@/lib/social/ephemeral-brush";
-import { isUsableCanvasPointer } from "@/lib/canvas/canvas-pan-gesture";
-import { isInteractiveCanvasControlTarget } from "@/lib/canvas/interactive-control";
 
 export type BrushSessionOverlayProps = {
   draftBrushId: string;
@@ -55,7 +53,9 @@ export function BrushSessionOverlay({
   const strokesRef = useRef<BrushStroke[]>([]);
 
   const drawingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const activePointsRef = useRef<BrushPoint[]>([]);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   const emitStrokes = (next: BrushStroke[]) => {
     setStrokes(next);
@@ -66,13 +66,15 @@ export function BrushSessionOverlay({
   const pointerToWorld = (
     clientX: number,
     clientY: number,
-  ): BrushPoint | null =>
-    clientPointToBrushWorldPct(
+  ): BrushPoint | null => {
+    const el = surfaceRef.current;
+    if (!el) return null;
+    return clientPointToBrushWorldPctFromPaintedRect(
       clientX,
       clientY,
-      screenPointToWorldPct,
-      getCanvasPlacementSnapshot(),
+      el.getBoundingClientRect(),
     );
+  };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isUsableCanvasPointer(event)) return;
@@ -84,6 +86,7 @@ export function BrushSessionOverlay({
     if (strokesRef.current.length >= BRUSH_MAX_STROKES) return;
 
     drawingRef.current = true;
+    activePointerIdRef.current = event.pointerId;
     activePointsRef.current = [point];
     event.currentTarget.setPointerCapture(event.pointerId);
 
@@ -95,6 +98,7 @@ export function BrushSessionOverlay({
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drawingRef.current) return;
+    if (activePointerIdRef.current !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
     const point = pointerToWorld(event.clientX, event.clientY);
@@ -117,6 +121,7 @@ export function BrushSessionOverlay({
 
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drawingRef.current) return;
+    if (activePointerIdRef.current !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
     try {
@@ -125,13 +130,16 @@ export function BrushSessionOverlay({
       // ignore
     }
     drawingRef.current = false;
+    activePointerIdRef.current = null;
     activePointsRef.current = [];
     onStrokesChange(strokesRef.current);
   };
 
   const onPointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drawingRef.current) return;
+    if (activePointerIdRef.current !== event.pointerId) return;
     drawingRef.current = false;
+    activePointerIdRef.current = null;
     activePointsRef.current = [];
     const next = strokesRef.current.slice(0, -1);
     emitStrokes(next);
@@ -145,6 +153,7 @@ export function BrushSessionOverlay({
   const undo = () => {
     if (drawingRef.current) {
       drawingRef.current = false;
+      activePointerIdRef.current = null;
       activePointsRef.current = [];
     }
     emitStrokes(strokesRef.current.slice(0, -1));
@@ -152,12 +161,14 @@ export function BrushSessionOverlay({
 
   const clear = () => {
     drawingRef.current = false;
+    activePointerIdRef.current = null;
     activePointsRef.current = [];
     emitStrokes([]);
   };
 
   const done = () => {
     drawingRef.current = false;
+    activePointerIdRef.current = null;
     activePointsRef.current = [];
     const finalStrokes = strokesRef.current;
     if (resolveBrushDoneIntent(finalStrokes) !== "publish") return;
@@ -169,6 +180,7 @@ export function BrushSessionOverlay({
       if (event.key !== "Escape") return;
       event.preventDefault();
       drawingRef.current = false;
+      activePointerIdRef.current = null;
       activePointsRef.current = [];
       const finalStrokes = strokesRef.current;
       if (brushDraftCanPublish(finalStrokes)) {
@@ -191,6 +203,7 @@ export function BrushSessionOverlay({
       data-4663-snapshot-exclude=""
     >
       <div
+        ref={surfaceRef}
         className="pointer-events-auto absolute inset-0 touch-none"
         style={{
           cursor: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='3.5' fill='none' stroke='%23171717' stroke-width='1.5'/%3E%3C/svg%3E") 8 8, crosshair`,
@@ -285,6 +298,7 @@ export function BrushSessionOverlay({
               data-4663-interactive-control="true"
               onClick={() => {
                 drawingRef.current = false;
+                activePointerIdRef.current = null;
                 activePointsRef.current = [];
                 onToggleExit(strokesRef.current);
               }}

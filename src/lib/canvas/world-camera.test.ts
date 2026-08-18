@@ -8,6 +8,7 @@ import {
   CANVAS_PAN_DRAG_THRESHOLD_PX,
   camerasApproximatelyEqual,
   clampCamera,
+  clientPointToWorldPointFromPaintedRect,
   dockCreateWorldPct,
   DRAWING_ZONE_WIDTH_WORLD_PCT,
   HOME_REGION_HEIGHT_PX,
@@ -17,10 +18,12 @@ import {
   homeCameraForViewport,
   initialHomeCameraForViewport,
   isCanvasPanHitTarget,
+  paintedWorldRectFromCamera,
   panCamera,
   PLAYHTML_CANVAS_BOUNDS_ID,
   PLAYHTML_WORLD_BOUNDS_ID,
   screenPointToWorldPct,
+  screenPointToWorldPoint,
   WORLD_HEIGHT_PX,
   WORLD_WIDTH_PX,
 } from "@/lib/canvas/world-camera";
@@ -138,5 +141,33 @@ describe("Stage IC1 world + camera helpers", () => {
     );
     assert.ok(dock.leftPct > 0);
     assert.ok(DRAWING_ZONE_WIDTH_WORLD_PCT < 10);
+  });
+
+  it("painted world rect matches camera screen→world (no double translate)", () => {
+    const viewport = { left: 80, top: 40, width: 1440, height: 900 };
+    const camera = { x: 1680, y: 1150, scale: 1.25 };
+    const painted = paintedWorldRectFromCamera(viewport, camera);
+    const samples = [
+      { clientX: viewport.left + 720, clientY: viewport.top + 450 },
+      { clientX: viewport.left + 40, clientY: viewport.top + 450 },
+      { clientX: viewport.left + 1400, clientY: viewport.top + 450 },
+      { clientX: viewport.left + 720, clientY: viewport.top + 20 },
+      { clientX: viewport.left + 720, clientY: viewport.top + 880 },
+    ];
+    for (const sample of samples) {
+      const fromCamera = screenPointToWorldPoint(
+        sample.clientX,
+        sample.clientY,
+        viewport,
+        camera,
+      );
+      const fromPainted = clientPointToWorldPointFromPaintedRect(
+        sample.clientX,
+        sample.clientY,
+        painted,
+      );
+      assert.ok(Math.abs(fromCamera.x - fromPainted.x) < 1e-9);
+      assert.ok(Math.abs(fromCamera.y - fromPainted.y) < 1e-9);
+    }
   });
 });

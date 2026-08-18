@@ -73,9 +73,14 @@ describe("Social 3B BRUSH UI wiring", () => {
     assert.ok(overlay.includes("Escape"));
     assert.ok(overlay.includes("data-4663-brush-toggle"));
     assert.ok(overlay.includes("onToggleExit"));
-    assert.ok(overlay.includes("screenPointToWorldPct"));
-    assert.ok(overlay.includes("getCanvasPlacementSnapshot"));
-    assert.ok(overlay.includes("clientPointToBrushWorldPct"));
+    assert.ok(overlay.includes("clientPointToBrushWorldPctFromPaintedRect"));
+    assert.ok(overlay.includes("getBoundingClientRect"));
+    assert.ok(overlay.includes("surfaceRef"));
+    assert.equal(overlay.includes("getCanvasPlacementSnapshot"), false);
+    assert.equal(overlay.includes("screenPointToWorldPct"), false);
+    assert.ok(overlay.includes("isUsableCanvasPointer"));
+    assert.ok(overlay.includes("activePointerIdRef"));
+    assert.equal(overlay.includes("navigator.userAgent"), false);
   });
 
   it("live brush drafts use dedicated broadcast events", () => {

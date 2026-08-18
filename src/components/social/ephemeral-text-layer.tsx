@@ -335,11 +335,15 @@ export function EphemeralTextLayer() {
   const tokens = normalizeCanvasTokensPageData(tokensPageData).tokens;
 
   const writePageData = (next: EphemeralTextsPageData) => {
-    setPageDataRef.current(normalizeEphemeralTextsPageData(next));
+    const normalized = normalizeEphemeralTextsPageData(next);
+    pageDataRef.current = normalized;
+    setPageDataRef.current(normalized);
   };
 
   const writeDrawingsPageData = (next: EphemeralDrawingsPageData) => {
-    setDrawingsPageDataRef.current(normalizeEphemeralDrawingsPageData(next));
+    const normalized = normalizeEphemeralDrawingsPageData(next);
+    drawingsPageDataRef.current = normalized;
+    setDrawingsPageDataRef.current(normalized);
   };
 
   const writeBrushPageData = (next: EphemeralBrushPageData) => {

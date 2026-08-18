@@ -108,7 +108,8 @@ export function EphemeralDrawingObjectView({
           ) : null}
           {isOwner ? (
             <ObjectResizeHandle
-              hostSelector="[data-4663-ephemeral-drawing]"
+              objectId={drawing.drawingId}
+              hostSelector={`[data-4663-ephemeral-drawing="${drawing.drawingId}"]`}
               scale={display.scale}
               minScale={scaleLimits.min}
               maxScale={scaleLimits.max}

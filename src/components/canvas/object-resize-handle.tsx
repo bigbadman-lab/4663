@@ -21,10 +21,12 @@ import {
 import { screenPointToWorldPoint } from "@/lib/canvas/world-camera";
 
 export type ObjectResizeHandleProps = {
+  /** Unique object identity for this resize session. Defaults to hostSelector. */
+  objectId?: string;
   /**
    * CSS selector for the PlayHTML host. Must be an attribute selector
    * (`[data-4663-…]`). `#4663-…` is not a valid CSS id selector because
-   * the id starts with a digit.
+   * the id starts with a digit. Must uniquely identify this object.
    */
   hostSelector: string;
   scale: number;
@@ -42,6 +44,7 @@ function stopNativeMoveStart(event: Event): void {
 }
 
 export function ObjectResizeHandle({
+  objectId,
   hostSelector,
   scale,
   minScale,
@@ -57,6 +60,7 @@ export function ObjectResizeHandle({
   const maxScaleRef = useRef(maxScale);
   const onResizeRef = useRef(onResize);
   const hostSelectorRef = useRef(hostSelector);
+  const objectIdRef = useRef(objectId ?? hostSelector);
 
   useEffect(() => {
     scaleRef.current = scale;
@@ -64,7 +68,8 @@ export function ObjectResizeHandle({
     maxScaleRef.current = maxScale;
     onResizeRef.current = onResize;
     hostSelectorRef.current = hostSelector;
-  }, [scale, minScale, maxScale, onResize, hostSelector]);
+    objectIdRef.current = objectId ?? hostSelector;
+  }, [scale, minScale, maxScale, onResize, hostSelector, objectId]);
 
   useEffect(() => {
     const el = handleRef.current;
@@ -101,6 +106,7 @@ export function ObjectResizeHandle({
       if (!delta) return;
       const next = moveObjectScaleResize(gesture, {
         pointerId: event.pointerId,
+        objectId: objectIdRef.current,
         deltaX: delta.deltaX,
         deltaY: delta.deltaY,
       });
@@ -115,6 +121,7 @@ export function ObjectResizeHandle({
       const nextScale = finishObjectScaleResize(gesture, {
         type: event.type,
         pointerId: event.pointerId,
+        objectId: objectIdRef.current,
         deltaX: delta?.deltaX ?? 0,
         deltaY: delta?.deltaY ?? 0,
       });
@@ -164,6 +171,7 @@ export function ObjectResizeHandle({
 
       gesture = beginObjectScaleResize({
         pointerId: event.pointerId,
+        objectId: objectIdRef.current,
         clientX: event.clientX,
         clientY: event.clientY,
         scale: scaleRef.current,
@@ -196,7 +204,16 @@ export function ObjectResizeHandle({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", endGesture);
       window.removeEventListener("pointercancel", endGesture);
-      if (gesture) setCreateUiBlocksPan(false);
+      if (gesture) {
+        setCreateUiBlocksPan(false);
+        try {
+          if (el.hasPointerCapture(gesture.pointerId)) {
+            el.releasePointerCapture(gesture.pointerId);
+          }
+        } catch {
+          // element already gone
+        }
+      }
     };
   }, []);
 
@@ -205,7 +222,8 @@ export function ObjectResizeHandle({
       ref={handleRef}
       type="button"
       aria-label={ariaLabel}
-      {...{ [dataAttr]: "" }}
+      data-4663-resize-object={objectId ?? hostSelector}
+      {...{ [dataAttr]: objectId ?? "" }}
       className={`absolute z-[2] h-7 w-7 touch-none cursor-nwse-resize ${positionClassName}`}
     >
       <span
