@@ -33,9 +33,6 @@ export async function requestTokenPreview(
   if (classified.kind === "url") {
     return { ok: false, error: "url" };
   }
-  if (classified.kind === "solana") {
-    return { ok: false, error: "solana_not_enabled" };
-  }
 
   try {
     const response = await fetch(TOKEN_PREVIEW_API_PATH, {

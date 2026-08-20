@@ -121,7 +121,7 @@ export function CanvasTokenComposer({
         spellCheck={false}
         autoCapitalize="off"
         autoCorrect="off"
-        placeholder="0x…"
+        placeholder="0x… or Solana mint"
         disabled={!canPlace || loading}
         className={`mt-1.5 w-full border border-neutral-300 bg-white/95 px-2 py-1.5 font-mono ${MOBILE_SAFE_COMPOSER_INPUT_CLASS} text-neutral-900 outline-none focus-visible:border-neutral-500`}
         data-4663-canvas-token-input

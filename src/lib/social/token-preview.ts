@@ -29,7 +29,7 @@ export function tokenPreviewErrorMessage(
     case "not_a_contract":
       return "That address is not a token contract.";
     case "solana_not_enabled":
-      return "Solana tokens are not enabled yet.";
+      return "Solana token lookup is unavailable.";
     case "url":
       return "Use LINK for URLs.";
     case "timeout":

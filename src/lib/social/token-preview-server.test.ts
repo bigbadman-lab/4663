@@ -30,6 +30,15 @@ const PREVIEW = {
   explorerUrl: `https://robinhoodchain.blockscout.com/token/${ADDR}`,
   sourceLabel: "ROBINHOOD",
 };
+const SOLANA_PREVIEW = {
+  chain: "solana" as const,
+  address: SOLANA,
+  name: "Wrapped SOL",
+  symbol: "SOL",
+  decimals: 9,
+  explorerUrl: `https://explorer.solana.com/address/${SOLANA}`,
+  sourceLabel: "SOLANA",
+};
 
 describe("previewCanvasToken", () => {
   it("returns a Robinhood snapshot on success", async () => {
@@ -58,10 +67,15 @@ describe("previewCanvasToken", () => {
     if (!tx.ok) assert.equal(tx.error, "invalid_address");
   });
 
-  it("Solana candidates are not enabled", async () => {
-    const result = await previewCanvasToken(SOLANA);
-    assert.equal(result.ok, false);
-    if (!result.ok) assert.equal(result.error, "solana_not_enabled");
+  it("routes Solana candidates to the Solana resolver", async () => {
+    const result = await previewCanvasToken(SOLANA, {
+      resolveSolana: async () => ({ ok: true, preview: SOLANA_PREVIEW }),
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.preview.chain, "solana");
+    assert.equal(result.preview.address, SOLANA);
+    assert.equal(result.preview.sourceLabel, "SOLANA");
   });
 
   it("URLs are rejected as url", async () => {
@@ -78,9 +92,14 @@ describe("TOKEN preview API route", () => {
     assert.ok(route.includes('error: "invalid_json"'));
     assert.ok(route.includes("Cache-Control"));
     assert.equal(route.includes("ALCHEMY_RPC_URL"), false);
+    assert.equal(route.includes("SOLANA_RPC_URL"), false);
     assert.equal(route.includes("console."), false);
     const client = readSrc("src/lib/social/token-preview-client.ts");
     assert.ok(client.includes("TOKEN_PREVIEW_API_PATH"));
+    assert.equal(client.includes('error: "solana_not_enabled"'), false);
     assert.equal(TOKEN_PREVIEW_API_PATH, "/api/social/token-preview");
+    const server = readSrc("src/lib/social/token-preview-server.ts");
+    assert.ok(server.includes("resolveSolanaToken"));
+    assert.equal(server.includes("solana_not_enabled"), false);
   });
 });

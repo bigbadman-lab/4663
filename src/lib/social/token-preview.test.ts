@@ -7,10 +7,10 @@ import { describe, it } from "node:test";
 import { tokenPreviewErrorMessage } from "@/lib/social/token-preview";
 
 describe("TOKEN preview error copy", () => {
-  it("Solana is not-enabled, not junk invalid", () => {
+  it("keeps legacy solana_not_enabled copy for older clients", () => {
     assert.equal(
       tokenPreviewErrorMessage("solana_not_enabled"),
-      "Solana tokens are not enabled yet.",
+      "Solana token lookup is unavailable.",
     );
   });
 
